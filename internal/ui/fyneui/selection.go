@@ -237,7 +237,7 @@ type selLine struct {
 // copying (a version, a date, a name) still selects with a drag or a double click, and a click on it
 // picks the row at once, as one beside it does. Fyne hands a click to the line under the pointer,
 // never to the row beneath it, and a double-tappable widget's Tapped comes only after the system's
-// double-click interval (the owner, 2026-10-26: the Revisions tab's rows could hardly be clicked).
+// double-click interval (the owner: the Revisions tab's rows could hardly be clicked).
 func (s *selLine) passClick(tap func()) { s.tap = tap }
 
 // MouseDown implements desktop.Mouseable: a click takes focus and drops a selection.

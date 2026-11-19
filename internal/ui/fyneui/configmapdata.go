@@ -22,28 +22,27 @@ import (
 	"github.com/guided-traffic/cogpit/internal/ui/fyneui/yamlview"
 )
 
-// A Config Map's Data in the drawer (the owner's F3, decided 2026-10-15; decisions D-55): each key
-// on a line of its own and its value below it in an editor at the details' full width, as Lens's
-// ConfigMap drawer shows them (captured 2026-10-15: line numbers, colours by the value's type,
-// about five lines high, a resize handle), in Cogpit's own drawing: yamlview with plain scalars
-// coloured as strings, as tall as the value's lines between cmMinLines and cmMaxLines, and a grip
-// at its bottom right that drags it taller or shorter. Save at the end of the data writes every
-// changed value at once: a review of the diff and the server's dry run (configMap.reviewData),
-// then configMap.saveData with the version the values are based on as precondition, so a Config
-// Map that changed meanwhile is shown as a conflict and never overwritten unasked. The review hands
-// the engine each edited key's value at that version (from): a Config Map that changed since, but
-// not in the keys the user edited, is reviewed against its newer version instead (the diff and the
-// dry run again, shown in the review), and Save writes with that version (the owner's answer of
-// 2026-10-15). The values come whole from configMap.readData (the drawer model's are cut); until
-// then, and where nothing can be saved (the demo cluster, no update permission, an immutable Config
-// Map, a Helm release record), the editors are read-only and the line under them says why. Edited
-// values go to configMap.keepEdits a moment after the typing stops, and at once when the drawer
-// moves away: the engine keeps them for the drawer's next visit, when configMap.readData hands
-// them back, and as a draft on disk that a quit or a crash leaves (the owner's answer of
-// 2026-10-15; engine/drafts_drawer.go). Restoring that draft from the drafts banner opens the
-// drawer with them. Keys are added and removed here too (the owner's audit decision of 2026-10-16,
-// datakeys.go): Add Key and each key's remove button, saved with the values by the same Save, the
-// review naming the keys and serving as the confirmation of a removal.
+// A Config Map's Data in the drawer (the owner's F3, decided; decisions D-55): each key on a line
+// of its own and its value below it in an editor at the details' full width, as Lens's ConfigMap
+// drawer shows them (captured: line numbers, colours by the value's type, about five lines high, a
+// resize handle), in Cogpit's own drawing: yamlview with plain scalars coloured as strings, as tall
+// as the value's lines between cmMinLines and cmMaxLines, and a grip at its bottom right that drags
+// it taller or shorter. Save at the end of the data writes every changed value at once: a review of
+// the diff and the server's dry run (configMap.reviewData), then configMap.saveData with the
+// version the values are based on as precondition, so a Config Map that changed meanwhile is shown
+// as a conflict and never overwritten unasked. The review hands the engine each edited key's value
+// at that version (from): a Config Map that changed since, but not in the keys the user edited, is
+// reviewed against its newer version instead (the diff and the dry run again, shown in the review),
+// and Save writes with that version (the owner's answer). The values come whole from
+// configMap.readData (the drawer model's are cut); until then, and where nothing can be saved (the
+// demo cluster, no update permission, an immutable Config Map, a Helm release record), the editors
+// are read-only and the line under them says why. Edited values go to configMap.keepEdits a moment
+// after the typing stops, and at once when the drawer moves away: the engine keeps them for the
+// drawer's next visit, when configMap.readData hands them back, and as a draft on disk that a quit
+// or a crash leaves (the owner's answer; engine/drafts_drawer.go). Restoring that draft from the
+// drafts banner opens the drawer with them. Keys are added and removed here too (the owner's audit
+// decision, datakeys.go): Add Key and each key's remove button, saved with the values by the same
+// Save, the review naming the keys and serving as the confirmation of a removal.
 
 func init() { drawerSections["configmaps\x00Data"] = configMapDataSection }
 

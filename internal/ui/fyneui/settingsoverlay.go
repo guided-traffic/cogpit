@@ -11,12 +11,12 @@ import (
 )
 
 // settingsOverlay shows a settings page as a card over the whole window, Cogpit dimmed behind it
-// (the owner's VW6 of 2026-10-23: "Cluster-Settings selbst sollte eine Maske bekommen, die über
-// Cogpit drüber liegt", Preferences the same; D-118). It is an overlay of the window's canvas, as
-// the command palette's dismissOverlay is, because Fyne gives an overlay two things a layer of the
-// window's content does not have: only the top overlay receives the pointer, so nothing behind the
-// shade is clicked, scrolled or hovered; and every overlay has a focus manager of its own, so Tab
-// goes round the card's fields and never on to a field behind it.
+// (the owner's VW6: "Cluster-Settings selbst sollte eine Maske bekommen, die über Cogpit drüber
+// liegt", Preferences the same; D-118). It is an overlay of the window's canvas, as the command
+// palette's dismissOverlay is, because Fyne gives an overlay two things a layer of the window's
+// content does not have: only the top overlay receives the pointer, so nothing behind the shade is
+// clicked, scrolled or hovered; and every overlay has a focus manager of its own, so Tab goes round
+// the card's fields and never on to a field behind it.
 //
 // The window's tooltip layer and toasts lie in its content, under every overlay: while the card
 // shows they are lifted into it, above the card (lift), so that a button's tooltip and a toast show

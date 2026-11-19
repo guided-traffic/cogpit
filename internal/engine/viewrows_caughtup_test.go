@@ -9,7 +9,7 @@ import (
 // TestCaughtUpFollowsTheColumns: a snapshot has caught up with the UI state only once it shows the
 // view's columns as the state arranges and hides them, not only its filters and sort; view.rows
 // waits for it (a snapshot taken before ui.setColumnOrder or ui.setColumns came back with the
-// kind's columns: CI, 2026-10-13). A column the cluster's settings hide counts as hidden.
+// kind's columns: CI). A column the cluster's settings hide counts as hidden.
 func TestCaughtUpFollowsTheColumns(t *testing.T) {
 	cols := []model.Column{{ID: "name"}, {ID: "namespace"}, {ID: "node"}, {ID: "cpu"}}
 	u := UIState{View: "pods"}

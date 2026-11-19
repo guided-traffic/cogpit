@@ -80,7 +80,7 @@ func TestCuratedKindsFromDiscovery(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if !testkit.WaitFor(ctx, func() bool { return hasKind(s, ks) }) {
-		// What the custom kinds' loop last saw, for a failure under load (CI, 2026-10-17).
+		// What the custom kinds' loop last saw, for a failure under load.
 		set := b.custom.set.Load()
 		h, errMsg := b.custom.current()
 		t.Fatalf("timed out waiting for the discovered kinds: discovery asked %d times; the set: synced %v, err %q, "+

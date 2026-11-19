@@ -58,7 +58,7 @@ type pendingDrainsParams struct {
 
 // drainDialog are the Drain dialog's hints, the tooltips of the "?" after each option's name: the
 // schema's descriptions said to a person, without the kubectl flags and defaults agents need
-// (the owner's GW6, 2026-10-20, D-104).
+// (the owner's GW6, D-104).
 var drainDialog = map[string]engine.DialogField{
 	"ignoreDaemonSets":   {Hint: "Leave DaemonSet pods running: their DaemonSet would start them again at once. Off: the drain stops if the node runs any."},
 	"deleteEmptyDirData": {Hint: "Also evict pods with emptyDir volumes; their emptyDir data is lost. Off: the drain stops if the node runs any."},
@@ -355,8 +355,7 @@ func runDrain(ctx context.Context, s *engine.Session, p drainParams) (any, error
 // drainLeft says what a drain that did not finish left of the node, from its last step: the node
 // as it was when not even the cordon went through; cordoned without an evicted pod when the drain
 // refused the node's pods before evicting any (local storage, pods no controller manages, on a
-// real cluster 2026-10-16) or every eviction waited; cordoned and partly drained, with the count,
-// otherwise.
+// real cluster) or every eviction waited; cordoned and partly drained, with the count, otherwise.
 func drainLeft(cordoned bool, last cluster.DrainProgress) string {
 	switch {
 	case !cordoned:

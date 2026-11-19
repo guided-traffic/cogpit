@@ -17,11 +17,11 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
-// A credential plugin's standard error after a failed login (D-66; the owner's answer of
-// 2026-10-16: "only on failure, filtered"). client-go runs the plugin with the process's standard
-// error and offers no option to change it: newAuthenticator sets the Authenticator's unexported
-// stderr field to os.Stderr (k8s.io/client-go v0.37.1, plugin/pkg/client/auth/exec/exec.go:214),
-// and refreshCredsLocked hands it to the command (exec.go:460, cmd.Stderr = a.stderr) while the
+// A credential plugin's standard error after a failed login (D-66; the owner's answer: "only on
+// failure, filtered"). client-go runs the plugin with the process's standard error and offers no
+// option to change it: newAuthenticator sets the Authenticator's unexported stderr field to
+// os.Stderr (k8s.io/client-go v0.37.1, plugin/pkg/client/auth/exec/exec.go:214), and
+// refreshCredsLocked hands it to the command (exec.go:460, cmd.Stderr = a.stderr) while the
 // plugin's standard output, the ExecCredential with the token, goes to a buffer of its own
 // (exec.go:461) that Cogpit never sees.
 //

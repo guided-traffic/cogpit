@@ -6,10 +6,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// TestWelcomeNoteNamesItsLevel (the owner's RW4 of 2026-10-23, his pick C): the welcome page's
-// message about the connection stands in a banner of its own, between the tagline and the clusters:
-// a title naming what happened in its level's colour, the level's icon, a plate tinted and outlined
-// in that colour, the message under the title; nothing when there is nothing to say.
+// TestWelcomeNoteNamesItsLevel (the owner's RW4, his pick C): the welcome page's message about the
+// connection stands in a banner of its own, between the tagline and the clusters: a title naming
+// what happened in its level's colour, the level's icon, a plate tinted and outlined in that
+// colour, the message under the title; nothing when there is nothing to say.
 func TestWelcomeNoteNamesItsLevel(t *testing.T) {
 	s := welcomeEngine(t)
 	sh, _, q := newEngineShell(t, s, Options{Theme: ThemeDark})

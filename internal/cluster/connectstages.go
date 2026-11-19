@@ -22,7 +22,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
 )
 
-// A connect's stages (D-114, the owner's AW17 of 2026-10-22, verbatim: "Zu einer Beschreibung des
+// A connect's stages (D-114, the owner's AW17, verbatim: "Zu einer Beschreibung des
 // Verbindungsaufbaus gehört immer: kube-config valid und vollständig? das Auflösen der API per DNS
 // (geklappt? Ergebnis?) einen TCP Verbindungsaufbau (IP + Port erreichbar?) dann erst der übliche
 // Verbindungsaufbau zu einem Kube-API Server."). Connect reports them once, at its end, through

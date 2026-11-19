@@ -9,23 +9,22 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// A tab comes back as it was left (the owner, 2026-10-23: "Tabs speichern beim Umschalten zwischen
-// Tabs immer ihren letzten Zustand. Wenn ich von einem Cluster wieder auf einen anderen Cluster
-// wechsel, und zurück komme in meinem floating tab, dann ist er noch exakt so wie als ich ihn
-// verlassen habe. Gleich Scroll-position, gleiche filter."), and so does a place of its history
-// that back or forward brings back (the owner's finding of 2026-10-25: "beim zurück navigieren
-// möchte ich auch, dass der Drawer, Scrollpunkt und Filter wiederhergestellt werden"). The engine
-// keeps a tab's filters, search, sort, status filter, selection and drawer, and each place of its
-// history with its own (engine/tabs.go); the window keeps where each place scrolled its list,
-// which the window alone knows, by the place's name (engine.ViewTab.Place).
+// A tab comes back as it was left (the owner: "Tabs speichern beim Umschalten zwischen Tabs immer
+// ihren letzten Zustand. Wenn ich von einem Cluster wieder auf einen anderen Cluster wechsel, und
+// zurück komme in meinem floating tab, dann ist er noch exakt so wie als ich ihn verlassen habe.
+// Gleich Scroll-position, gleiche filter."), and so does a place of its history that back or
+// forward brings back (the owner's finding: "beim zurück navigieren möchte ich auch, dass der
+// Drawer, Scrollpunkt und Filter wiederhergestellt werden"). The engine keeps a tab's filters,
+// search, sort, status filter, selection and drawer, and each place of its history with its own
+// (engine/tabs.go); the window keeps where each place scrolled its list, which the window alone
+// knows, by the place's name (engine.ViewTab.Place).
 //
 // The lead's decisions (D-74, open to revision):
 //   - per place: leaving a place (another tab, another cluster's, the welcome page, another view
 //     or a step within the view in the same tab) keeps its list's offset with its cluster and
 //     view; showing that place again (the tab shown again, back or forward) scrolls back there. A
-//     view the tab opens anew is a new place and starts at its top (the owner's VW15 of
-//     2026-10-25); a place no tab holds any more, in its history or shown, is forgotten
-//     (forgetGone);
+//     view the tab opens anew is a new place and starts at its top (the owner's VW15); a place no
+//     tab holds any more, in its history or shown, is forgotten (forgetGone);
 //   - the drawer of a place brought back does not scroll its row into view: the place's offset is
 //     where the user left the list with that drawer open;
 //   - the rows of a place shown again may come after it (a cluster shown again from its cache, a

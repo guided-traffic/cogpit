@@ -15,14 +15,13 @@ import (
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
 )
 
-// Who the connection is logged in as (D-68, the owner, 2026-10-16): what `kubectl auth whoami`
-// asks, without a kubectl process. One SelfSubjectReview (create selfsubjectreviews in
-// authentication.k8s.io, which stores nothing; the API server answers with the user it
-// authenticated the request as): authentication.k8s.io/v1 (GA since Kubernetes 1.28), and on an
-// API server that does not serve it, v1beta1 (1.27). The v1alpha1 of 1.26 sits behind a feature
-// gate that is off by default and is not asked. Every authenticated user may create one: the
-// default RBAC's system:basic-user role, bound to system:authenticated, allows it (verified in
-// k8s.io/kubernetes v1.37.1's bootstrap policy).
+// Who the connection is logged in as (D-68, the owner): what `kubectl auth whoami` asks, without a
+// kubectl process. One SelfSubjectReview (create selfsubjectreviews in authentication.k8s.io, which
+// stores nothing; the API server answers with the user it authenticated the request as):
+// authentication.k8s.io/v1 (GA since Kubernetes 1.28), and on an API server that does not serve it,
+// v1beta1 (1.27). The v1alpha1 of 1.26 sits behind a feature gate that is off by default and is not
+// asked. Every authenticated user may create one: the default RBAC's system:basic-user role, bound
+// to system:authenticated, allows it (verified in k8s.io/kubernetes v1.37.1's bootstrap policy).
 //
 // Only the username and the groups are kept: the review's UID and extra fields (which may carry a
 // token's credential id or an identity provider's claims) are dropped here and never reach the

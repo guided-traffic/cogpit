@@ -13,16 +13,14 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// A line of text in pieces, some of them links (sourceLine). The drawer's and the Overview's caption
-// under their charts is one, in plain text ("Loading metrics…", "No metrics: …"); since the owner's
-// WF24 of 2026-10-18 (D-88) the providers are named on the source row under it (metricsstatus.go),
-// no longer in a line "Displaying metrics from Prometheus (monitoring/prometheus-server) and
-// Kubernetes Metrics Server" with the Prometheus's namespace and service as links (Lens's line,
-// captured; Cogpit's from the night of 2026-10-16/17 to 2026-10-18). Where Prometheus and
-// Alertmanager run is on their sections of Cluster Settings now (D-87), as a status line whose
-// namespace and service are links (serviceSegments): a link closes the settings page and opens the
-// Namespace or the Service through ui.navigate, as every link of a drawer does (followLink), in that
-// cluster. The line is cut to its width with an ellipsis, as a truncating textLine is.
+// A line of text in pieces, some of them links (sourceLine). The drawer's and the Overview's
+// caption under their charts is one, in plain text ("Loading metrics…", "No metrics: …"); since the
+// owner's WF24 (D-88) the providers are named on the source row under it (metricsstatus.go). Where
+// Prometheus and Alertmanager run is on their sections of Cluster Settings now (D-87), as a status
+// line whose namespace and service are links (serviceSegments): a link closes the settings page and
+// opens the Namespace or the Service through ui.navigate, as every link of a drawer does
+// (followLink), in that cluster. The line is cut to its width with an ellipsis, as a truncating
+// textLine is.
 
 // sourceLine is one line of text in pieces, some of them links.
 type sourceLine struct {

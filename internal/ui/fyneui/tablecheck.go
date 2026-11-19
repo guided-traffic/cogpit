@@ -17,22 +17,22 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Row checkboxes and actions on a selection (ui-parity › Tables, G5, G7, G9). Captured (2026-10-11):
-// a checkbox column at the left of every list, the header's checkbox selects every row. The
-// selection is the engine's (UIState.Selected, set with ui.select), so a checkbox, a click and an
-// agent change the same selection, and each tab keeps its own.
+// Row checkboxes and actions on a selection (ui-parity › Tables, G5, G7, G9). Captured: a checkbox
+// column at the left of every list, the header's checkbox selects every row. The selection is the
+// engine's (UIState.Selected, set with ui.select), so a checkbox, a click and an agent change the
+// same selection, and each tab keeps its own.
 //
-// The owner's decision (A73, 2026-10-14 evening; built 2026-10-15): a plain click on a row opens its
-// drawer and keeps the checked rows checked (ui.select's mode open, openDetails); the row is
-// highlighted as the drawer's while its checkbox stays as it was. So are ↵ and Space on a row, a
-// click on a link to the row's own object and the row menu's Show Details.
+// The owner's decision (A73): a plain click on a row opens its drawer and keeps the checked
+// rows checked (ui.select's mode open, openDetails); the row is highlighted as the drawer's while
+// its checkbox stays as it was. So are ↵ and Space on a row, a click on a link to the row's own
+// object and the row menu's Show Details.
 //
-// Cogpit's defaults (inferred, not the owner's decision, 2026-10-13):
+// Cogpit's defaults (inferred, not the owner's decision):
 //   - a checkbox toggles its row without opening the drawer;
 //   - ⌘-click (Ctrl-click off macOS) toggles a row, ⇧-click (on a row or a checkbox) adds the rows
 //     from the last row clicked or checked, neither opens the drawer; ⌘ and ⇧ are the click's own,
-//     from its mouse event, never the driver's memory of the last key (the lead's choice of
-//     2026-10-19, architecture.md §4.4);
+//     from its mouse event, never the driver's memory of the last key (the lead's choice,
+//     architecture.md §4.4);
 //   - the header's checkbox selects the rows the view shows (the namespace filter and the search
 //     applied), or clears the selection when every one of them is selected already; it shows a
 //     dash while some are;
@@ -40,9 +40,9 @@ import (
 //     and the row menu of a selected row acts on the selection (Delete, Clear Selection); Delete is
 //     the only action on a selection, the others stay on one object.
 //
-// The owner's decision (N112, 2026-10-16 evening): while exactly one row is checked, that row's
-// menu is the object's full menu with Clear Selection after a separator; from two checked rows the
-// selection's menu as above.
+// The owner's decision (N112): while exactly one row is checked, that row's menu is the object's
+// full menu with Clear Selection after a separator; from two checked rows the selection's menu as
+// above.
 
 // checkColumn is the table column of the row checkboxes; the view's visible columns follow it from
 // firstDataColumn, and the ⋮ ends the row (tableView.menuColumn).
@@ -59,7 +59,7 @@ const (
 )
 
 // minSelectionBar is the selection size from which the header shows the selection's actions:
-// one checked row (owner, 2026-10-15; was 2).
+// one checked row (owner).
 const minSelectionBar = 1
 
 // minSelectionMenu is the selection size from which a checked row's menu acts on the selection:
@@ -82,8 +82,7 @@ type selectModeParams struct {
 // the window loses the focus, and GLFW drops the release of a key it never saw pressed, so a ⌘ that
 // went down outside the window can stay "held" until the next key event. A click takes its keys
 // from its own mouse event instead (tableCell.MouseDown, clickModifiers): a click once toggled every
-// row it hit as if ⌘ were held (G16, 2026-10-19). The test driver has no modifiers, so tests replace
-// it.
+// row it hit as if ⌘ were held (G16). The test driver has no modifiers, so tests replace it.
 var keyEventModifiers = func() fyne.KeyModifier {
 	if d, ok := fyne.CurrentApp().Driver().(desktop.Driver); ok {
 		return d.CurrentKeyModifiers()
@@ -268,7 +267,7 @@ func (tv *tableView) inSelection(row int) bool {
 }
 
 // loneChecked reports whether ref is the one checked object: its row menu is the object's and
-// ends with Clear Selection (the owner, 2026-10-16 evening, N112).
+// ends with Clear Selection (the owner, N112).
 func (tv *tableView) loneChecked(ref model.ObjectRef) bool {
 	return len(tv.selected) == 1 && tv.check.has(ref)
 }
@@ -363,10 +362,10 @@ func (tv *tableView) runOnSelection(id string, refs []model.ObjectRef) {
 }
 
 // selectionBar is the header's part for a selection: "3 selected", Delete and a button that clears
-// the selection (Cogpit's placement, inferred). It shows from one checked row (owner, 2026-10-15)
-// and then takes the place of the view's item count and CSV button, with Delete and Clear as icon
-// buttons with tooltips, so that it fits beside the filters of a view narrowed by an open drawer
-// (the lead's choice for the owner to confirm).
+// the selection (Cogpit's placement, inferred). It shows from one checked row (owner) and then
+// takes the place of the view's item count and CSV button, with Delete and Clear as icon buttons
+// with tooltips, so that it fits beside the filters of a view narrowed by an open drawer (the
+// lead's choice for the owner to confirm).
 type selectionBar struct {
 	tv    *tableView
 	count *textLine
@@ -379,10 +378,10 @@ type selectionBar struct {
 	asked string
 	// delID is the command Delete runs on the selection (selectionDelete); "" hides Delete.
 	delID string
-	// fin is Remove Finalizers on the selection, after Delete (the owner's pick of 2026-11-04),
-	// shown while the engine says it applies: a selected object is being deleted and holds
-	// finalizers. finKey names the selected rows being deleted it was last asked for; finBusy is
-	// set while it is asked, finAgain when the rows changed meanwhile.
+	// fin is Remove Finalizers on the selection, after Delete (the owner's pick), shown while the
+	// engine says it applies: a selected object is being deleted and holds finalizers. finKey names
+	// the selected rows being deleted it was last asked for; finBusy is set while it is asked,
+	// finAgain when the rows changed meanwhile.
 	fin               *tipButton
 	finPlate          *dangerPlate
 	finKey            string
@@ -535,8 +534,8 @@ func (b *selectionBar) update(n int) {
 // followConnection greys Delete while the shown cluster's connection is not connected or its login
 // lapsed: the engine refuses every write then (D-58, D-69), so the button says so rather than a
 // refusal after the click. Its tooltip then names the engine's reason as the row menus do, "Delete
-// — connection interrupted" (the owner's audit decision of 2026-10-16), and says what Delete does
-// again once the connection is back.
+// — connection interrupted" (the owner's audit decision), and says what Delete does again once the
+// connection is back.
 func (b *selectionBar) followConnection() {
 	ui := b.tv.sh.ui
 	entry, _ := ui.ConnectionOf(ui.Context)

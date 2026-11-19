@@ -15,9 +15,9 @@ import (
 )
 
 // A click takes ⌘ and ⇧ from its own mouse event, never from the desktop driver's memory of the
-// last key event, which stays "held" after a ⌘ that went down outside the window (G16, the owner,
-// 2026-10-19: every click on a pod only toggled its checkbox until he pressed ⌘ once). heldKeys
-// stands for that memory, clickWith for a click as Fyne's GLFW driver delivers it.
+// last key event, which stays "held" after a ⌘ that went down outside the window (G16, the owner:
+// every click on a pod only toggled its checkbox until he pressed ⌘ once). heldKeys stands for that
+// memory, clickWith for a click as Fyne's GLFW driver delivers it.
 
 // TestClickTakesItsOwnKeys: with ⌘ or ⇧ stale in the driver, a click without them opens its row's
 // drawer and checks nothing; with ⌘ or ⇧ in the click and none in the driver, the click toggles its
@@ -239,11 +239,11 @@ func driverTap(t *testing.T, w fyne.Window, abs fyne.Position) fyne.CanvasObject
 	return target
 }
 
-// TestListClicksAreNotHeld (the owner's alpha walk of 2026-10-22, AW12: a click below the rows
-// closed the drawer after about a second, × and Escape at once): every click on a list reaches an
-// object that takes its tap at once. A row's cell opens the drawer, a header's cell sorts, and below
-// the rows the table closes the drawer; the table was a fyne.DoubleTappable for the double click
-// on a header separator, so Fyne's driver held every tap on it for the double-click interval.
+// TestListClicksAreNotHeld (the owner's alpha walk, AW12: a click below the rows closed the drawer
+// after about a second, × and Escape at once): every click on a list reaches an object that takes
+// its tap at once. A row's cell opens the drawer, a header's cell sorts, and below the rows the
+// table closes the drawer; the table was a fyne.DoubleTappable for the double click on a header
+// separator, so Fyne's driver held every tap on it for the double-click interval.
 func TestListClicksAreNotHeld(t *testing.T) {
 	f := connectedFake(t, 6)
 	sh, w, q := settledShell(t, f, kindPods)

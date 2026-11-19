@@ -184,7 +184,7 @@ func TestBudgetAccessReviews(t *testing.T) {
 		for range 5 {
 			settledKinds(ctx, t, s, "deployments")
 		}
-		// Discovery from the connect may still arrive (seen in CI, 2026-10-14); it is not asking.
+		// Discovery from the connect may still arrive (seen in CI); it is not asking.
 		if after := conn.Counter().Snapshot(); len(withoutDiscovery(diff(settled, after))) > 0 {
 			t.Errorf("asking again cost %d requests: %v", after.Total-settled.Total, diff(settled, after))
 		}

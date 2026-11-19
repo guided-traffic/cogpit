@@ -48,9 +48,9 @@ func pathSession(t *testing.T, path func(*Session, string) error, failAlpha bool
 }
 
 // A connect that goes on in the background because another cluster was shown while it waited is
-// no failure on any path (the owner's AW16 of 2026-10-22): Connect says ErrConnectInBackground, the
-// tab and the navigator answer the state without an error, as cluster.connect answers connecting
-// (D-97); the window shows the cluster chosen last.
+// no failure on any path (the owner's AW16): Connect says ErrConnectInBackground, the tab and the
+// navigator answer the state without an error, as cluster.connect answers connecting (D-97); the
+// window shows the cluster chosen last.
 func TestABackgroundConnectIsNoFailureOnEveryPath(t *testing.T) {
 	for _, p := range connectPaths {
 		t.Run(p.name, func(t *testing.T) {
@@ -218,10 +218,10 @@ func TestAConnectReplacedBeforeItBeganSaysWhy(t *testing.T) {
 }
 
 // A connect of the cluster the window's connect waits for already joins that wait (the lead's
-// finding of 2026-10-22: it ended the first connect's wait with ErrConnectInBackground, and the
-// window toasted "another cluster was shown" although nothing else was shown): the first connect
-// goes on waiting, and both answer with its end: connected, failed, in the background once another
-// cluster is shown after all, or cancelled; one login, no toast.
+// finding: it ended the first connect's wait with ErrConnectInBackground, and the window toasted
+// "another cluster was shown" although nothing else was shown): the first connect goes on waiting,
+// and both answer with its end: connected, failed, in the background once another cluster is shown
+// after all, or cancelled; one login, no toast.
 func TestAConnectOfTheSameClusterJoinsTheWait(t *testing.T) {
 	for _, c := range []struct {
 		name  string

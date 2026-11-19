@@ -583,10 +583,10 @@ func (v *View) Dragged(ev *fyne.DragEvent) {
 
 // DragEnd implements fyne.Draggable. The view takes the focus back, so that a selection or a scroll
 // bar dragged out of it keeps the keyboard wherever the button comes up, as a macOS text view does
-// (the owner's WF8, 2026-10-17): Fyne 2.8.2's desktop driver runs its "a click outside the focused
-// widget unfocuses it" rule on the release as on the press (glfw window.go, processMouseClicked), so
-// a release over another widget unfocused the editor, and Backspace then deleted nothing. A press
-// in the view always focuses it (MouseDown), so this only undoes the release's unfocus.
+// (the owner's WF8): Fyne 2.8.2's desktop driver runs its "a click outside the focused widget
+// unfocuses it" rule on the release as on the press (glfw window.go, processMouseClicked), so a
+// release over another widget unfocused the editor, and Backspace then deleted nothing. A press in
+// the view always focuses it (MouseDown), so this only undoes the release's unfocus.
 func (v *View) DragEnd() {
 	v.drag = dragNone
 	v.requestFocus()

@@ -78,11 +78,11 @@ func TestPagesFollowARefusal(t *testing.T) {
 }
 
 // A page opened while the access reviews are still out holds nothing of its kinds, as the Flux and
-// Argo CD dashboards do (A98, owner 2026-10-14 evening; before, it read them in all namespaces
-// first and was refused). Once the reviews say the user may not list pods there, the Workloads
-// Overview and the cluster Overview read pods namespace by namespace, as the Pods view and the
-// drawer do: no cluster-wide pods handle at any time, and the Workloads Overview counts the
-// accessible namespaces' pods without an error.
+// Argo CD dashboards do (A98, owner; before, it read them in all namespaces first and was refused).
+// Once the reviews say the user may not list pods there, the Workloads Overview and the cluster
+// Overview read pods namespace by namespace, as the Pods view and the drawer do: no cluster-wide
+// pods handle at any time, and the Workloads Overview counts the accessible namespaces' pods
+// without an error.
 func TestPagesFollowTheAccessReviews(t *testing.T) {
 	for _, page := range []string{WorkloadsOverview, ClusterOverview} {
 		t.Run(page, func(t *testing.T) {

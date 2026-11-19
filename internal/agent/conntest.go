@@ -21,20 +21,20 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The connection test (the owner's requirement of 2026-10-14 late evening): each layer on its own,
-// in order, never with cluster data. DNS (the owner's VW8, 2026-10-23): the host name resolves, its
-// addresses listed; an IP address or localhost passes at once. TCP: one of those addresses answers
-// on the port. HTTP: an HTTP or HTTPS answer from the API (any status passes, 401 too: the server is
-// there), and over HTTPS the certificate Go verified, its chain and host name, named with its issuer
-// and end. Auth: the models list asked without the key, so the step says whether the endpoint
-// wants one, then with the key where one is given. Models: how many the list holds and whether the
-// chosen model is among them; the list goes to the settings form. Tools: a minimal chat request
-// offering one harmless tool (get_time) and asking for it returns a tool call. (HTTP's certificate,
-// Auth's two questions and Models: the owner's request of 2026-10-25.) A failed layer leaves the
-// later ones not reached, and carries its last request and answer when it sent one (exchange.go).
-// Each layer has its own bound. With a proxy configured for the endpoint
-// (Go's default transport: HTTPS_PROXY, HTTP_PROXY, NO_PROXY), DNS and TCP check the proxy, where
-// the chat's requests go; the proxy resolves the endpoint's name.
+// The connection test (the owner's requirement): each layer on its own, in order, never with
+// cluster data. DNS (the owner's VW8): the host name resolves, its addresses listed; an IP address
+// or localhost passes at once. TCP: one of those addresses answers on the port. HTTP: an HTTP or
+// HTTPS answer from the API (any status passes, 401 too: the server is there), and over HTTPS the
+// certificate Go verified, its chain and host name, named with its issuer and end. Auth: the models
+// list asked without the key, so the step says whether the endpoint wants one, then with the key
+// where one is given. Models: how many the list holds and whether the chosen model is among them;
+// the list goes to the settings form. Tools: a minimal chat request offering one harmless tool
+// (get_time) and asking for it returns a tool call. (HTTP's certificate, Auth's two questions and
+// Models: the owner's request.) A failed layer leaves the later ones not reached, and carries its
+// last request and answer when it sent one (exchange.go). Each layer has its own bound. With a
+// proxy configured for the endpoint (Go's default transport: HTTPS_PROXY, HTTP_PROXY, NO_PROXY),
+// DNS and TCP check the proxy, where the chat's requests go; the proxy resolves the endpoint's
+// name.
 
 // Bounds of the test's layers. A local model can take half a minute and more to load for the first
 // request, so the tool layer waits longest.
@@ -137,7 +137,7 @@ func (a *Agent) TestConnection(ctx context.Context, c engine.ChatConnection, api
 		case engine.ChatTestHTTP:
 			warnings := []string{httpWarn}
 			if ep.plainRemote {
-				warnings = append(warnings, engine.ChatPlainHTTPWarning) // the owner's decision of 2026-10-15 (H-95)
+				warnings = append(warnings, engine.ChatPlainHTTPWarning) // the owner's decision (H-95)
 			}
 			steps[i].Warning = strings.TrimSpace(strings.Join(warnings, " "))
 		case engine.ChatTestModels:
@@ -408,11 +408,11 @@ func shortNetError(err error) string {
 
 // The HTTP layer asks the models URL without the key. It names the URL and the address the
 // chat's own client reached, and when the name has several addresses it asks each of them, so that
-// one broken address behind a name shows as what it is (the owner's case of 2026-10-25: three
-// ingress addresses, one whose proxy had no server behind it and answered 503 every time, as Go
-// takes the first address of its fixed order, while curl happened to reach the others). An answer
-// of 5xx at the chat's address fails the layer: the API does not answer there; one at another
-// address passes with a warning. maxAddressProbes bounds how many addresses are asked.
+// one broken address behind a name shows as what it is (the owner's case: three ingress addresses,
+// one whose proxy had no server behind it and answered 503 every time, as Go takes the first
+// address of its fixed order, while curl happened to reach the others). An answer of 5xx at the
+// chat's address fails the layer: the API does not answer there; one at another address passes with
+// a warning. maxAddressProbes bounds how many addresses are asked.
 const maxAddressProbes = 4
 
 // addressAnswer is one address's answer to the models URL.

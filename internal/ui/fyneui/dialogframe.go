@@ -12,7 +12,7 @@ import (
 
 // dialogFrame is a dialog as Fyne's dialog package draws one (a modal pop-up, the title at its top
 // left, the content, the buttons centred under it), built by Cogpit for two things Fyne's cannot do
-// (the owner's gate walk of 2026-10-20, GW2 and GW6; D-104):
+// (the owner's gate walk, GW2 and GW6; D-104):
 //
 //   - A title that names an object in the one form, "Scale Deployment → gate-web", without a wide
 //     gap after the arrow. Fyne's title is one text, shaped as one run: the arrow comes from Fyne's
@@ -27,7 +27,7 @@ import (
 // a framed dialog and a dialog of Fyne's look alike. Escape over it hides it, as every framed
 // dialog's Cancel does: what a dialog answers when it closes without its confirm button (a
 // confirmation's no, a review's nothing saved) its SetOnClosed functions say for every way it
-// closes (escape.go, the owner's AW3 of 2026-10-22).
+// closes (escape.go, the owner's AW3).
 type dialogFrame struct {
 	sh      *shell
 	frame   *fyne.Container // background, content, buttons, title, eyebrow, two rules, footer note, tooltips (dialogFrameLayout)

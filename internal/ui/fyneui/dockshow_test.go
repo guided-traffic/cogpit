@@ -7,10 +7,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// TestEditOnTheShownEditTabOpensTheDock (the owner's alpha walk, 2026-10-22, AW9): Edit on the
-// object whose Edit tab is the dock's active tab, with the dock minimised, opens the dock on that
-// tab. The engine opens it (UIState.ShowDockTab, engine/layout.go) with the active tab unchanged;
-// the window follows the open state alone: the panel with the tab's editor, the strip on it.
+// TestEditOnTheShownEditTabOpensTheDock (the owner's alpha walk, AW9): Edit on the object whose
+// Edit tab is the dock's active tab, with the dock minimised, opens the dock on that tab. The
+// engine opens it (UIState.ShowDockTab, engine/layout.go) with the active tab unchanged; the window
+// follows the open state alone: the panel with the tab's editor, the strip on it.
 func TestEditOnTheShownEditTabOpensTheDock(t *testing.T) {
 	sh, _, q, f, _, et := editScene(t, ThemeDark)
 	f.mu.Lock()

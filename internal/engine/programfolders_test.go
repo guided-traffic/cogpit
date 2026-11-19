@@ -80,7 +80,7 @@ func stageOf(stages []ConnectStage, name string) ConnectStage {
 
 // A folder added is on PATH before anyone reads it in the preferences: a reader that sees the
 // new folder (a connect, the window's settings page) finds it on PATH already (the Windows UI
-// test that read the preferences first and PATH after, 2026-10-24).
+// test that read the preferences first and PATH after).
 func TestAProgramFolderIsOnPathBeforeThePreferencesSayIt(t *testing.T) {
 	t.Setenv("PATH", filepath.FromSlash("/usr/bin"))
 	s := New(Options{Preferences: NewPreferencesStore(t.TempDir())})

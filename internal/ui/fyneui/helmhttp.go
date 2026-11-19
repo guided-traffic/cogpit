@@ -14,10 +14,10 @@ import (
 )
 
 // helmHTTPBanner asks for the Helm repositories whose user and password would go over plain http
-// (credentials H-40, owner 2026-10-14): while the Charts view or a Helm Install tab is open, one
-// row below the Helm banner for each such repository the user has not allowed, saying that Cogpit
-// downloads nothing from it and why, with Allow…, which says plainly what the allowance means
-// before helm.repo.allowHTTPCredentials (GUI-only) records it. The engine announces changes with
+// (credentials H-40, owner): while the Charts view or a Helm Install tab is open, one row below the
+// Helm banner for each such repository the user has not allowed, saying that Cogpit downloads
+// nothing from it and why, with Allow…, which says plainly what the allowance means before
+// helm.repo.allowHTTPCredentials (GUI-only) records it. The engine announces changes with
 // EventHelmRepos; the banner reads helm.repo.list, the list an agent reads too. That Lens asks is
 // not captured: Lens, as helm, sends the credentials without asking (inferred).
 type helmHTTPBanner struct {

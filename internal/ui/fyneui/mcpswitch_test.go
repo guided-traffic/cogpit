@@ -186,9 +186,9 @@ func TestMCPCopyNamesWhatTheCommandIs(t *testing.T) {
 	}
 }
 
-// TestMCPIsOptIn (D-49, the owner's decision of 2026-10-21): a launch without any stored choice, a
-// new installation, does not start the server; the item shows it off and says why, nothing is
-// stored, and the user's first click starts it and is remembered.
+// TestMCPIsOptIn (D-49, the owner's decision): a launch without any stored choice, a new
+// installation, does not start the server; the item shows it off and says why, nothing is stored,
+// and the user's first click starts it and is remembered.
 func TestMCPIsOptIn(t *testing.T) {
 	ctl := &fakeMCP{}
 	sh, _, q := newTestShell(t, connectedFake(t, 20), Options{MCP: ctl})
@@ -306,10 +306,10 @@ func TestMCPSwitchStore(t *testing.T) {
 	}
 }
 
-// TestMCPSwitchStoreIsOptIn (D-49, the owner's decision of 2026-10-21): a new installation, with
-// neither a stored switch nor the old preference, starts off and writes nothing; a stored "on" stays
-// on; an old installation whose preference was stored true stays on, and its choice is copied into
-// the store once, where cogpit-cli reads it.
+// TestMCPSwitchStoreIsOptIn (D-49, the owner's decision): a new installation, with neither a stored
+// switch nor the old preference, starts off and writes nothing; a stored "on" stays on; an old
+// installation whose preference was stored true stays on, and its choice is copied into the store
+// once, where cogpit-cli reads it.
 func TestMCPSwitchStoreIsOptIn(t *testing.T) {
 	t.Run("a new installation is off", func(t *testing.T) {
 		fresh := &storingMCP{}

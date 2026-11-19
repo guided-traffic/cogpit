@@ -46,14 +46,14 @@ var pods = &model.KindProfile{
 		{ID: "controlledBy", Title: "Controlled By", Type: model.ColumnText},
 		{ID: "node", Title: "Node", Type: model.ColumnText},
 		{ID: "qos", Title: "QoS", Type: model.ColumnText},
-		// Status before Age, as the running Lens Desktop shows them (capture, 2026-10-11); its
-		// documentation lists them the other way round.
+		// Status before Age, as the running Lens Desktop shows them (capture); its documentation
+		// lists them the other way round.
 		statusColumn,
 		ageColumn,
 	},
 	Cells: podCells,
 	// Controlled By links an owner that is a custom resource through the definitions, which the
-	// custom kinds already watch (a real cluster's pods of a Logging or a Challenge, 2026-10-16).
+	// custom kinds already watch (a real cluster's pods of a Logging or a Challenge).
 	Needs:      []model.RelatedIndex{CustomKindsByGroupKind},
 	CellsWith:  podCellsWith,
 	Usage:      model.UsagePods,
@@ -111,8 +111,8 @@ func podCellsWith(obj *unstructured.Unstructured, rel model.Related) ([]model.Ce
 		{}, // Memory
 		containersCell(obj, s),
 		{Num: s.restarts},
-		// Lens shows the owner's kind, a link to the owner (capture, 2026-10-11). An owner that is a
-		// custom resource links through its definition (RefToWith), plain without one.
+		// Lens shows the owner's kind, a link to the owner (capture). An owner that is a custom
+		// resource links through its definition (RefToWith), plain without one.
 		{Text: ownerKind, Link: RefToWith(rel, ownerVersion, ownerKind, ns, ownerName)},
 		{Text: node, Link: linkTo(keyNodes, "", node)},
 		{Text: model.NestedString(obj, "status", "qosClass")},
@@ -130,12 +130,11 @@ func containersCell(obj any, s podSummary) model.Cell {
 }
 
 // containerMarks are the squares of a pod's Containers cell, one per container in the order the
-// spec lists them, init containers first, as Lens draws them (owner, 2026-10-12): a running
-// container in the Running colour, or orange while it is not ready (the owner's F23 of
-// 2026-10-17), a stopped one grey (a finished init container too), one that waits in the pending
-// colour, or red when it waits on an error (CrashLoopBackOff, ImagePullBackOff). A container
-// without a status yet waits. The ephemeral containers follow (ephemeralMarks). Each mark names
-// its container and state for the tooltip.
+// spec lists them, init containers first, as Lens draws them (owner): a running container in the
+// Running colour, or orange while it is not ready (the owner's F23), a stopped one grey (a finished
+// init container too), one that waits in the pending colour, or red when it waits on an error
+// (CrashLoopBackOff, ImagePullBackOff). A container without a status yet waits. The ephemeral
+// containers follow (ephemeralMarks). Each mark names its container and state for the tooltip.
 func containerMarks(obj any) *[]model.CellMark {
 	var out []model.CellMark
 	for _, group := range [][2]string{{fieldInitContainers, "initContainerStatuses"}, {"containers", "containerStatuses"}} {
@@ -161,15 +160,15 @@ func containerMarks(obj any) *[]model.CellMark {
 }
 
 // ephemeralMarks are the squares of a pod's ephemeral (debug) containers, after the others (the
-// owner, 2026-10-19; D-102): blue (model.StatusEphemeral) while one runs or starts, a blue outline
-// once it has finished, whatever its exit code (an interactive shell's exit code says how the
-// user's last command ended, not that the pod has a problem), and red while it waits on an error
-// (its image cannot be pulled: it will not start as it is). An ephemeral container is never
-// restarted and stays in the pod's status as long as the pod exists, so a pod debugged often
-// collects finished ones: those still alive come first, so that the finished ones are what the
-// cell's count hides when it has no room for all (fitMarks). Each names itself ephemeral, its
-// state and its target (targetContainerName) for the tooltip: "debugger: ephemeral, running,
-// target app". They count in neither the ratio nor the restarts, as in kubectl's READY.
+// owner; D-102): blue (model.StatusEphemeral) while one runs or starts, a blue outline once it has
+// finished, whatever its exit code (an interactive shell's exit code says how the user's last
+// command ended, not that the pod has a problem), and red while it waits on an error (its image
+// cannot be pulled: it will not start as it is). An ephemeral container is never restarted and
+// stays in the pod's status as long as the pod exists, so a pod debugged often collects finished
+// ones: those still alive come first, so that the finished ones are what the cell's count hides
+// when it has no room for all (fitMarks). Each names itself ephemeral, its state and its target
+// (targetContainerName) for the tooltip: "debugger: ephemeral, running, target app". They count in
+// neither the ratio nor the restarts, as in kubectl's READY.
 func ephemeralMarks(obj any) []model.CellMark {
 	specs := model.NestedSlice(obj, "spec", fieldEphemeralContainers)
 	statuses := model.NestedSlice(obj, "status", "ephemeralContainerStatuses")
@@ -237,11 +236,11 @@ func containerMark(name string, status any, readiness bool) model.CellMark {
 const keyNodes = "nodes"
 
 // podWarning is the pod's state signal, its slot in the Signals column (D-150). Lens shows an orange triangle on a pod with
-// problems (captured on a pod with many restarts and a container not ready, 2026-10-11); the rule
-// is inferred. Cogpit's rule: a pod that is neither finished nor being deleted warns when its
-// status is an error (CrashLoopBackOff, ImagePullBackOff, Evicted, OOMKilled, ...), when it runs
-// with containers that are not ready, or when the scheduler cannot place it. The reason names
-// each problem and, with one, the restart count. Restarts alone do not warn.
+// problems (captured on a pod with many restarts and a container not ready); the rule is inferred.
+// Cogpit's rule: a pod that is neither finished nor being deleted warns when its status is an error
+// (CrashLoopBackOff, ImagePullBackOff, Evicted, OOMKilled, ...), when it runs with containers that
+// are not ready, or when the scheduler cannot place it. The reason names each problem and, with
+// one, the restart count. Restarts alone do not warn.
 func podWarning(obj any, s podSummary) model.Cell {
 	if s.status == model.StatusSucceeded || s.status == model.StatusTerminating || deleting(obj) {
 		return stateCell(model.StatusNone, "")
@@ -580,10 +579,10 @@ func podIPs(obj any, single, plural string) []string {
 	return appendUnique(out, model.NestedString(obj, "status", single))
 }
 
-// podDetail is the pod's drawer as Lens shows it (capture, 2026-10-11): Properties (after the
-// generic metadata: Status, Node, Pod IP, Pod IPs, Service Account, QoS Class, Conditions,
-// Tolerations, Secrets, Pod Anti Affinities), Pod Volumes, then the init containers and the
-// containers. Lens's per-container metrics need a metrics provider (M7) and are not built.
+// podDetail is the pod's drawer as Lens shows it (capture): Properties (after the generic metadata:
+// Status, Node, Pod IP, Pod IPs, Service Account, QoS Class, Conditions, Tolerations, Secrets, Pod
+// Anti Affinities), Pod Volumes, then the init containers and the containers. Lens's per-container
+// metrics need a metrics provider (M7) and are not built.
 func podDetail(obj *unstructured.Unstructured) []model.DetailSection {
 	return podDetailRel(obj, model.NoRelated)
 }
@@ -653,8 +652,8 @@ func podDetailRel(obj *unstructured.Unstructured, rel model.Related) []model.Det
 
 	// Readiness applies to app containers and sidecars only; init and ephemeral containers have
 	// no probes, so a running one is fine without being ready. Lens shows the init containers
-	// before the containers (capture, 2026-10-11); ephemeral containers are Cogpit's addition,
-	// each with its Target (containerSection).
+	// before the containers (capture); ephemeral containers are Cogpit's addition, each with its
+	// Target (containerSection).
 	groups := []struct {
 		title, spec, status string
 		probed              bool
@@ -748,7 +747,7 @@ var volumeTypes = []struct{ field, title, linkKind, nameField string }{
 
 // podVolumes groups a pod's volumes by type, one folded item per type with the volume names as
 // chips ("2 volumes"); a ConfigMap, Secret or claim volume links to its object. Lens shows a count
-// per volume type (capture, 2026-10-11); the folded names are inferred.
+// per volume type (capture); the folded names are inferred.
 func podVolumes(obj any, ns string) []model.DetailItem {
 	byType := map[string][]model.Chip{}
 	var order []string
@@ -806,12 +805,12 @@ func podConditionToken(c condition) model.Status {
 	return conditionToken(c.Status, model.StatusOK, model.StatusWarning)
 }
 
-// containerSection renders one container as Lens's drawer does (capture, 2026-10-11): Status, Last
-// Status, Image, Ports, Environment, Mounts, Command, Arguments, Requests, Limits; an ephemeral
-// container's Target after its Status (Cogpit's, D-102). Environment
-// values from Secrets and ConfigMaps are named, never resolved. probed says whether readiness
-// applies to the container; a running probed container's status says whether it is ready. Each
-// port is an item of its own, which forwards it or shows its forward from forwards (portforwards.go).
+// containerSection renders one container as Lens's drawer does (capture): Status, Last Status,
+// Image, Ports, Environment, Mounts, Command, Arguments, Requests, Limits; an ephemeral container's
+// Target after its Status (Cogpit's, D-102). Environment values from Secrets and ConfigMaps are
+// named, never resolved. probed says whether readiness applies to the container; a running probed
+// container's status says whether it is ready. Each port is an item of its own, which forwards it
+// or shows its forward from forwards (portforwards.go).
 func containerSection(pod model.ObjectRef, name string, spec, status any, probed bool, forwards map[int64]*unstructured.Unstructured) model.DetailSection {
 	var d detailItems
 	if status != nil {
@@ -825,7 +824,7 @@ func containerSection(pod model.ObjectRef, name string, spec, status any, probed
 		d.add("Last Status", last)
 	}
 	// An ephemeral container's target: the container whose processes it sees (the owner's "Fix
-	// bauen", 2026-10-19, D-102). Plain text: the drawer has no jump to a section of its own.
+	// bauen", D-102). Plain text: the drawer has no jump to a section of its own.
 	d.add("Target", model.NestedString(spec, fieldTargetContainer))
 	image := model.NestedString(spec, "image")
 	if image == "" {
@@ -924,8 +923,8 @@ func containerPorts(spec any) string {
 	return strings.Join(lines, "\n")
 }
 
-// containerPortText renders one port as Lens's drawer does (capture, 2026-10-11): "name:
-// 8080/TCP", with the host port when one is bound; "" for a port without a number.
+// containerPortText renders one port as Lens's drawer does (capture): "name: 8080/TCP", with the
+// host port when one is bound; "" for a port without a number.
 func containerPortText(p any) string {
 	port := model.NestedIntOrString(p, "containerPort")
 	if port == "" {

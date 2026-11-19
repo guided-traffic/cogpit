@@ -241,9 +241,9 @@ func bundled(group, _, ctx map[string]any) {
 	group["contexts"] = []any{ctx, stage, dev, testCtx}
 }
 
-// TestApprovalDialogListsEveryContextOfThePlugin (D-28, 2026-10-12): one dialog lists the contexts of
-// the file that use the plugin, each with its server and, where they apply, the R-11 warnings for
-// that context only.
+// TestApprovalDialogListsEveryContextOfThePlugin (D-28): one dialog lists the contexts of the file
+// that use the plugin, each with its server and, where they apply, the R-11 warnings for that
+// context only.
 func TestApprovalDialogListsEveryContextOfThePlugin(t *testing.T) {
 	_, w := openApproval(t, approvalFake(t, engine.ExecRequired, bundled), ThemeDark)
 	texts := overlayTexts(w)

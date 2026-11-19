@@ -9,11 +9,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// TestShowingAnOpenDockTabOpensTheDock (the owner's alpha walk, 2026-10-22, AW9: with the dock
-// minimised, Edit on an object whose Edit tab was open "sometimes" did nothing): a command that
-// shows a dock tab opens the collapsed dock, also when it reuses the tab open on the same thing and
-// that tab is the active one, which left the dock collapsed. The same for each command that reuses
-// a tab, and for an agent's dock.activate of the active tab.
+// TestShowingAnOpenDockTabOpensTheDock (the owner's alpha walk, AW9: with the dock minimised, Edit
+// on an object whose Edit tab was open "sometimes" did nothing): a command that shows a dock tab
+// opens the collapsed dock, also when it reuses the tab open on the same thing and that tab is the
+// active one, which left the dock collapsed. The same for each command that reuses a tab, and for
+// an agent's dock.activate of the active tab.
 func TestShowingAnOpenDockTabOpensTheDock(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "audit.log")
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)

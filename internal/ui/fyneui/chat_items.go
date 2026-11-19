@@ -540,8 +540,8 @@ func (v *chatAnswerView) update(it engine.ChatItem, blocks []mdBlock) {
 	v.Refresh()
 }
 
-// chatTimingText is an answer's speed under it (the owner's request of 2026-10-25): "TTFT 840 ms ·
-// OTPS 42.1", the OTPS with ≈ where the tokens are estimated, none where it cannot be told.
+// chatTimingText is an answer's speed under it (the owner's request): "TTFT 840 ms · OTPS 42.1",
+// the OTPS with ≈ where the tokens are estimated, none where it cannot be told.
 func chatTimingText(t *engine.ChatTiming) string {
 	if t == nil {
 		return ""

@@ -11,11 +11,10 @@ import (
 )
 
 // renderArgoV3Drawer renders the drawer of an Application as a live Argo CD 3.5 controller writes
-// it (checked on a real cluster, 2026-10-16; the fixture is synthetic): outside Argo CD's own
-// namespace, its project linked where the controller runs (status.controllerNamespace), from a
-// Helm repository's chart, and its Resources without a Health column, which Argo CD 3 keeps in
-// its resource tree (status.resourceHealthSource: appTree), with the note saying so above the
-// table.
+// it (checked on a real cluster; the fixture is synthetic): outside Argo CD's own namespace, its
+// project linked where the controller runs (status.controllerNamespace), from a Helm repository's
+// chart, and its Resources without a Health column, which Argo CD 3 keeps in its resource tree
+// (status.resourceHealthSource: appTree), with the note saying so above the table.
 func renderArgoV3Drawer(t *testing.T, mode ThemeMode, name string) {
 	sh, w, q, _, src, _ := newArgoShell(t, mode, false)
 	for _, crd := range testkit.ArgoCRDs() {

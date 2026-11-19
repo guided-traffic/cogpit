@@ -10,7 +10,7 @@ import (
 // refuseProxy refuses a proxy set by the CLI or a link (engine.ErrProxyGUIOnly, engine/proxy.go):
 // they may clear a proxy (an empty value), not set one. The user's window sets one; an agent's
 // proxy waits for the user's acceptance whatever the allowance of agent writes (setsProxy, A20,
-// owner 2026-10-14 evening). A proxy left out passes.
+// owner). A proxy left out passes.
 func refuseProxy(ctx context.Context, proxy *string) error {
 	if o := engine.OriginOf(ctx); setsProxy(proxy) && o != engine.OriginGUI && !o.IsAgent() {
 		return engine.ErrProxyGUIOnly

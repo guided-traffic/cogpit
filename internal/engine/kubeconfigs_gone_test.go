@@ -175,7 +175,7 @@ func TestConnectionClosesWhenItsSourceIsRemoved(t *testing.T) {
 	if g.s.CloseGoneSourceConnection() {
 		t.Error("closed twice")
 	}
-	// The user's own act: an INFO line and a disconnect, not an error (the walk of 2026-10-19).
+	// The user's own act: an INFO line and a disconnect, not an error.
 	got, _ := g.s.ConnectAttempts("a", 1)
 	if len(got) != 1 || got[0].Kind != AttemptDisconnect || got[0].Outcome != OutcomeOK || strings.Contains(attemptText(got[0]), "ERROR") {
 		t.Errorf("the source's removal in the log: %+v", got)

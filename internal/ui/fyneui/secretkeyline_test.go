@@ -99,11 +99,11 @@ func keyCopyIcon(t *testing.T, d *drawer, key string) *copyButton {
 	return icons[0]
 }
 
-// TestSecretMaskedKeyButtonsOnNameLine (the owner's RW1 of 2026-10-23): a masked key has its
-// buttons where a revealed key has them, "Show [copy] [b64] [remove]" at the end of its name line
-// (b64 since VW7), always shown, and the value line under it holds the mask and the size only,
-// without a copy icon of its own. The same for an edited value hidden again and an added key hidden
-// again; a binary value has no Show and no copy icon, only the b64 button (VW7).
+// TestSecretMaskedKeyButtonsOnNameLine (the owner's RW1): a masked key has its buttons where a
+// revealed key has them, "Show [copy] [b64] [remove]" at the end of its name line (b64 since VW7),
+// always shown, and the value line under it holds the mask and the size only, without a copy icon
+// of its own. The same for an edited value hidden again and an added key hidden again; a binary
+// value has no Show and no copy icon, only the b64 button (VW7).
 func TestSecretMaskedKeyButtonsOnNameLine(t *testing.T) {
 	sh, _, q, _, _ := secShell(t, ThemeDark)
 	d, sd := sh.drawer, secDataOf(sh)
@@ -175,10 +175,10 @@ func TestSecretReadOnlyKeyButtonsOnNameLine(t *testing.T) {
 	}
 }
 
-// TestTextButtonsHaveTheFieldOutline (the owner's RW2 of 2026-10-23, D-104): a button with a word
-// and no plate of its own draws the field's outline, the primary colour while it has the keyboard,
-// the disabled colour while disabled, its tone where it has one; no plain LowImportance button with
-// a word is left in the Secret's drawer.
+// TestTextButtonsHaveTheFieldOutline (the owner's RW2, D-104): a button with a word and no plate of
+// its own draws the field's outline, the primary colour while it has the keyboard, the disabled
+// colour while disabled, its tone where it has one; no plain LowImportance button with a word is
+// left in the Secret's drawer.
 func TestTextButtonsHaveTheFieldOutline(t *testing.T) {
 	sh, w, _, _, _ := secShell(t, ThemeDark)
 	d := sh.drawer
@@ -221,10 +221,10 @@ func TestTextButtonsHaveTheFieldOutline(t *testing.T) {
 	}
 }
 
-// TestSecretShowMarkedAsExposing (the owner's RW3 of 2026-10-23, his pick A): a Secret's Show is
-// marked as exposing, its word, outline and eye icon in the status warning's amber; Hide puts the
-// value away, the eye struck through in the status OK's green (his CW2, pick C), and is exactly as
-// wide as Show (CW1), so that a click where Show's eye was hits Hide.
+// TestSecretShowMarkedAsExposing (the owner's RW3, his pick A): a Secret's Show is marked as
+// exposing, its word, outline and eye icon in the status warning's amber; Hide puts the value away,
+// the eye struck through in the status OK's green (his CW2, pick C), and is exactly as wide as Show
+// (CW1), so that a click where Show's eye was hits Hide.
 func TestSecretShowMarkedAsExposing(t *testing.T) {
 	sh, _, q, _, _ := secShell(t, ThemeDark)
 	d := sh.drawer
@@ -253,11 +253,10 @@ func TestSecretShowMarkedAsExposing(t *testing.T) {
 	}
 }
 
-// TestKeyLineButtonsOneHeight (the owner's finding of 2026-10-23 and his CW3): the buttons at the
-// end of a Secret key's name line are one height, Show, the copy icon, the b64 button (VW7) and the
-// remove button, a binary value's b64 and remove button too, and
-// Undo on a key marked for removal is as tall as they are; the copy icon is outlined as the remove
-// button is (his pick A), not on a chip.
+// TestKeyLineButtonsOneHeight (the owner's finding and his CW3): the buttons at the end of a Secret
+// key's name line are one height, Show, the copy icon, the b64 button (VW7) and the remove button,
+// a binary value's b64 and remove button too, and Undo on a key marked for removal is as tall as
+// they are; the copy icon is outlined as the remove button is (his pick A), not on a chip.
 func TestKeyLineButtonsOneHeight(t *testing.T) {
 	sh, w, q, _, _ := secShell(t, ThemeDark)
 	d := sh.drawer
@@ -324,10 +323,10 @@ func TestKeyLineButtonsOneHeight(t *testing.T) {
 	}
 }
 
-// TestButtonOutlineAndRoom (the owner's answers of 2026-10-23, D-104): an icon button of a content
-// surface is outlined, one of the window's chrome is not; a neutral plate is outlined, a coloured
-// one is not; a button with a word keeps textButtonSide beside it on either side, a coloured one
-// too (his CW4: "rechts und links … 3-5px", his pick +4), an icon button keeps Fyne's square.
+// TestButtonOutlineAndRoom (the owner's answers, D-104): an icon button of a content surface is
+// outlined, one of the window's chrome is not; a neutral plate is outlined, a coloured one is not;
+// a button with a word keeps textButtonSide beside it on either side, a coloured one too (his CW4:
+// "rechts und links … 3-5px", his pick +4), an icon button keeps Fyne's square.
 func TestButtonOutlineAndRoom(t *testing.T) {
 	sh, w, _, _, _ := secShell(t, ThemeDark)
 	th, v := sh.app.Settings().Theme(), sh.app.Settings().ThemeVariant()
@@ -388,13 +387,13 @@ func buttonPlate(b *textButton) color.Color {
 	return test.WidgetRenderer(b).(*textButtonRenderer).WidgetRenderer.Objects()[0].(*canvas.Rectangle).FillColor
 }
 
-// TestSecretShowTurnsIntoHideUnderThePointer (the owner's VW1 of 2026-10-23: "wenn man auf Show
-// klickt, ist man ja dann direkt auf dem Hide-Button, dieser ist dann aber erstmal so als ob man
-// nicht darüber ist … Er soll natürlich direkt schon im richtigen Zustand sein."): Show and Hide
-// are one widget that changes its word, eye and tone, so that the pointer resting on Show after a
-// click is on a Hide that shows its hover at once, without a move (Fyne sends MouseIn only on a
-// move); the same from Hide back to Show, in a Secret the user may save and in a read-only one,
-// and for the MCP details' token.
+// TestSecretShowTurnsIntoHideUnderThePointer (the owner's VW1: "wenn man auf Show klickt, ist man
+// ja dann direkt auf dem Hide-Button, dieser ist dann aber erstmal so als ob man nicht darüber ist
+// … Er soll natürlich direkt schon im richtigen Zustand sein."): Show and Hide are one widget that
+// changes its word, eye and tone, so that the pointer resting on Show after a click is on a Hide
+// that shows its hover at once, without a move (Fyne sends MouseIn only on a move); the same from
+// Hide back to Show, in a Secret the user may save and in a read-only one, and for the MCP details'
+// token.
 func TestSecretShowTurnsIntoHideUnderThePointer(t *testing.T) {
 	sh, w, q, _, _ := secShell(t, ThemeDark)
 	d, sd := sh.drawer, secDataOf(sh)

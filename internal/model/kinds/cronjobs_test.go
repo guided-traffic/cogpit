@@ -25,8 +25,8 @@ func TestCronJobsStatusTexts(t *testing.T) {
 		bad     = model.StatusError
 	)
 	checkStatusTexts(t, []statusText{
-		// As captured from Lens (2026-10-11): the form of Next execution, Time zone "-" when unset,
-		// Suspend "true" on a suspended job, which still shows a Next execution.
+		// As captured from Lens: the form of Next execution, Time zone "-" when unset, Suspend
+		// "true" on a suspended job, which still shows a Next execution.
 		{"cronjobs", "healthy", "nextExecution", "In about 1 hour 57 min", none, ok},
 		{"cronjobs", "healthy", "timeZone", "-", none, ok},
 		{"cronjobs", "healthy", "suspend", "false", none, ok},

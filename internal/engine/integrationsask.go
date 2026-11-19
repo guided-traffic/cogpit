@@ -8,10 +8,10 @@ import (
 	"strings"
 )
 
-// The question of a new cluster's integrations (D-76, the owner 2026-10-17: "Wenn man einen Cluster
-// neu hinzufügt für den noch keine Einstellung getroffen wurde, soll der Nutzer gefragt werden,
-// welche Integrationen er aktivieren möchte"; since D-82 with a pre-choice before anything is looked
-// for, integrationsconsent.go). While the cluster the window shows is connected and the user made no
+// The question of a new cluster's integrations (D-76, the owner: "Wenn man einen Cluster neu
+// hinzufügt für den noch keine Einstellung getroffen wurde, soll der Nutzer gefragt werden, welche
+// Integrationen er aktivieren möchte"; since D-82 with a pre-choice before anything is looked for,
+// integrationsconsent.go). While the cluster the window shows is connected and the user made no
 // choice of integrations for it (ClusterSettings.IntegrationsOff unset), the UI state carries the
 // question (UIState.IntegrationsQuestion, its step and its ticks), so that agents see it in ui_state
 // as the window shows it: a dialog over the workspace that opens on the pre-choice, then each

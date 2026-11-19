@@ -13,9 +13,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// A credential plugin's approval binds the proxy Cogpit itself sets for the cluster (A23, owner
-// 2026-10-14 evening; D-26, H-34): the dialog's listing names it, its password as •••, and a
-// changed proxy asks again, at listing and at connect time alike.
+// A credential plugin's approval binds the proxy Cogpit itself sets for the cluster (A23, owner;
+// D-26, H-34): the dialog's listing names it, its password as •••, and a changed proxy asks again,
+// at listing and at connect time alike.
 
 // proxyPluginKubeconfig is a kubeconfig for srv whose user runs plugin.
 func proxyPluginKubeconfig(srv *testkit.FakeAPIServer, plugin *testkit.Plugin) string {

@@ -11,13 +11,13 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Background jobs (A91, the owner's decision of 2026-10-14 evening; G4). A command whose work
-// outlives its call, as Reconcile with Source does while it waits for Flux's controllers, or an
-// action on a selection of more than DirectSelection objects, starts a job: the command returns at
-// once with the job's dock tab, and the job runs on a goroutine of the session's. The tab is engine
-// state (DockTab.Job): the job's steps, each pending, running, done, failed or stopped with a line
-// of detail, their counts, its state and its outcome, so that agents read its progress with
-// ui_state as the window shows it in the dock.
+// Background jobs (A91, the owner's decision; G4). A command whose work outlives its call, as
+// Reconcile with Source does while it waits for Flux's controllers, or an action on a selection of
+// more than DirectSelection objects, starts a job: the command returns at once with the job's dock
+// tab, and the job runs on a goroutine of the session's. The tab is engine state (DockTab.Job): the
+// job's steps, each pending, running, done, failed or stopped with a line of detail, their counts,
+// its state and its outcome, so that agents read its progress with ui_state as the window shows it
+// in the dock.
 //
 // A job ends when its work ends, when it is cancelled (job.cancel, the tab's Cancel button: the tab
 // stays with the outcome), when the user closes its tab (closing stops the job, it undoes nothing

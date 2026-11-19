@@ -66,12 +66,12 @@ func chatEngine(t *testing.T) *engine.Session {
 	return s
 }
 
-// The three toggles at the top bar's right end (the owner, 2026-10-16 night: after the bell and a
-// divider), in VS Code's order, drive the
-// engine's state and show it: the navigator hides (the views take its room, the hotbar stays) and
-// comes back, the dock collapses to its strip and opens again (its own arrow and a click on its
-// shown tab too), the chat column shows; the dock's toggle is disabled while the dock has no tabs
-// and no terminal can open (no cluster connected). An agent's change shows the same way. Against the real engine and its registry.
+// The three toggles at the top bar's right end (the owner: after the bell and a divider), in VS
+// Code's order, drive the engine's state and show it: the navigator hides (the views take its room,
+// the hotbar stays) and comes back, the dock collapses to its strip and opens again (its own arrow
+// and a click on its shown tab too), the chat column shows; the dock's toggle is disabled while the
+// dock has no tabs and no terminal can open (no cluster connected). An agent's change shows the
+// same way. Against the real engine and its registry.
 func TestLayoutTogglesThroughTheEngine(t *testing.T) {
 	s := chatEngine(t)
 	sh, _, q := newEngineShell(t, s, Options{})
@@ -257,7 +257,7 @@ func TestUpdateButtonOffersTheRestart(t *testing.T) {
 	r.restart.Store(true)
 	r.set(true, "0.34.0") // the same version, now installed
 	// The engine's state first, then the window's: the bar follows the state's change on the main
-	// queue, which until drains, a step later on a slow runner (the Windows CI, 2026-10-21).
+	// queue, which until drains, a step later on a slow runner (the Windows CI).
 	q.until(t, "the restart", func() bool { return s.UIState().Update.Restart && b.Text == restartLabel })
 	settle(w)
 	if b.Text != restartLabel || b.tip != "Cogpit 0.34.0 is installed: restart Cogpit to use it" {
@@ -315,7 +315,7 @@ func iconOf(t *testing.T, b *tipButton) *canvas.Image {
 // bar lies directly under it (F11): with a box's padding between the two, the line lay 4 units
 // below the bar's end, and in the dark theme, where the window's background and the bar's are
 // nearly one colour, everything in the bar looked 2 units high; the pill, 26 of the bar's 40 units,
-// most (the owner, 2026-10-16: "hängt ein wenig zu hoch").
+// most (the owner: "hängt ein wenig zu hoch").
 func TestUpdateButtonOnTheBarsCentreLine(t *testing.T) {
 	s := chatEngine(t)
 	n := &uiNotifier{}

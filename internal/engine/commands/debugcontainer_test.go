@@ -24,7 +24,7 @@ import (
 // Preferences', which only the user sets.
 
 func init() {
-	wantCommands[engine.DebugCommand] = engine.DangerDestructive // the owner, 2026-10-19
+	wantCommands[engine.DebugCommand] = engine.DangerDestructive // the owner
 }
 
 // debugServer is the fake cluster side of the debug containers of one fake writer: it adds the

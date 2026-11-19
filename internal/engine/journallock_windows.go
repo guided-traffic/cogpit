@@ -12,8 +12,7 @@ import (
 // The journals' locks are LockFileEx locks on the first byte: they belong to the handle, so two
 // opens of one file exclude each other even within a process, and Windows releases them when the
 // process ends. Go opens files non-inheritable, so child processes do not keep them. Built and
-// vetted by CI on Windows; its tests first ran there on 2026-10-21, before the first Windows
-// release (D-7).
+// vetted by CI on Windows; its tests first ran there, before the first Windows release (D-7).
 
 var (
 	kernel32         = syscall.NewLazyDLL("kernel32.dll")

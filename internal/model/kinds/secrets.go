@@ -10,8 +10,8 @@ import (
 )
 
 // secrets has the columns of Lens's documentation (not captured). The cache holds Secrets in full
-// (D-13 revised, owner 2026-10-12; H-8): Keys lists the names of a Secret's keys, sorted, and Type
-// its type, as in Lens; the profile never reads a value. A Secret has no state, so no status token
+// (D-13 revised, owner; H-8): Keys lists the names of a Secret's keys, sorted, and Type its type,
+// as in Lens; the profile never reads a value. A Secret has no state, so no status token
 // (inferred). The drawer's Data section (each key with its value masked) is the engine's
 // (secretdata.go), never this profile's.
 var secrets = &model.KindProfile{

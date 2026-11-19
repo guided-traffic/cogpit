@@ -17,10 +17,10 @@ func delayRunEnds(t *testing.T, d time.Duration) {
 	t.Cleanup(func() { runEndGate.Store(nil) })
 }
 
-// A login that answered before the goroutine noting its end ran (open-decisions § 6, the lead's note
-// of 2026-10-21): the connect's trace says it answered, with its time, and its login stage passed,
-// not "still runs" and every stage after it not reached. The first request's answer means
-// client-go let its lock go, so the connect waits for that goroutine, briefly.
+// A login that answered before the goroutine noting its end ran (open-decisions § 6, the lead's
+// note): the connect's trace says it answered, with its time, and its login stage passed, not
+// "still runs" and every stage after it not reached. The first request's answer means client-go let
+// its lock go, so the connect waits for that goroutine, briefly.
 func TestALoginThatAnsweredIsNotStillRunning(t *testing.T) {
 	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: secretToken})
 	defer srv.Close()

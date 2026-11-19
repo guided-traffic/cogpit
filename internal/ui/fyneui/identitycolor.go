@@ -11,12 +11,12 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
-// A cluster colour picked freely (A93, owner 2026-10-14 evening; engine.IsCustomIconColor): the
-// eight accents have a shade per theme that stays legible (TestIdentityColorsContrast); a free
-// colour has none, so the window derives one — the lead's night decision for the owner to confirm:
-// the colour's hue and saturation kept, its lightness moved, upwards in the dark theme and
-// downwards in the light one, just far enough for a 3:1 contrast on every surface an identity is
-// drawn on (the header, the sidebar, an input, the background), as the eight are held to.
+// A cluster colour picked freely (A93, owner; engine.IsCustomIconColor): the eight accents have a
+// shade per theme that stays legible (TestIdentityColorsContrast); a free colour has none, so the
+// window derives one — the lead's night decision for the owner to confirm: the colour's hue and
+// saturation kept, its lightness moved, upwards in the dark theme and downwards in the light one,
+// just far enough for a 3:1 contrast on every surface an identity is drawn on (the header, the
+// sidebar, an input, the background), as the eight are held to.
 
 // identitySurfaces are the surfaces an identity colour is drawn on.
 var identitySurfaces = []fyne.ThemeColorName{theme.ColorNameHeaderBackground, colorSidebar, theme.ColorNameInputBackground, theme.ColorNameBackground}

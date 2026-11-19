@@ -12,12 +12,11 @@ func (s *Session) Disconnect() error { return s.DisconnectContext("") }
 // DisconnectContext closes the connection to one connected cluster, "" the one the window shows
 // (D-69: the others stay connected). Nothing is sent to the cluster: the cache's informers stop,
 // the cluster's port forwards, logs and shells end, and its jobs stop. Its tabs close (the owner's
-// A61, 2026-10-14 evening; until then they stayed and connected again when selected); the dock's
-// tabs stay, their streams ended. For the shown cluster, or one whose connect is under way, the UI
-// is left Disconnected without an error, Context keeps naming the cluster, and the workspace
-// shows the welcome page (UIState.Welcome); for another one only its entry of Connections goes.
-// The cluster's connect log notes the disconnect. A context that is not connected is a
-// NotConnectedError.
+// A61; until then they stayed and connected again when selected); the dock's tabs stay, their
+// streams ended. For the shown cluster, or one whose connect is under way, the UI is left
+// Disconnected without an error, Context keeps naming the cluster, and the workspace shows the
+// welcome page (UIState.Welcome); for another one only its entry of Connections goes. The cluster's
+// connect log notes the disconnect. A context that is not connected is a NotConnectedError.
 //
 // A connect under way is cancelled at once (the window's Cancel Connecting, D-73): the credential
 // plugin it waits for, a browser login, is ended by the cluster layer, and the connect's attempt in

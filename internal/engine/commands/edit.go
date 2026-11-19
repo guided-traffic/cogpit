@@ -178,7 +178,7 @@ func registerEdit(g *registrar) {
 			"counting as data) against the cached object, as removing a key in the drawer is, and the confirmation names " +
 			"the removed keys, never a value.",
 		// A removed data key is data lost and a change of what workloads read: destructive for every
-		// origin, as the drawer's removal is (the owner, 2026-10-16 evening; D-55).
+		// origin, as the drawer's removal is (the owner; D-55).
 		Escalate: func(s *engine.Session, p applyParams) bool {
 			return s.EditScalesToZero(p.ID, p.YAML) || len(s.EditRemovesDataKeys(p.ID, p.YAML)) > 0
 		},

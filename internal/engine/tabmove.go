@@ -6,16 +6,16 @@ import (
 	"slices"
 )
 
-// Moving tabs (the owner's gate walk, 2026-10-20, GW4: "Man muss Tab beliebig anordnen können").
-// A tab of the tab bar, or of the dock, moves to another place among the tabs its bar shows: the
-// tab bar's are the shown cluster's (TabsShown), the dock's the shown cluster's and those of
-// no cluster (DockInScope). The tabs the bar does not show keep their places among the others. The
-// window drags a tab there (tabbar.go, dock.go, stripdrag.go); ui.tab.moveLeft and ui.tab.moveRight
-// move the active tab one place (View › Move Tab Left and Right), the tab bar's, or with dock the
-// dock's (the owner's alpha walk, AW10: the keys did nothing in the dock; the window sends dock while
-// the keyboard works in the dock, tabmovekeys.go). The order is UI state: agents see it in ui_state,
+// Moving tabs (the owner's gate walk, GW4: "Man muss Tab beliebig anordnen können"). A tab of the
+// tab bar, or of the dock, moves to another place among the tabs its bar shows: the tab bar's are
+// the shown cluster's (TabsShown), the dock's the shown cluster's and those of no cluster
+// (DockInScope). The tabs the bar does not show keep their places among the others. The window
+// drags a tab there (tabbar.go, dock.go, stripdrag.go); ui.tab.moveLeft and ui.tab.moveRight move
+// the active tab one place (View › Move Tab Left and Right), the tab bar's, or with dock the dock's
+// (the owner's alpha walk, AW10: the keys did nothing in the dock; the window sends dock while the
+// keyboard works in the dock, tabmovekeys.go). The order is UI state: agents see it in ui_state,
 // and the tab bar's survives a restart with the tabs (persist.go keeps their order). The lead's
-// decisions of 2026-10-20 and 2026-10-22, open to revision (D-106).
+// decisions, open to revision (D-106).
 
 // errNotInBar reports a tab its bar does not show.
 var errNotInBar = errors.New("the bar does not show it")
@@ -70,8 +70,8 @@ func viewTabID(t ViewTab) string { return t.ID }
 func dockTabID(t DockTab) string { return t.ID }
 
 // tabShown reports whether the tab bar shows a tab (TabsShown): only while its cluster holds a
-// connection (connected, interrupted or its login expired; the owner, 2026-10-20, GW13: "Es sollen
-// keine Tabs angezeigt werden, von Clustern zu denen keine Verbindung besteht"), and then with mixed
+// connection (connected, interrupted or its login expired; the owner, GW13: "Es sollen keine Tabs
+// angezeigt werden, von Clustern zu denen keine Verbindung besteht"), and then with mixed
 // environments on every such tab, else the shown cluster's (UIState.Context: a restored session's
 // other clusters keep their tabs hidden until they are shown), any while no cluster is. A hidden
 // tab stays in Tabs and shows again when its cluster connects.

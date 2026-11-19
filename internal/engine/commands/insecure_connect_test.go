@@ -12,10 +12,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// A28 (owner, 2026-10-14 evening; H-37) per origin: an agent's or the CLI's cluster_connect of a
-// context that skips the certificate check is refused until the user allowed it in the window, as
-// for an unapproved credential plugin; only the window allows it (kubeconfig_approveExec is GUI
-// only); once allowed, every origin connects.
+// A28 (owner; H-37) per origin: an agent's or the CLI's cluster_connect of a context that skips the
+// certificate check is refused until the user allowed it in the window, as for an unapproved
+// credential plugin; only the window allows it (kubeconfig_approveExec is GUI only); once allowed,
+// every origin connects.
 func TestInsecureContextConnectsPerOrigin(t *testing.T) {
 	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{})
 	defer srv.Close()

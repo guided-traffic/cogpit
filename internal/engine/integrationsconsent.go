@@ -6,15 +6,14 @@ import (
 	"strings"
 )
 
-// Consent before looking (D-82, the owner's WF5 of 2026-10-17, verbatim in decisions.md: a short
-// pre-choice, since the "Suchen" run with the user's privileges). Every integration is looked for
-// with the user's identity: the Metrics Server by a discovery request, Prometheus and Alertmanager
-// through the API server's service proxy, Trivy's and Kyverno's reports by listing them. So in a
-// session that keeps cluster settings (the
-// window's) a cluster the user made no choice for reads nothing of any integration
-// (integrationsOffOf): not while its question is put off with Later, not while it is connected in
-// the background, not before the question is answered. Only what the question looks for is read,
-// and only while it asks.
+// Consent before looking (D-82, the owner's WF5, verbatim in decisions.md: a short pre-choice,
+// since the "Suchen" run with the user's privileges). Every integration is looked for with the
+// user's identity: the Metrics Server by a discovery request, Prometheus and Alertmanager through
+// the API server's service proxy, Trivy's and Kyverno's reports by listing them. So in a session
+// that keeps cluster settings (the window's) a cluster the user made no choice for reads nothing of
+// any integration (integrationsOffOf): not while its question is put off with Later, not while it
+// is connected in the background, not before the question is answered. Only what the question looks
+// for is read, and only while it asks.
 //
 // The question opens on a pre-choice (IntegrationsPreChoice), which looks for nothing: "Use my
 // default integrations" answers at once with the default for new clusters (the owner's QW4: no

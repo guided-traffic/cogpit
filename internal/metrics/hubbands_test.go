@@ -13,9 +13,9 @@ func onGrid(t time.Time, step time.Duration) time.Time {
 	return time.Unix(t.Unix()/s*s, 0)
 }
 
-// A46 (owner, 2026-10-14 evening): the charts of one object whose ranges lie far apart (the pod's
-// chart at a week, a container's at the default hour) get query sets of their own, each at its own
-// step. Before, one set asked for the week at ten minutes, and the hour's chart had six points.
+// A46 (owner): the charts of one object whose ranges lie far apart (the pod's chart at a week, a
+// container's at the default hour) get query sets of their own, each at its own step. Before, one
+// set asked for the week at ten minutes, and the hour's chart had six points.
 func TestFarApartRangesGetTheirOwnQuerySets(t *testing.T) {
 	const week = 7 * 24 * time.Hour
 	d := newDual(t)

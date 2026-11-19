@@ -8,9 +8,9 @@ import (
 )
 
 // The app bundle's Info.plist gets the settings this package relies on from hack/macos/sparkle.sh:
-// Sparkle's own scheduled checks off (Cogpit's run instead: the owner's report of 2026-10-26) and
-// no interval of theirs, no automatic download and install, and the update verified before
-// extraction against a signed feed.
+// Sparkle's own scheduled checks off (Cogpit's run instead: the owner's report) and no interval of
+// theirs, no automatic download and install, and the update verified before extraction against a
+// signed feed.
 func TestSparkleScriptWritesTheSettings(t *testing.T) {
 	b, err := os.ReadFile("../../hack/macos/sparkle.sh")
 	if err != nil {

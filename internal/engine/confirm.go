@@ -59,10 +59,9 @@ type ConfirmRequest struct {
 const ConfirmNamed = 10
 
 // Effect is one row of what a confirmed command does beyond naming its objects, as the
-// confirmation's table shows it (the owner's WF33, 2026-10-19: "eine technisch präzise
-// Schnellansicht", never a sentence): a short name and a terse value. "Removes" "color, size"
-// (lost), "To revision" "3" (names), "Grace period" "30 s per pod". A value may hold several
-// lines ("\n"), one fact each.
+// confirmation's table shows it (the owner's WF33: "eine technisch präzise Schnellansicht", never a
+// sentence): a short name and a terse value. "Removes" "color, size" (lost), "To revision" "3"
+// (names), "Grace period" "30 s per pod". A value may hold several lines ("\n"), one fact each.
 type Effect struct {
 	Name  string     `json:"name"`
 	Value string     `json:"value"`
@@ -238,9 +237,8 @@ var ErrTargetsChanged = errors.New("the objects changed since they were confirme
 // ConfirmedUID returns the UID the confirmation recorded for ref and whether the running command
 // is bound to it. A destructive command whose object was not in the cache when the user was asked
 // gets "" and true: it must refuse rather than act on whatever has the name now. A mutating
-// command's confirmation records the UIDs the cache held already (2026-10-12); for an object it
-// did not hold, or without a confirmation, the result is "" and false, and the command reads the
-// cache.
+// command's confirmation records the UIDs the cache held already; for an object it did not hold, or
+// without a confirmation, the result is "" and false, and the command reads the cache.
 func ConfirmedUID(ctx context.Context, ref model.ObjectRef) (uid string, confirmed bool) {
 	req, ok := Confirmed(ctx)
 	destructive := ok && req.Danger == DangerDestructive

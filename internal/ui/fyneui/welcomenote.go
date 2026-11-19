@@ -11,8 +11,8 @@ import (
 )
 
 // welcomeNote is the welcome page's message about the connection in a place of its own (the
-// owner's RW4 of 2026-10-23: "Der Fehlertext auf dieser Seite geht etwas unter, man kann ihn leicht
-// übersehen weil er so dazwischen gequetscht ist. Die Farbe ist es nicht. Also wenn Welcome eine
+// owner's RW4: "Der Fehlertext auf dieser Seite geht etwas unter, man kann ihn leicht übersehen
+// weil er so dazwischen gequetscht ist. Die Farbe ist es nicht. Also wenn Welcome eine
 // Fehlermeldung anzeigt, braucht die meldung auch einen angemessenen platz um als Info, Warning
 // oder Error eindeutig erkannt zu werden."; his pick of three rendered looks, variant C): a banner
 // between the tagline and the clusters, with room above and below, on a tint of its level's colour

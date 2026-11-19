@@ -11,11 +11,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// TestDrawerYAMLFind (the owner's request of 2026-10-25): the drawer's read-only YAML has its find
-// bar over it for good, without replace and ×; ⌘F puts the keys in its field while the YAML shows,
-// from the drawer, the list's table or nowhere, but not from the list's search; typed text selects
-// the first match and counts them; Escape in the field clears it and gives the YAML the keys, and
-// the next Escape, typed to the YAML, closes the drawer.
+// TestDrawerYAMLFind (the owner's request): the drawer's read-only YAML has its find bar over it
+// for good, without replace and ×; ⌘F puts the keys in its field while the YAML shows, from the
+// drawer, the list's table or nowhere, but not from the list's search; typed text selects the first
+// match and counts them; Escape in the field clears it and gives the YAML the keys, and the next
+// Escape, typed to the YAML, closes the drawer.
 func TestDrawerYAMLFind(t *testing.T) {
 	f := kindsFake(t, "pods")
 	p := richPod(t)
@@ -65,11 +65,11 @@ func TestDrawerYAMLFind(t *testing.T) {
 	q.until(t, "the drawer closed by the YAML's Escape", func() bool { return sh.ui.Drawer == nil })
 }
 
-// TestReleaseValuesFind (the owner's finding of 2026-10-25, "Es gibt keine Suche in Helm-Release
-// Values"): the release drawer's values editor has the drawer's find bar over it for good, without
-// a replace row; ⌘F in the editor puts the keys in its field, a search counts and selects the
-// matches and follows the text as it is typed; ⌘F from the list stays the list's search; Escape
-// clears the field, the next closes the drawer.
+// TestReleaseValuesFind (the owner's finding, "Es gibt keine Suche in Helm-Release Values"): the
+// release drawer's values editor has the drawer's find bar over it for good, without a replace row;
+// ⌘F in the editor puts the keys in its field, a search counts and selects the matches and follows
+// the text as it is typed; ⌘F from the list stays the list's search; Escape clears the field, the
+// next closes the drawer.
 func TestReleaseValuesFind(t *testing.T) {
 	sh, w, q, _, _ := releaseDrawerShell(t, ThemeDark)
 	rv := sh.drawer.kept[releaseValuesKey].(*releaseValues)

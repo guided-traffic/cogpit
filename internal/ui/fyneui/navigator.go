@@ -16,17 +16,16 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The navigator's header and tree (ui-parity › Layout and Clusters). Captured from Lens Desktop
-// (2026-10-11): above the tree a dropdown of the scope the tree shows (one cluster, or a section
-// such as "Local Kubeconfigs") and a search button; the tree's root is the cluster, with its icon,
-// a connection dot and a ›, and a ‹ to go back; hovering an item shows "<item> - <context>". From
-// Lens's documentation: ↑↓ move, → opens, ← closes, Tab and ⇧Tab, ↵ a preview tab, ⇧↵ a fixed tab.
+// The navigator's header and tree (ui-parity › Layout and Clusters). Captured from Lens Desktop:
+// above the tree a dropdown of the scope the tree shows (one cluster, or a section such as "Local
+// Kubeconfigs") and a search button; the tree's root is the cluster, with its icon, a connection
+// dot and a ›, and a ‹ to go back; hovering an item shows "<item> - <context>". From Lens's
+// documentation: ↑↓ move, → opens, ← closes, Tab and ⇧Tab, ↵ a preview tab, ⇧↵ a fixed tab.
 //
 // The level above the tree is the section, Local Kubeconfigs (navigator_sections.go); which one
 // shows is the navigator's scope, engine state (UIState.NavigatorScope). Cogpit's header has no
-// dropdown (D-57, the owner's interview of 2026-10-15 evening): at a cluster it shows "‹ All
-// Clusters", the one way up, and the root has no ‹ (navigator_header.go). The rest is Cogpit's
-// (inferred):
+// dropdown (D-57, the owner's interview): at a cluster it shows "‹ All Clusters", the one way up,
+// and the root has no ‹ (navigator_header.go). The rest is Cogpit's (inferred):
 //   - ‹ All Clusters and ← on the root go up to the section (ui.setNavigatorScope), the cluster
 //     staying connected; ⌘P shows the section with its search focused (findcluster.go); the root's
 //     › is drawn as captured and does nothing, the tree being drilled into its cluster already;
@@ -40,7 +39,7 @@ import (
 //     the first and the last row; Escape clears the search, else closes the detail drawer;
 //   - a click focuses the tree; the row the keyboard is on has a ring in the accent colour while the
 //     tree has the focus from the keyboard (a key, Tab, ↓ from the search), not after a mouse click
-//     (the owner's A53, 2026-10-14 evening), as the table's keyboard cell has a ring (tablekeys.go).
+//     (the owner's A53), as the table's keyboard cell has a ring (tablekeys.go).
 //
 // The search text and the keyboard's row are engine state (D-51, A51; navigatorstate.go): the
 // window reports them as they change and shows an agent's. Which groups are open stays the

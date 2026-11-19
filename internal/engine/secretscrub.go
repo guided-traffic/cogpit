@@ -18,12 +18,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
-// The cached Secrets' values in what agents read (agents-and-mcp H-82, owner 2026-10-14): a
-// value of a Secret Cogpit's cache holds, at least MinScrubbedValue bytes long, is replaced by
-// «secret <namespace>/<name>/<key>» wherever an agent reads cluster text: a logs or terminal tab's
-// lines (dock.read), an object's YAML, drawer values and events (object.get), an editor's text and
-// diff (agentview.go). The window shows the text as it is. The placeholder names the Secret and
-// key, never any part of the value. A value under 16 bytes is replaced only where it stands alone
+// The cached Secrets' values in what agents read (agents-and-mcp H-82, owner): a value of a Secret
+// Cogpit's cache holds, at least MinScrubbedValue bytes long, is replaced by «secret
+// <namespace>/<name>/<key>» wherever an agent reads cluster text: a logs or terminal tab's lines
+// (dock.read), an object's YAML, drawer values and events (object.get), an editor's text and diff
+// (agentview.go). The window shows the text as it is. The placeholder names the Secret and key,
+// never any part of the value. A value under 16 bytes is replaced only where it stands alone
 // (boundedBelow), and the values of keys that name things (a user, a host, a database:
 // isNameKey) are left out: both measured (TestSecretScrubMeasure).
 //
@@ -41,7 +41,7 @@ const (
 	// MinScrubbedValue is the shortest value (in bytes, in each of its forms) that is replaced:
 	// shorter ones ("admin", "5432", "true") would replace ordinary words in every log line.
 	// Measured over 10,000 log lines (TestSecretScrubMeasure, agents-and-mcp H-82); 10 bytes
-	// instead of 8 decided by the owner on 2026-10-14 evening (A5).
+	// instead of 8 decided by the owner (A5).
 	MinScrubbedValue = 10
 	// maxScrubbedValue bounds a value the matcher holds: a longer one (a keystore, a bundle) is
 	// never printed whole into a log line, which the dock cuts at 8 KiB anyway.
@@ -162,9 +162,9 @@ var nameKeyWords = []string{"user", "username", "login", "host", "hostname", "se
 	namespaceKey, "schema", "region", "email"}
 
 // argoPublicKeys are the keys of an Argo CD repository or cluster Secret whose values D-35 shows the
-// window and agents (the owner's decision, 2026-10-14): replacing them would hide from an agent
-// what its object_get of the repository shows, its URL. A URL's user information is replaced in
-// what D-35 shows; a log that prints it keeps it, which H-82 names.
+// window and agents (the owner's decision): replacing them would hide from an agent what its
+// object_get of the repository shows, its URL. A URL's user information is replaced in what D-35
+// shows; a log that prints it keeps it, which H-82 names.
 func argoPublicKeys(s *unstructured.Unstructured) []string {
 	switch s.GetLabels()[kinds.ArgoSecretTypeLabel] {
 	case "repository", "repo-creds":

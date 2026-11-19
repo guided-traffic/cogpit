@@ -25,7 +25,7 @@ func (terminatedWindow) RunNative(func(any)) {
 }
 
 // The shell stops the title bar after the app's run ended; that must not ask GLFW for the window
-// (every quit panicked there, 2026-10-12).
+// (every quit panicked there).
 func TestTitlebarStopAfterTheRunEnded(t *testing.T) {
 	test.NewTempApp(t)
 	tb := newTitlebar(&shell{win: terminatedWindow{test.NewTempWindow(t, nil)}})
@@ -40,10 +40,10 @@ func TestTitlebarStopAfterTheRunEnded(t *testing.T) {
 }
 
 // The window buttons sit centred in Cogpit's 40-point top bar, not where AppKit's own title bar
-// has them (owner, 2026-10-13: "too high"), and stay there when AppKit lays the title bar out
-// again: titlebar_darwin.m itself, built with a native harness into a process of its own (a window
-// needs its process's main thread) and run. Their x stays AppKit's, and the window's colour space
-// is sRGB. Needs clang and a window server.
+// has them (owner: "too high"), and stay there when AppKit lays the title bar out again:
+// titlebar_darwin.m itself, built with a native harness into a process of its own (a window needs
+// its process's main thread) and run. Their x stays AppKit's, and the window's colour space is
+// sRGB. Needs clang and a window server.
 func TestTitlebarButtonsCentred(t *testing.T) {
 	clang := prereq.LookPath(t, "clang")
 	bin := filepath.Join(t.TempDir(), "titlebar_harness")

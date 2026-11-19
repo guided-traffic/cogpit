@@ -9,16 +9,16 @@ import (
 )
 
 // newCreateButton is the "+" that creates an object in the open list (Lens's was a round button
-// over the rows, captured 2026-10-11; here it is a chip at the right end of the dock's strip,
-// stripchip.go, so that it never covers a cell): it opens a Create resource tab in the dock,
-// starting from the template of the view's kind when Cogpit has one (Cogpit's choice; what Lens
-// prefills is not captured), else the example Pod. On the views whose kind has a create dialog
-// (Namespaces, Service Accounts, the four RBAC kinds, Resource Quotas: createdialog.go) it opens
-// that dialog instead, as Lens does (inferred).
+// over the rows, captured; here it is a chip at the right end of the dock's strip, stripchip.go, so
+// that it never covers a cell): it opens a Create resource tab in the dock, starting from the
+// template of the view's kind when Cogpit has one (Cogpit's choice; what Lens prefills is not
+// captured), else the example Pod. On the views whose kind has a create dialog (Namespaces, Service
+// Accounts, the four RBAC kinds, Resource Quotas: createdialog.go) it opens that dialog instead, as
+// Lens does (inferred).
 //
 // It shows while a cluster is connected and a view is open, except on the views of local and
 // virtual kinds (Port Forwarding, Helm Releases): no manifest creates their objects, so a Create
-// resource tab would only offer to create something else (owner, 2026-10-12).
+// resource tab would only offer to create something else (owner).
 func newCreateButton(sh *shell) *stripChip {
 	return newStripChip(theme.ContentAddIcon,
 		func() bool {

@@ -117,8 +117,8 @@ func budgetHelmReleasesWithConfigMaps(t *testing.T, watchList bool) {
 		t.Errorf("the Releases view's requests: %v", srv.Requests())
 	}
 	// A list-then-watch informer reports synced after its list and opens its watch after that
-	// (docs/developer/testing.md › Asynchronous results): wait for the watches (CI, 2026-10-21: the
-	// Secrets' was not open yet).
+	// (docs/developer/testing.md › Asynchronous results): wait for the watches (CI: the Secrets'
+	// was not open yet).
 	if !testkit.WaitFor(ctx, func() bool {
 		w := srv.OpenWatchesBy()
 		return w["secrets with owner=helm"] == 1 && w["configmaps with owner=helm"] == 1

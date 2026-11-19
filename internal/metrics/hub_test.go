@@ -561,7 +561,7 @@ func TestSeriesIsSeededFromAFreshList(t *testing.T) {
 	eventually(t, "the list", func() bool { _, ok := h.Pod("web", "a"); return ok })
 
 	// The drawer's own first poll is held until the checks: on a slow runner it can otherwise
-	// answer before them (CI 2026-10-14) and add a second point, which is not the seed's.
+	// answer before them and add a second point, which is not the seed's.
 	held := make(chan struct{})
 	f.hold.Store(&held)
 	defer close(held)

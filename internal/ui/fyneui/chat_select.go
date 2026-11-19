@@ -13,13 +13,13 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// Selecting and copying text in the agent's column, block by block (the owner's choice of
-// 2026-10-21): a paragraph, a heading, a quote, a list item's text, a table's cell, a code block, a
-// note and a tool's arguments and result are each selectable as the drawer's texts are
-// (selection.go, D-25, D-99): a drag selects within the block, a double click selects a word, the
-// copy shortcut (⌘C, Ctrl+C) copies, Escape drops the selection. A drag ends at the block's edge; an
-// answer's copy icon still copies all of it as Markdown. The pinned message and the empty chat's
-// sample questions stay clickable, not selectable.
+// Selecting and copying text in the agent's column, block by block (the owner's choice): a
+// paragraph, a heading, a quote, a list item's text, a table's cell, a code block, a note and a
+// tool's arguments and result are each selectable as the drawer's texts are (selection.go, D-25,
+// D-99): a drag selects within the block, a double click selects a word, the copy shortcut (⌘C,
+// Ctrl+C) copies, Escape drops the selection. A drag ends at the block's edge; an answer's copy
+// icon still copies all of it as Markdown. The pinned message and the empty chat's sample questions
+// stay clickable, not selectable.
 
 // mdHooks are what a message's text does on a click and a copy.
 type mdHooks struct {

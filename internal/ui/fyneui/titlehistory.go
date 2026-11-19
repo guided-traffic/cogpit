@@ -10,13 +10,13 @@ import (
 )
 
 // The title bar's history arrows and context menu (ui-parity › Layout, "Title bar with history
-// back and forward, notifications and a context menu with Preferences"; captured 2026-10-11: back
-// and forward arrows at the bar's left). The history is the active tab's (UIState.Tabs, Back and
-// Forward; engine/tabs.go): an arrow is enabled while the tab has somewhere to go, and a click
-// dispatches ui.tab.back or ui.tab.forward, as ⌃- and ⌃⇧- do. Cogpit's logo stays beside the
-// window buttons (the owner's requirement), so the arrows follow it, where Lens has them after the
-// window buttons. A right-click on the bar where no button is opens its context menu: Preferences…
-// (the row's text; which other items Lens's menu has is not captured).
+// back and forward, notifications and a context menu with Preferences"; captured: back and forward
+// arrows at the bar's left). The history is the active tab's (UIState.Tabs, Back and Forward;
+// engine/tabs.go): an arrow is enabled while the tab has somewhere to go, and a click dispatches
+// ui.tab.back or ui.tab.forward, as ⌃- and ⌃⇧- do. Cogpit's logo stays beside the window buttons
+// (the owner's requirement), so the arrows follow it, where Lens has them after the window buttons.
+// A right-click on the bar where no button is opens its context menu: Preferences… (the row's text;
+// which other items Lens's menu has is not captured).
 
 // The arrows, drawn for Cogpit: a shaft and a head pointing left, and right.
 var (

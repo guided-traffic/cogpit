@@ -20,7 +20,7 @@ import (
 // is checked by TestGUIOnlyCommandsRefuseOtherOrigins without being listed.
 var wantGUIOnly = []string{
 	"cluster.remove", "cluster.settings.setAgentWrites", "cluster.settings.setAccentColor", "cluster.settings.setLightStrip", "cluster.settings.uploadIcon", "dock.allowAgentRead",
-	// H-125 and H-126 (the owner's decisions of 2026-10-19).
+	// H-125 and H-126 (the owner's decisions).
 	"cluster.settings.resetIcon", "cluster.integrations.step", "cluster.integrations.lookFor", "cluster.integrations.answer",
 	"cluster.integrations.ask",
 	"kubeconfig.addFile", "kubeconfig.addFolder", "kubeconfig.approveExec", "kubeconfig.remove",

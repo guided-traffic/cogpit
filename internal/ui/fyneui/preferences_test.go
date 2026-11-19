@@ -345,7 +345,7 @@ func TestClusterSettingsFromTheSectionSetIdentityAndTerminal(t *testing.T) {
 	work := t.TempDir()
 	// Typed with the field focused, as a user types: the page leaves a focused field alone when the
 	// engine's state changes, and an unfocused one could take a part of the path saved meanwhile
-	// back (red on CI under -race, 2026-10-13).
+	// back (red on CI under -race).
 	dirEntry := entryOf(sh.settings.controls["terminalDir"].(*fyne.Container).Objects[0])
 	sh.win.Canvas().Focus(dirEntry)
 	test.Type(dirEntry, work)

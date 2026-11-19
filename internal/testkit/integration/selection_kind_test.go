@@ -106,7 +106,7 @@ func TestKindDeleteSelection(t *testing.T) {
 	// selectAll selects every ConfigMap the view shows once it shows n of them, as the header's
 	// checkbox does.
 	// selectAll waits until the view shows exactly the named ConfigMaps (a count alone matched a
-	// snapshot that still held a deleted one beside a created one: CI, 2026-10-16), then checks all.
+	// snapshot that still held a deleted one beside a created one: CI), then checks all.
 	selectAll := func(names ...string) []model.ObjectRef {
 		t.Helper()
 		n := len(names)

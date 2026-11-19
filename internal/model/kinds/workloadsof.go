@@ -10,11 +10,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The workloads a GitOps object deploys, for its merged logs (A81, the owner's decision of
-// 2026-10-14 evening: an application's logs in one tab; engine/grouplogs.go): what its controller
-// reports in its status, read from the cached object, no I/O. Only the kinds whose pods' logs a tab
-// shows count (Deployments, Stateful Sets, Daemon Sets, Replica Sets, Jobs); everything else an
-// object deploys is left out.
+// The workloads a GitOps object deploys, for its merged logs (A81, the owner's decision: an
+// application's logs in one tab; engine/grouplogs.go): what its controller reports in its status,
+// read from the cached object, no I/O. Only the kinds whose pods' logs a tab shows count
+// (Deployments, Stateful Sets, Daemon Sets, Replica Sets, Jobs); everything else an object deploys
+// is left out.
 
 // workloadKindKeys maps a workload's API group and Kind to its kind key.
 var workloadKindKeys = map[string]string{

@@ -14,8 +14,8 @@ const keyMutatingAdmissionPolicies = "mutatingadmissionpolicies"
 // mutatingAdmissionPolicies has the columns of Lens's documentation (not captured): Name,
 // Mutations (how many the policy has), Reinvocation Policy, Failure Policy, Age. The view needs
 // admissionregistration.k8s.io/v1 (Kubernetes 1.36 and later): Lens showed it on 1.36.2 and not on
-// 1.35.x (capture, 2026-10-11), where the kind is v1beta1 and off by default, so it has no fallback
-// versions. The kind has no status, so no status token; the drawer is inferred.
+// 1.35.x (capture), where the kind is v1beta1 and off by default, so it has no fallback versions.
+// The kind has no status, so no status token; the drawer is inferred.
 var mutatingAdmissionPolicies = &model.KindProfile{
 	Key:      keyMutatingAdmissionPolicies,
 	Group:    groupAdmission,

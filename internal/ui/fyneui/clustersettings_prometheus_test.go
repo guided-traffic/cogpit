@@ -93,11 +93,11 @@ func openPromSettings(t *testing.T, mode ThemeMode, set engine.PrometheusSetting
 	return sh, pf, q, sh.settings.prom
 }
 
-// Cluster Settings › Metrics shows the Prometheus's fields on the page (G12, 2026-10-16 night): the
-// query format and the empty-container filter, the service address (empty: found by name) with the
-// Prometheus in use under it and HTTPS, the path prefix for an address only. Each change sets the
-// whole setting at once (a text field after the typing pause); a refusal shows under the address;
-// an agent's change shows in the fields.
+// Cluster Settings › Metrics shows the Prometheus's fields on the page (G12): the query format and
+// the empty-container filter, the service address (empty: found by name) with the Prometheus in use
+// under it and HTTPS, the path prefix for an address only. Each change sets the whole setting at
+// once (a text field after the typing pause); a refusal shows under the address; an agent's change
+// shows in the fields.
 func TestPrometheusSettingsOnThePage(t *testing.T) {
 	sh, pf, q, f := openPromSettings(t, ThemeDark, engine.PrometheusSetting{Context: "kind-dev", Auto: true, Format: autoSetting,
 		FilterEmptyContainers: true, Kept: true, InUse: "Prometheus monitoring/prometheus-k8s:web", InUseStatus: metrics.StatusAvailable})
@@ -191,8 +191,8 @@ func TestPrometheusSettingsOnThePage(t *testing.T) {
 
 // A key typed as the pause before it ends: the pause's set already waits on the main goroutine.
 // Only the newest pause sets the field, and the field stays held until it does
-// (TestPrometheusSettingsOnThePage on CI, 2026-10-22: the older pause set the address early and
-// dropped the newer one, which then set it again late, over the agent's change).
+// (TestPrometheusSettingsOnThePage on CI: the older pause set the address early and dropped the
+// newer one, which then set it again late, over the agent's change).
 func TestPrometheusAddressTypedAsThePauseEnds(t *testing.T) {
 	sh, pf, q, f := openPromSettings(t, ThemeDark, engine.PrometheusSetting{Context: "kind-dev", Auto: true, Format: autoSetting,
 		FilterEmptyContainers: true, Kept: true, InUse: "Prometheus monitoring/prometheus-k8s:web", InUseStatus: metrics.StatusAvailable})

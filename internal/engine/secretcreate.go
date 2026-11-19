@@ -9,12 +9,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Create Secret (G9; D-19, owner 2026-10-12): Lens's eighth create dialog, behind the Secrets
-// view's "+". Its command (package commands, secretcreate.go) builds the Secret from the dialog's
-// fields and creates it as the other create dialogs do (CreateManifest), for the GUI only: an
-// agent or the CLI is refused before anyone is asked. What the engine adds here: the types and
-// the keys the dialog starts a typed Secret with, the refusal, and the audit line of a refused
-// call, which names the Secret, its type and its keys, never a value.
+// Create Secret (G9; D-19, owner): Lens's eighth create dialog, behind the Secrets view's "+". Its
+// command (package commands, secretcreate.go) builds the Secret from the dialog's fields and
+// creates it as the other create dialogs do (CreateManifest), for the GUI only: an agent or the CLI
+// is refused before anyone is asked. What the engine adds here: the types and the keys the dialog
+// starts a typed Secret with, the refusal, and the audit line of a refused call, which names the
+// Secret, its type and its keys, never a value.
 
 // SecretCreateCommand is the id of the Create Secret dialog's command.
 const SecretCreateCommand = "secret.create"

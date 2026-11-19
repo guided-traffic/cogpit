@@ -18,7 +18,7 @@ import (
 // D, envoy C for its OS's end of life, and the init container's image not scanned, N/A.
 
 // trivyFixtureReport is a report of one container of a fixture pod's ReplicaSet, shaped as Trivy
-// Operator writes it (kind, 2026-10-17), the image as the fixture names it.
+// Operator writes it (kind), the image as the fixture names it.
 func trivyFixtureReport(ns, rs, container, image string, counts ...int64) *unstructured.Unstructured {
 	counts = append(counts, 0, 0, 0, 0, 0)
 	ref, tag, _ := strings.Cut(strings.TrimPrefix(image, "registry.example.com/"), ":")

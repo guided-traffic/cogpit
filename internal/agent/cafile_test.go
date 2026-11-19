@@ -30,10 +30,10 @@ func writeFile(t *testing.T, dir, name string, data []byte) string {
 	return p
 }
 
-// TestCAFileTrustsAPrivateCA (the owner's decision of 2026-10-15): an https endpoint whose
-// certificate chains to a private CA fails the connection test's TLS layer with a hint at the CA
-// file; with the CA's file the test passes and a turn runs; the file is kept with the connection by
-// its path and read again when connecting, so a file that changed counts at once.
+// TestCAFileTrustsAPrivateCA (the owner's decision): an https endpoint whose certificate chains to
+// a private CA fails the connection test's TLS layer with a hint at the CA file; with the CA's file
+// the test passes and a turn runs; the file is kept with the connection by its path and read again
+// when connecting, so a file that changed counts at once.
 func TestCAFileTrustsAPrivateCA(t *testing.T) {
 	h := newHarness(t, engine.ChatLimits{})
 	ca := testkit.NewTestCA(t, "Cogpit test private CA")
@@ -140,11 +140,11 @@ func TestCAFileErrorsAreNamed(t *testing.T) {
 	}
 }
 
-// TestCAFileReplacesTheSystemRoots (N141, the owner's decision in the audit of 2026-10-16): the
-// pool a CA file makes holds the file's certificates alone, never the system's roots with them, as
-// kubectl's certificate-authority: Go's verifier checks the chain against the file, and macOS's
-// platform verifier, which Verify asks only for a pool marked as the system's, is not asked (Go
-// 1.27's crypto/x509; the analysis at loadCAPool).
+// TestCAFileReplacesTheSystemRoots (N141, the owner's decision in the audit): the pool a CA file
+// makes holds the file's certificates alone, never the system's roots with them, as kubectl's
+// certificate-authority: Go's verifier checks the chain against the file, and macOS's platform
+// verifier, which Verify asks only for a pool marked as the system's, is not asked (Go 1.27's
+// crypto/x509; the analysis at loadCAPool).
 func TestCAFileReplacesTheSystemRoots(t *testing.T) {
 	ca := testkit.NewTestCA(t, "Cogpit test private CA")
 	path := writeFile(t, t.TempDir(), "ca.pem", ca.PEM())
@@ -197,10 +197,10 @@ func TestCAFileRefusesAPublicServer(t *testing.T) {
 	t.Logf("with a CA file: %s", steps[2].Detail)
 }
 
-// TestPlainHTTPToAnotherMachineIsWarned (the owner's decision of 2026-10-15, H-95): the connection
-// test of an http endpoint on another machine passes its HTTP layer with the warning that the key,
-// the conversation and every secret the agent reads travel unencrypted; on this computer
-// (localhost, 127.0.0.1, ::1) and over https it does not warn.
+// TestPlainHTTPToAnotherMachineIsWarned (the owner's decision, H-95): the connection test of an
+// http endpoint on another machine passes its HTTP layer with the warning that the key, the
+// conversation and every secret the agent reads travel unencrypted; on this computer (localhost,
+// 127.0.0.1, ::1) and over https it does not warn.
 func TestPlainHTTPToAnotherMachineIsWarned(t *testing.T) {
 	h := newHarness(t, engine.ChatLimits{})
 	fake, err := url.Parse(h.llm.Root)

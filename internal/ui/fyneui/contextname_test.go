@@ -37,9 +37,9 @@ func TestContextNameAndFileShownApart(t *testing.T) {
 	}
 }
 
-// The top bar names no cluster (the owner, 2026-10-21, D-54): neither its name, its kubeconfig file
-// nor "Not connected", and it carries no connection dot; the status bar and the navigator name it,
-// and the status bar's dot is where the shown cluster's connection log opens.
+// The top bar names no cluster (the owner, D-54): neither its name, its kubeconfig file nor "Not
+// connected", and it carries no connection dot; the status bar and the navigator name it, and the
+// status bar's dot is where the shown cluster's connection log opens.
 func TestTopBarNamesNoCluster(t *testing.T) {
 	const id = "acme-d-pinniped [.kube/kubeconfig-acme-d.yaml]"
 	f := connectedFake(t, 10)

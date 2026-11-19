@@ -172,7 +172,7 @@ func TestObjectRangeOfANode(t *testing.T) {
 		t.Errorf("node usage = %+v (targets %d)", u, len(got.Targets))
 	}
 	// CPU and memory from node-exporter (A43); the network and the filesystem from node-exporter or
-	// else the root cgroup, both in one query each (2026-10-16).
+	// else the root cgroup, both in one query each.
 	if got.UsageSource != metrics.UsageNodeExporter || c.prom.queryCount("node_cpu_seconds_total") != 1 || c.prom.queryCount("container_cpu_usage_seconds_total") != 0 {
 		t.Errorf("usage source %q", got.UsageSource)
 	}
@@ -295,8 +295,7 @@ func TestNodeHistoryFromNodeExporter(t *testing.T) {
 // The filesystem metric is found per kind: on containerd the kubelet's cAdvisor has
 // container_fs_usage_bytes for the node's root cgroup but not for containers, so a node's drawer
 // opened first must not leave the pods' Filesystem charts empty (seen on kind with the prometheus
-// chart, 2026-10-12). The node's usage counts its block devices only, not the overlays that
-// repeat them.
+// chart). The node's usage counts its block devices only, not the overlays that repeat them.
 func TestFilesystemModeIsPerKind(t *testing.T) {
 	c := newPromCluster(t, false)
 	podData(c.prom)

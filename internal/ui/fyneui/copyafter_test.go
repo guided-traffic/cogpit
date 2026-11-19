@@ -14,11 +14,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The drawer's copy icon right after every kind of value (D-25, the owner in a real window,
-// 2026-10-13: "the copy button at Not After has wandered to the far right again"): a padding after
-// a pill, a line, a link, an event's message; at the value's end when the text leaves no room,
-// the text then shortened with "…" before it; in an action row over the value's end, the buttons
-// right after the value (A71).
+// The drawer's copy icon right after every kind of value (D-25, the owner in a real window: "the
+// copy button at Not After has wandered to the far right again"): a padding after a pill, a line, a
+// link, an event's message; at the value's end when the text leaves no room, the text then
+// shortened with "…" before it; in an action row over the value's end, the buttons right after the
+// value (A71).
 
 // iconAt returns the copy icon's left edge and width, in window coordinates.
 func iconAt(t *testing.T, d *drawer) (float32, float32) {

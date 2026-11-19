@@ -207,8 +207,8 @@ func unframed(text string) string {
 }
 
 // An agent's object_get reads a chart's README, waiting for its download as the drawer would: the
-// text in the README section, framed as the chart author's text, not instructions (A31, owner
-// 2026-10-14 evening); the state in helmChart. The window reads it unframed.
+// text in the README section, framed as the chart author's text, not instructions (A31, owner); the
+// state in helmChart. The window reads it unframed.
 func TestHelmChartReadmeForAgents(t *testing.T) {
 	h := newChartHarness(t, nil)
 	h.repo.Add(docsChart("1.0.0", docsReadme))

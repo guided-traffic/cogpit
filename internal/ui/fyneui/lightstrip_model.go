@@ -12,8 +12,8 @@ import (
 
 // The light strip's model and maths (D-122, lightstrip.go): pure functions of time and width, so
 // that the tests drive them without a window. Ported from the owner's lab (plan/light-strip-lab.html
-// v8, drawLayer, stepLayers, retarget and NOISE: the maths, not the canvas calls), with his picks of
-// 2026-10-24 as the constants below.
+// v8, drawLayer, stepLayers, retarget and NOISE: the maths, not the canvas calls), with his picks
+// as the constants below.
 
 // His picks from the lab (light-strip.md § 2; the lab's knobs in brackets).
 const (
@@ -142,7 +142,7 @@ type stripCover int
 
 const (
 	// coverGlass: through glass, the old layers fading out first; every change but one static
-	// colour to another (the owner, 2026-10-24).
+	// colour to another (the owner).
 	coverGlass stripCover = iota
 	// coverSpread: a static colour over another, spreading from the shown tab's place to both ends
 	// over stripFade (the owner's LS22: "bei übergang von static zu static machen wir: von Tab aus").
@@ -221,10 +221,10 @@ func (l *stripLayer) clock(now time.Time) float64 { return max(0, now.Sub(l.in).
 // gone reports whether the layer has faded out.
 func (l *stripLayer) gone(now time.Time) bool { return !l.out.IsZero() && l.opacity(now) <= 0 }
 
-// stripModel holds the strip's layers, the newest last. Every change goes through glass (the owner,
-// 2026-10-24: "statisch zu statisch über aus, ja"): the old layers fade out, then the new one fades
-// in from its beginning. Time-based where the lab stepped frame by frame: a layer's opacity is a
-// function of the clock, so a frame rate never changes a transition and a test sets any moment.
+// stripModel holds the strip's layers, the newest last. Every change goes through glass (the owner:
+// "statisch zu statisch über aus, ja"): the old layers fade out, then the new one fades in from its
+// beginning. Time-based where the lab stepped frame by frame: a layer's opacity is a function of
+// the clock, so a frame rate never changes a transition and a test sets any moment.
 type stripModel struct {
 	layers []*stripLayer
 }

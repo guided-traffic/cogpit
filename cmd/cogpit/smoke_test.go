@@ -190,7 +190,7 @@ func TestSmokeProgress(t *testing.T) {
 }
 
 // Goroutine stacks as Go prints them, from a smoke run whose quit hung in Fyne 2.8.2's shutdown
-// (CI-like container, 2026-10-27), shortened.
+// (CI-like container), shortened.
 const (
 	stackMainWaitsForEvents = `goroutine 1 [chan receive, locked to thread]:
 fyne.io/fyne/v2/internal/app.(*Lifecycle).WaitForEvents(...)

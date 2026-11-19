@@ -591,8 +591,8 @@ func TestHelmRollbackAndUninstall(t *testing.T) {
 		!strings.Contains(err.Error(), "no revision 4") {
 		t.Errorf("rollback to a revision the release never had: %v", err)
 	}
-	// The newest revision is a target too, as Lens's dialog allows (captured 2026-10-12): a new
-	// revision equal to it.
+	// The newest revision is a target too, as Lens's dialog allows (captured): a new revision equal
+	// to it.
 	res, err := h.dispatch(engine.OriginGUI, "helm.release.rollback", map[string]any{"ref": webRef, "revision": 3})
 	if err != nil {
 		t.Fatalf("rollback to the newest revision: %v", err)
@@ -803,8 +803,7 @@ func writeFile(t *testing.T, path, content string) {
 }
 
 // An open release drawer follows a new revision: its cache holds the release's Secrets, whose
-// names are not the release's, so a wake filtered by the release's name never came (review
-// 2026-10-13).
+// names are not the release's, so a wake filtered by the release's name never came.
 func TestHelmReleaseDrawerFollowsANewRevision(t *testing.T) {
 	h := newHelmHarness(t, engine.NewMemoryHelmJournal(), nil)
 	if _, err := h.dispatch(engine.OriginGUI, "ui.navigate", map[string]any{"ref": webRef}); err != nil {

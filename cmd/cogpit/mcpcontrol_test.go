@@ -239,11 +239,11 @@ func TestMCPControlOffersTheBundledCLI(t *testing.T) {
 	}
 }
 
-// TestMCPControlStoredSwitchIsOptIn (D-49, the owner's decision of 2026-10-21): the window asks the
-// control for the stored switch at launch, and the server is opt-in. A fresh configuration
-// directory, a new installation, reads as off and unset, and so does no directory at all; a stored
-// "on" is on and set; a stored "off" is off and set; a file Cogpit cannot read is off and set, so
-// the server stays off until the user clicks. The window's own click is stored where it reads from.
+// TestMCPControlStoredSwitchIsOptIn (D-49, the owner's decision): the window asks the control for
+// the stored switch at launch, and the server is opt-in. A fresh configuration directory, a new
+// installation, reads as off and unset, and so does no directory at all; a stored "on" is on and
+// set; a stored "off" is off and set; a file Cogpit cannot read is off and set, so the server stays
+// off until the user clicks. The window's own click is stored where it reads from.
 func TestMCPControlStoredSwitchIsOptIn(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	fresh := filepath.Join(t.TempDir(), "Cogpit")

@@ -9,11 +9,12 @@ import (
 
 // The connection watch's lines in the connection log (D-66): an interruption is an entry of its
 // own with the error picture of the check that failed, ended at once, and the reconnect after it
-// the next attempt (the owner's WF37 of 2026-10-19: each entry reads top down and ends in how it
-// ended, the newest on top); the reconnect's tries are written when their reason changes (a reconnect that waits all night writes a line per change, not one every 30
-// seconds); it ends when the connection is back or the login expired. A login the API server
-// rejects begins a login attempt (connwatch.go), and a credential plugin that failed a check adds
-// its scrubbed standard error to the attempt that runs.
+// the next attempt (the owner's WF37: each entry reads top down and ends in how it ended, the
+// newest on top); the reconnect's tries are written when their reason changes (a reconnect that
+// waits all night writes a line per change, not one every 30 seconds); it ends when the connection
+// is back or the login expired. A login the API server rejects begins a login attempt
+// (connwatch.go), and a credential plugin that failed a check adds its scrubbed standard error to
+// the attempt that runs.
 
 // logInterrupted writes an interruption with its cause, then begins the reconnect after it.
 func (w *connWatch) logInterrupted(reason string, cause error) {

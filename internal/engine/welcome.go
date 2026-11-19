@@ -4,14 +4,14 @@ import "errors"
 
 // The welcome page (ui-parity › Layout, G5; Help › Welcome, G13). Lens Desktop has a welcome page
 // behind Help › Welcome; what it shows is not captured. Cogpit's page and when it shows are Cogpit's
-// defaults (inferred, 2026-10-13, not the owner's decision):
+// defaults (inferred, not the owner's decision):
 //   - the workspace shows it whenever it has nothing else to show: no cluster is connected and
 //     none is connecting (at start, after a disconnect or a connection Cogpit closed), or a cluster
 //     is connected and no tab is active (the last tab closed);
 //   - never after the shown cluster's connect failed, whether or not a tab is open: its error page
-//     shows instead (UIState.ConnectFailure; the owner's AW17 of 2026-10-22, his choice (b): "the
-//     welcome page only when no cluster is chosen", D-114); a failed connect without a context to
-//     name (none given, the kubeconfig sets no current one) shows the page with its error;
+//     shows instead (UIState.ConnectFailure; the owner's AW17, his choice (b): "the welcome page
+//     only when no cluster is chosen", D-114); a failed connect without a context to name (none
+//     given, the kubeconfig sets no current one) shows the page with its error;
 //   - Help › Welcome (ui.welcome.open) shows it over a connected cluster by leaving the active tab,
 //     which keeps its own view, filter, selection and drawer and shows them again when it is
 //     selected; opening a view or selecting a tab ends the page. Over a failed connect it leaves the

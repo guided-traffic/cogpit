@@ -9,12 +9,12 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
-// Moving a tab by dragging it (the owner's gate walk, 2026-10-20, GW4: "Man muss Tab beliebig
-// anordnen können"), in the tab bar (tabbar.go) and in the dock's strip (dock.go) alike. The move
-// is a command, ui.tab.move or dock.move, so that agents see the new order in UIState.Tabs or
+// Moving a tab by dragging it (the owner's gate walk, GW4: "Man muss Tab beliebig anordnen
+// können"), in the tab bar (tabbar.go) and in the dock's strip (dock.go) alike. The move is a
+// command, ui.tab.move or dock.move, so that agents see the new order in UIState.Tabs or
 // UIState.Dock as the bar does (UI state is engine state); nothing reaches the engine before the
 // drop. The hotbar's tile drag (D-83, hotbardrag.go) is the model, turned sideways; the lead's
-// decisions of 2026-10-20, open to revision (D-106):
+// decisions, open to revision (D-106):
 //   - Once the pointer moved minTileDrag the tab is lifted: it follows the pointer along the strip,
 //     held where it was grabbed, drawn raised as the active tab is, with a drop shadow, over the
 //     others; it stays in the strip's line (a tab bar is one row: no card over the window as the

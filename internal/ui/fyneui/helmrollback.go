@@ -15,12 +15,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Lens's Rollback dialog (captured 2026-10-12): "Rollback <name>", a REVISION dropdown of every
-// revision, newest first, the current one selected, each "12 - <chart>-<version> - <appVersion>,
-// updated: 12/10/2026, 08:30:16", then Cancel and Rollback, and no second confirmation. Rollback
-// stays enabled with the current revision selected; what Lens does then is not captured. Cogpit
-// rolls back to it as helm does: a new revision equal to the current one, its manifest applied
-// again; the dialog's row "Writes" says so for every choice.
+// Lens's Rollback dialog (captured): "Rollback <name>", a REVISION dropdown of every revision,
+// newest first, the current one selected, each "12 - <chart>-<version> - <appVersion>, updated:
+// 12/10/2026, 08:30:16", then Cancel and Rollback, and no second confirmation. Rollback stays
+// enabled with the current revision selected; what Lens does then is not captured. Cogpit rolls
+// back to it as helm does: a new revision equal to the current one, its manifest applied again; the
+// dialog's row "Writes" says so for every choice.
 //
 // Rollback is destructive, so the engine asks the GUI's confirmer for every origin (D-2). The
 // dialog is that confirmation: it names the release, its namespace and its context in the rows

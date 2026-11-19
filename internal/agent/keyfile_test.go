@@ -17,8 +17,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit/fakellm"
 )
 
-// The API keys in the owner-only key file (keystore.go; the owner's decision of 2026-10-15, no
-// keychain, D-10).
+// The API keys in the owner-only key file (keystore.go; the owner's decision, no keychain, D-10).
 
 // fakeKey is an obviously fake API key. Its bytes may be in the key file and in the Authorization
 // header of a request to the fake endpoint, nowhere else.

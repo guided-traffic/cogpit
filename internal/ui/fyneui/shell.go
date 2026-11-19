@@ -748,10 +748,10 @@ func (sh *shell) loadKinds() {
 // that offer namespaces (followNamespaces). It runs when a cluster is shown, once its kinds say the
 // user may list the namespaces (or cannot tell yet: nsAfterKinds), and again whenever the
 // filter or such a field opens, so that a namespace created since is offered (the owner's walk,
-// 2026-10-17, WF10: walk-test, created in the window, was missing from both until the cluster was
-// shown anew), and while the filter names namespaces when the view's rows change (nsgone.go); it
-// reads the cache, never the API server, every namespace page by page (nsPageSize), and notes the
-// terminating ones. Only a changed list touches the widgets.
+// WF10: walk-test, created in the window, was missing from both until the cluster was shown anew),
+// and while the filter names namespaces when the view's rows change (nsgone.go); it reads the
+// cache, never the API server, every namespace page by page (nsPageSize), and notes the terminating
+// ones. Only a changed list touches the widgets.
 func (sh *shell) loadNamespaces() {
 	ctxName := sh.ui.Context
 	var names []string
@@ -809,7 +809,7 @@ func (sh *shell) namespacesRead(ctxName string, names []string, terminating map[
 // filter and the fields that offer namespaces never offer that cluster's: loadNamespaces keeps the
 // last list when its read fails, and the read of a cluster whose login expired or whose connection
 // was interrupted before its namespaces were read waits until the cluster is back (the owner's
-// finding of 2026-10-22: acme-p-pinniped, its login expired, offered acme-main's namespaces).
+// finding: acme-p-pinniped, its login expired, offered acme-main's namespaces).
 func (sh *shell) forgetNamespaces() {
 	if sh.namespaces == nil && sh.nsFor == "" {
 		return
@@ -870,7 +870,7 @@ func (sh *shell) dispatch(id string, params any, done func(any, error)) {
 
 // dispatchInOrder dispatches as dispatch does, once every earlier dispatchInOrder has finished: a
 // setting changed twice in quick succession is written in the order it was changed, where two
-// goroutines could write the older value last (CI, 2026-10-16: TestHideMetricsFromTheSettings).
+// goroutines could write the older value last (CI: TestHideMetricsFromTheSettings).
 func (sh *shell) dispatchInOrder(id string, params any, done func(any, error)) {
 	raw, err := json.Marshal(params)
 	if err != nil {
@@ -917,7 +917,7 @@ func (sh *shell) run(id string, raw json.RawMessage, done func(any, error)) {
 // showError shows a dispatch error as a toast; a declined confirmation is the user's answer, and a
 // connect that did not fail is none (engine.ConnectNotFailed: the user's Cancel Connecting, a
 // connect that goes on in the background, one superseded before it began; the owner's AW15 and
-// AW16 of 2026-10-22): the cluster's dot and its connection log say what happened.
+// AW16): the cluster's dot and its connection log say what happened.
 func (sh *shell) showError(err error) {
 	if err == nil || errors.Is(err, engine.ErrDeclined) || engine.ConnectNotFailed(err) {
 		return
@@ -976,8 +976,7 @@ func (sh *shell) toast(level, msg string) {
 }
 
 // copyToast shows a copy's confirmation as a toast only: copying is not worth a place in the
-// notification history (the owner's F5, 2026-10-15), so nothing is recorded and the bell does not
-// count it.
+// notification history (the owner's F5), so nothing is recorded and the bell does not count it.
 func (sh *shell) copyToast(level, msg string) { sh.showToast(level, msg, 0) }
 
 // showToast shows a message in the bottom-right corner: a card on a strong surface with a bar,

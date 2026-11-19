@@ -837,9 +837,9 @@ func (k *KubeconfigSources) Fate(path string) FileFate { return k.FateOf(path, "
 // (SourceContextID): the file is covered only while a source still offers it under that label.
 // One file can be offered twice, by a file source of its own and by a synced folder it lies in,
 // under two labels and so as two contexts; removing the file source leaves the file covered by the
-// folder, but not the context the removed source offered (the owner's walk 2026-10-17, WF3: a
-// connection made from a removed file source stayed open because the user's home folder was
-// synced too). An empty label asks whether any source covers the file.
+// folder, but not the context the removed source offered (the owner's walk, WF3: a connection made
+// from a removed file source stayed open because the user's home folder was synced too). An empty
+// label asks whether any source covers the file.
 func (k *KubeconfigSources) FateOf(path, label string) FileFate {
 	if _, err := os.Stat(path); errors.Is(err, fs.ErrNotExist) {
 		return FileGone

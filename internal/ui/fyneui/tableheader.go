@@ -170,8 +170,8 @@ func widestText(n int, text func(int) string, size float32) float32 {
 	return w
 }
 
-// itemCount is the header's count of a view's rows: "18 items" as captured (2026-10-11); with a
-// filter that hides some, "18 of 10,000 items" (Cogpit's).
+// itemCount is the header's count of a view's rows: "18 items" as captured; with a filter that
+// hides some, "18 of 10,000 items" (Cogpit's).
 func itemCount(shown, total int) string {
 	noun := " items"
 	if total == 1 {

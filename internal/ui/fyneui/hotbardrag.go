@@ -12,14 +12,14 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// Reordering the hotbar's tiles by dragging them (R2, with the look of D-83: the owner's WF6 of
-// 2026-10-17, decisions.md; ui-parity › Hotbar). The move is hotbar.moveCluster, the command the
-// tile's Move Up and Move Down send, so agents see the new order in UIState.Hotbar as the bar does
-// (UI state is engine state); nothing reaches the engine before the drop.
+// Reordering the hotbar's tiles by dragging them (R2, with the look of D-83: the owner's WF6,
+// decisions.md; ui-parity › Hotbar). The move is hotbar.moveCluster, the command the tile's Move Up
+// and Move Down send, so agents see the new order in UIState.Hotbar as the bar does (UI state is
+// engine state); nothing reaches the engine before the drop.
 //
 // The drag carries the tile: the owner asked that the cluster is taken along and the other tiles
 // arrange themselves around it while the button is held. How it looks and what it does are the
-// lead's decisions of 2026-10-17 evening, open to the owner's revision (D-83):
+// lead's decisions, open to the owner's revision (D-83):
 //   - Once the pointer moved minTileDrag the tile is lifted: a copy of it (the ghost) follows the
 //     pointer in a layer over the whole window (shell.go), held where it was grabbed, scaled up to
 //     tileLift on a card with a drop shadow; where the tile was, its empty slot (an outline) stays.

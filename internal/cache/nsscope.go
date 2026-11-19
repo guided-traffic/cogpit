@@ -183,8 +183,8 @@ func (c *Cache) OnRefused(fn func(Scope)) {
 // failed records a list or watch error. A refusal is told first (OnRefused), then shown: a reader
 // that sees it may release the scope, which ends it (a refused scope is not kept warm), and a
 // reader that decides how to read the kind after that must already know of the refusal, or it
-// starts the refused read again (2026-10-20). A warm scope that was refused ends (refusedIf); a
-// scope a handle holds keeps retrying, and its error shows.
+// starts the refused read again. A warm scope that was refused ends (refusedIf); a scope a handle
+// holds keeps retrying, and its error shows.
 func (r *runner) failed(err error) {
 	refused := isRefused(err) && r.c != nil
 	if refused {
@@ -208,8 +208,8 @@ func (r *runner) refusedIf(err error) {
 	e := r.owner.Load()
 	if e == nil {
 		// A label-selected scope's own informer (cover.go): its entry reads it through a view, and
-		// ends when the view follows it (not a cover that serves it meanwhile). Before
-		// (2026-10-14) such a scope was kept warm and retried for its warm period.
+		// ends when the view follows it (not a cover that serves it meanwhile), rather than being
+		// kept warm and retried for its warm period.
 		if se := c.informers[r.scope]; se != nil && se.view != nil && se.view.own == r && isRefused(se.view.err()) {
 			e = se
 		}

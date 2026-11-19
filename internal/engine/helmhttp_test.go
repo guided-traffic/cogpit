@@ -48,11 +48,11 @@ func infoOf(t *testing.T, h *HelmRepos, name string) HelmRepoInfo {
 	return HelmRepoInfo{}
 }
 
-// H-40 (owner, 2026-10-14): a repository over plain http with a user and password downloads
-// nothing, neither on an update nor in the background nor for a chart or its README, until the user
-// allowed it; the list says why and offers a token. A wrong token allows nothing. Once allowed it
-// downloads as helm does, the background refresh included, and the allowance outlives the session
-// (its file). A changed URL or user asks again; a changed password does not.
+// H-40 (owner): a repository over plain http with a user and password downloads nothing, neither on
+// an update nor in the background nor for a chart or its README, until the user allowed it; the
+// list says why and offers a token. A wrong token allows nothing. Once allowed it downloads as helm
+// does, the background refresh included, and the allowance outlives the session (its file). A
+// changed URL or user asks again; a changed password does not.
 func TestHelmCredentialsOverHTTPWaitForTheUser(t *testing.T) {
 	r, entry := plainRepoWithLogin(t)
 	approvals := filepath.Join(t.TempDir(), "config", HelmHTTPApprovalsFile)

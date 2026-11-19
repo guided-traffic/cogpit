@@ -17,10 +17,10 @@ import (
 // The Flux Dashboard's upper part (resource-parity › Paid Lens Desktop views › Flux CD, G23,
 // D-34): a tile per Flux kind the cluster serves, in the navigator's order and sub-groups, with its
 // count, a bar of its objects by state and each state's count as a link to the kind's view filtered
-// to that state (the views' status filter, D-34 as the owner decided it, 2026-10-14). The objects
-// that are not ready are the page's table below, which the table view shows as it shows any view's.
-// The data is the engine's (flux.dashboard). Lens's Flux dashboard is not captured: the look is
-// Cogpit's (inferred).
+// to that state (the views' status filter, D-34 as the owner decided it). The objects that are not
+// ready are the page's table below, which the table view shows as it shows any view's. The data is
+// the engine's (flux.dashboard). Lens's Flux dashboard is not captured: the look is Cogpit's
+// (inferred).
 
 // fluxTableTitle is the heading of the dashboard's table.
 const fluxTableTitle = "Not Ready"

@@ -21,8 +21,8 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// Thanos and VictoriaMetrics, read as Prometheus is (G12, D-71, night run 2026-10-16/17): found by
-// their Services' names under their own names, and drawn from their answers. The kind cluster's
+// Thanos and VictoriaMetrics, read as Prometheus is (G12, D-71, night run): found by their
+// Services' names under their own names, and drawn from their answers. The kind cluster's
 // VictoriaMetrics (make kind-vm: single-node and a cluster, both fed from the kind Prometheus
 // through /federate) and, with COGPIT_REAL_THANOS, a real cluster's Thanos Querier and query
 // frontend. They only read; the Prometheus setting they make lives in the session (no

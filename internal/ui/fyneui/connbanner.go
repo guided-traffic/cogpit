@@ -19,16 +19,16 @@ import (
 // attempt, and Reconnect (cluster.reconnect, a new connection from the kubeconfig file, D-81); for
 // an expired login of a context with a credential plugin Log in again (cluster.login), Reconnect
 // beside it; for one without, Reconnect alone, since nothing but the file can renew it (the owner's
-// F28 of 2026-10-17). It reads only the UI state, so it says what an agent reads in ui_state. The
-// window stays usable: the views keep the cluster's state as of the interruption, and writes are
-// disabled with the reason in their menus and buttons. Lens's behaviour on a lost connection is not
-// captured: this is Cogpit's own.
+// F28). It reads only the UI state, so it says what an agent reads in ui_state. The window stays
+// usable: the views keep the cluster's state as of the interruption, and writes are disabled with
+// the reason in their menus and buttons. Lens's behaviour on a lost connection is not captured:
+// this is Cogpit's own.
 //
 // A connected cluster whose API server was upgraded to another minor since the connect
-// (Connection.Upgraded, the owner's "Option A" of 2026-10-26) shows the strip in the accent colour:
-// the version it runs now, the one Cogpit connected to, that the kinds and API versions are that
-// one's, and Reconnect. A patch shows no strip: the navigator's version follows it. The lines are
-// selectable (drag, ⌘C).
+// (Connection.Upgraded, the owner's "Option A") shows the strip in the accent colour: the version
+// it runs now, the one Cogpit connected to, that the kinds and API versions are that one's, and
+// Reconnect. A patch shows no strip: the navigator's version follows it. The lines are selectable
+// (drag, ⌘C).
 type connBanner struct {
 	sh        *shell
 	root      *fyne.Container // hidden while the connection works

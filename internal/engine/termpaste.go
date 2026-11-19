@@ -13,7 +13,7 @@ import "errors"
 // confirmation asks; and no command pastes, so an agent cannot type the clipboard into a shell. The
 // preference changes what the user's click does in a shell, so only the user may set it, in
 // Cogpit's window: an agent that turned it on would make a right click the user expects to do
-// nothing run what the clipboard holds (Cogpit's default, not the owner's decision, 2026-10-13).
+// nothing run what the clipboard holds (Cogpit's default, not the owner's decision).
 
 // ErrRightClickGUIOnly refuses a change of the terminals' right mouse button from anywhere but the
 // user's own action in Cogpit's window.

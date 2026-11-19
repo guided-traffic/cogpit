@@ -9,10 +9,10 @@ import (
 )
 
 // Image grades (D-78, D-113): a container image's grade from Trivy Operator's VulnerabilityReport
-// (aquasecurity.github.io/v1alpha1), shown as a shield in Docker Scout's manner. The owner's request
-// (2026-10-22): the Pods list shows each pod's worst grade as a symbol only, the pod's drawer each
-// container's grade in its own section, as a symbol and a detail card. His rules of 2026-10-22, from
-// the report's own fields only (report.summary and report.os.eosl):
+// (aquasecurity.github.io/v1alpha1), shown as a shield in Docker Scout's manner. The owner's
+// request: the Pods list shows each pod's worst grade as a symbol only, the pod's drawer each
+// container's grade in its own section, as a symbol and a detail card. His rules, from the report's
+// own fields only (report.summary and report.os.eosl):
 //
 //   - S: no vulnerability of any severity, and the OS is not at its end of life;
 //   - A: only Low or Unknown (Unknown counts as Low), at most GradeAMaxLow of them;
@@ -26,10 +26,10 @@ import (
 //
 // The thresholds of D and E are provisional: the owner looks at them again on real images.
 
-// The labels Trivy Operator puts on a report (seen on Trivy Operator 0.35.0, chart 0.37.0, on kind,
-// 2026-10-17): the workload it scanned, by kind, name and namespace, and the container. A name that
-// is no valid label value (longer than 63 characters) goes into the annotation of the same key
-// instead, the label then holding a hash under TrivyLabelResourceNameHash.
+// The labels Trivy Operator puts on a report (seen on Trivy Operator 0.35.0, chart 0.37.0, on
+// kind): the workload it scanned, by kind, name and namespace, and the container. A name that is no
+// valid label value (longer than 63 characters) goes into the annotation of the same key instead,
+// the label then holding a hash under TrivyLabelResourceNameHash.
 const (
 	TrivyLabelResourceKind      = "trivy-operator.resource.kind"
 	TrivyLabelResourceName      = "trivy-operator.resource.name"
@@ -54,7 +54,7 @@ const (
 	GradeE
 )
 
-// The thresholds of the grades (the owner's, 2026-10-22; D and E provisional).
+// The thresholds of the grades (the owner's; D and E provisional).
 const (
 	// GradeAMaxLow is the most Low and Unknown vulnerabilities an image of grade A has; more is B.
 	GradeAMaxLow = 10

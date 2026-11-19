@@ -16,9 +16,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The owner's findings on Dark Cockpit's first release (2026-10-21): the welcome page's grid floor
-// went away at the first scroll, the tables' header lost its column dividers, and the agent's input
-// showed no cursor.
+// The owner's findings on Dark Cockpit's first release: the welcome page's grid floor went away at
+// the first scroll, the tables' header lost its column dividers, and the agent's input showed no
+// cursor.
 
 // TestWelcomeScrimCoversTheColumnOnly: the scrim that keeps the grid floor from running behind text
 // lies behind the page's column only, so the floor shows beside it however far the page scrolls;
@@ -160,9 +160,9 @@ func rectanglesIn(o fyne.CanvasObject) (out []*canvas.Rectangle) {
 }
 
 // TestSignalsColumnIsAColumnOfItsOwn: the Signals column right after Name is a column of its own
-// (the owner, 2026-11-03: "eine eigenständige Spalte"): its header draws a divider as every titled
-// column's does, it opens as wide as its slots or its title, the resize arrows show over its edge,
-// and a drag there widens it.
+// (the owner: "eine eigenständige Spalte"): its header draws a divider as every titled column's
+// does, it opens as wide as its slots or its title, the resize arrows show over its edge, and a
+// drag there widens it.
 func TestSignalsColumnIsAColumnOfItsOwn(t *testing.T) {
 	f := connectedFake(t, 50)
 	pods := f.tables["pods"]
@@ -208,7 +208,7 @@ func TestSignalsColumnIsAColumnOfItsOwn(t *testing.T) {
 
 // TestAReusedHeaderCellKeepsItsDivider: Fyne hands a header cell that showed a fixed column (a grade
 // column's, no divider) to another column; as the ⋮ or the checkbox it draws its divider again
-// (seen 2026-10-25 in the VW17 renders: the ⋮'s divider gone in a drawer's render).
+// (seen in the VW17 renders: the ⋮'s divider gone in a drawer's render).
 func TestAReusedHeaderCellKeepsItsDivider(t *testing.T) {
 	f := connectedFake(t, 50)
 	pods := f.tables["pods"]

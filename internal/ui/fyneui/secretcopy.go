@@ -13,41 +13,42 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Copying a masked Secret value without showing it (the owner's decision of 2026-10-22, D-25,
-// H-25): "Ich will natürlich auch Passwörter direkt in den Zwischenspeicher packen können und dann
-// direkt irgendwo in ein Passwortfeld ohne es vorher anzuzeigen." A masked key has the copy icon in
-// its line, always shown, between Show and the remove button (the owner's RW1 of 2026-10-23,
-// secretdata.go), its tooltip "Copy the value". A tap reads the whole value with secret.reveal (the GUI-only command Show runs, with whole: never the
-// first 4 KiB a reveal shows, since a password cut short and pasted unseen would be wrong) and puts
-// it on the clipboard for Secret values (shell.copyText with secret: concealed and this Mac's only
-// on macOS, cleared after 60 seconds if the clipboard still holds it). The value enters no widget
-// and not the drawer's revealed map: the drawer stays masked, and the toast names the key, never
-// the value. An answer for a drawer that moved on meanwhile is dropped. A value the user edited in
-// the drawer's editor and hid again (D-59) is copied the same way from the editor's memory, with no
-// reveal. A binary value has neither Show nor this icon: the engine never hands its bytes out, and
-// the clipboard holds text; it has the b64 button (below). No command copies: TestCopyHasNoCommand.
+// Copying a masked Secret value without showing it (the owner's decision, D-25, H-25): "Ich will
+// natürlich auch Passwörter direkt in den Zwischenspeicher packen können und dann direkt irgendwo
+// in ein Passwortfeld ohne es vorher anzuzeigen." A masked key has the copy icon in its line,
+// always shown, between Show and the remove button (the owner's RW1, secretdata.go), its tooltip
+// "Copy the value". A tap reads the whole value with secret.reveal (the GUI-only command Show runs,
+// with whole: never the first 4 KiB a reveal shows, since a password cut short and pasted unseen
+// would be wrong) and puts it on the clipboard for Secret values (shell.copyText with secret:
+// concealed and this Mac's only on macOS, cleared after 60 seconds if the clipboard still holds
+// it). The value enters no widget and not the drawer's revealed map: the drawer stays masked, and
+// the toast names the key, never the value. An answer for a drawer that moved on meanwhile is
+// dropped. A value the user edited in the drawer's editor and hid again (D-59) is copied the same
+// way from the editor's memory, with no reveal. A binary value has neither Show nor this icon: the
+// engine never hands its bytes out, and the clipboard holds text; it has the b64 button (below). No
+// command copies: TestCopyHasNoCommand.
 //
 // A revealed value that Show cut (4 KiB, 40 lines) copies the whole value the same way through its
-// icon, "Copy the whole value", the drawer still showing the cut text (the lead's decision of
-// 2026-10-22, D-25: a password cut short on the clipboard is wrong, revealed or not, and the icon
-// means the value wherever it sits); a selection and ⌘C copy exactly the selection.
+// icon, "Copy the whole value", the drawer still showing the cut text (the lead's decision, D-25: a
+// password cut short on the clipboard is wrong, revealed or not, and the icon means the value
+// wherever it sits); a selection and ⌘C copy exactly the selection.
 
-// The b64 button (the owner's VW7 of 2026-10-24: "ich brauche neben dem Copy-Button für ein
-// Secret-Value, einen weiteren kleinen Button mit b64 darin stehend. Dieser Kopiert den Secrete Value
-// in den Zwischenspeicher aber als b64 encodet string."; D-25). Every key's line has it right after
-// the copy icon, a binary value's line too (his pick (b) of 2026-10-24), where it is the only copy:
-// base64 is the one form a binary value's bytes survive a text clipboard in. It copies, base64-encoded
-// (standard, padded, one line: the string a Secret's data holds), what the copy icon beside it copies:
-// a value in no editor, masked or revealed, and a binary value whole through secret.reveal with
-// base64 (GUI-only; never the 4 KiB a Show reveals), a value in an editor as typed. It goes to the
+// The b64 button (the owner's VW7: "ich brauche neben dem Copy-Button für ein Secret-Value, einen
+// weiteren kleinen Button mit b64 darin stehend. Dieser Kopiert den Secrete Value in den
+// Zwischenspeicher aber als b64 encodet string."; D-25). Every key's line has it right after the
+// copy icon, a binary value's line too (his pick (b)), where it is the only copy: base64 is the one
+// form a binary value's bytes survive a text clipboard in. It copies, base64-encoded (standard,
+// padded, one line: the string a Secret's data holds), what the copy icon beside it copies: a value
+// in no editor, masked or revealed, and a binary value whole through secret.reveal with base64
+// (GUI-only; never the 4 KiB a Show reveals), a value in an editor as typed. It goes to the
 // clipboard for Secret values as the copy icon's copy does (concealed, cleared after 60 seconds), the
 // icon turns into the checkmark for the copy icon's time, and the toast names the key and says "as
 // base64", never the value. Its tooltip "Copy the value as base64". No command copies
 // (TestCopyHasNoCommand): the button runs secret.reveal, which agents and the CLI are refused.
 //
-// Since the owner's VW19 of 2026-10-25 ("ich wünsche mir ein Icon für b64, welches nicht breiter ist
-// als der copy-button oder der papierkorb"; his pick O1 of the lead's candidates rendered in a key's
-// line, "O1 it is") it is an icon, not the word: the copy icon's back sheet with a bold "64" where its
+// Since the owner's VW19 ("ich wünsche mir ein Icon für b64, welches nicht breiter ist als der
+// copy-button oder der papierkorb"; his pick O1 of the lead's candidates rendered in a key's line,
+// "O1 it is") it is an icon, not the word: the copy icon's back sheet with a bold "64" where its
 // front sheet stands (iconBase64), on a pinned copy icon (copyButton with its icon), so that it is as
 // wide and high as the copy icon and outlined, hovered and checked as it is (D-104), its width the
 // same with the checkmark in its place. The word's button grew after its checkmark (the owner's
@@ -60,8 +61,8 @@ const (
 	b64Tip        = "Copy the value as base64"
 )
 
-// iconBase64 is the b64 button's icon (the owner's pick O1 of 2026-10-25, VW19), one colour that the
-// theme recolours as Fyne's icons: the back sheet of the copy icon (Material's content_copy as Fyne
+// iconBase64 is the b64 button's icon (the owner's pick O1, VW19), one colour that the theme
+// recolours as Fyne's icons: the back sheet of the copy icon (Material's content_copy as Fyne
 // bundles it, theme.ContentCopyIcon) and in its front sheet's place a bold "64", drawn for Cogpit.
 var iconBase64 = fyne.NewStaticResource("cogpit-b64.svg", []byte(
 	`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">`+

@@ -46,11 +46,10 @@ func editorAboveFooter(t *testing.T, text string) (*View, *widget.Button, fyne.C
 	return v, footer, w.Canvas()
 }
 
-// TestDragReleasedOutsideKeepsTheKeyboard is the owner's WF8 (walk of 2026-10-17): a selection made
-// by dragging out of the editor and released over another widget (the tab's footer, here its
-// button) keeps the editor focused and its selection, so that Backspace deletes the selection, as
-// in every macOS text view. Before the fix the driver's release unfocused the editor and Backspace
-// went nowhere.
+// TestDragReleasedOutsideKeepsTheKeyboard is the owner's WF8: a selection made by dragging out of
+// the editor and released over another widget (the tab's footer, here its button) keeps the editor
+// focused and its selection, so that Backspace deletes the selection, as in every macOS text view.
+// Before the fix the driver's release unfocused the editor and Backspace went nowhere.
 func TestDragReleasedOutsideKeepsTheKeyboard(t *testing.T) {
 	v, footer, c := editorAboveFooter(t, "alpha: 1\nbeta: 2\ngamma: 3")
 

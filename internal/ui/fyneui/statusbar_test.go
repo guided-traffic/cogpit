@@ -149,8 +149,8 @@ func TestStatusBarOwnerLinkGivesWayFirst(t *testing.T) {
 
 // TestSnapshotsOnlyInDiagnostics: the count of table snapshots built since start is a developer's
 // diagnostic (the coalescing evidence) that only the Diagnostics tab shows, not the status bar
-// (owner, 2026-10-14): connected to a cluster, on the demo cluster and with no cluster. The status
-// bar's other items stay, and the report agents read with diagnostics.get keeps the count.
+// (owner): connected to a cluster, on the demo cluster and with no cluster. The status bar's other
+// items stay, and the report agents read with diagnostics.get keeps the count.
 func TestSnapshotsOnlyInDiagnostics(t *testing.T) {
 	noCluster := func(t *testing.T) *fakeEngine {
 		f := connectedFake(t, 20)

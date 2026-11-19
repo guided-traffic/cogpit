@@ -84,7 +84,7 @@ func bellRendererOf(sh *shell) *bellRenderer {
 // the list; Escape and a click outside close it; closing a toast by its × marks it read; "Clear
 // all" empties the list. An agent reads the window's own texts withheld.
 // A copy's confirmation shows as a toast and is not recorded: the bell does not count it and the
-// panel does not list it (the owner's F5, 2026-10-15); a toast of anything else still is.
+// panel does not list it (the owner's F5); a toast of anything else still is.
 func TestCopyToastIsNotRecorded(t *testing.T) {
 	sh, _, q, _ := notesShell(t, ThemeDark)
 	sh.copyToast("info", copiedToast)

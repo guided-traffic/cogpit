@@ -8,11 +8,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// resourceClaimTemplates has the columns of Lens's documentation (read 2026-10-13, not captured):
-// Name, Namespace, Device Classes (the classes the generated claims request devices from), Age;
-// its drawer shows "the device requests each generated claim carries". Inferred: no status token
-// (a template has no state) and the drawer's form (the generated claims' labels and annotations,
-// then the requests as a table, as a claim's drawer shows them).
+// resourceClaimTemplates has the columns of Lens's documentation (read, not captured): Name,
+// Namespace, Device Classes (the classes the generated claims request devices from), Age; its
+// drawer shows "the device requests each generated claim carries". Inferred: no status token (a
+// template has no state) and the drawer's form (the generated claims' labels and annotations, then
+// the requests as a table, as a claim's drawer shows them).
 var resourceClaimTemplates = &model.KindProfile{
 	Key:        keyResourceClaimTemplates,
 	Group:      groupResource,

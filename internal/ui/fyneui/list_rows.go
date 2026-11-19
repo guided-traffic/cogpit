@@ -18,11 +18,11 @@ import (
 // costs not one object more than before.
 //
 // A checked row and the drawer's row are two kinds of mark, not two shades of blue (the owner's
-// VW16 of 2026-10-25: "keinen Unterschied ... zwischen selektierten Einträgen und dem aktuell
-// markierten Eintrag"): a checked row has the selection's fill; the drawer's row has the glow blue
-// bar at its left edge over the row's whole height, no fill (his look at the outline that came with
-// it, the same day: "Der Balken auf der linken Seite über die ganze Zeilenhöhe würde reichen"); a
-// row that is both has the fill and the bar. The text takes the selection's colour only on the fill.
+// VW16: "keinen Unterschied ... zwischen selektierten Einträgen und dem aktuell markierten
+// Eintrag"): a checked row has the selection's fill; the drawer's row has the glow blue bar at its
+// left edge over the row's whole height, no fill (his look at the outline that came with it, the
+// same day: "Der Balken auf der linken Seite über die ganze Zeilenhöhe würde reichen"); a row that
+// is both has the fill and the bar. The text takes the selection's colour only on the fill.
 
 // Geometry of the marks, in points.
 const (

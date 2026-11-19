@@ -8,9 +8,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// TestNodeWarningsAndConditions pins the Nodes list as Lens shows it (capture, 2026-10-11): a
-// cordoned Ready node reads "SchedulingDisabled Ready", only Ready green, with no warning icon and
-// no warning row. Which nodes do get the icon is inferred: not Ready, or a problem condition.
+// TestNodeWarningsAndConditions pins the Nodes list as Lens shows it (capture): a cordoned Ready
+// node reads "SchedulingDisabled Ready", only Ready green, with no warning icon and no warning row.
+// Which nodes do get the icon is inferred: not Ready, or a problem condition.
 func TestNodeWarningsAndConditions(t *testing.T) {
 	cordoned := map[string]any{
 		"spec": map[string]any{"unschedulable": true},
@@ -46,8 +46,8 @@ func TestNodeWarningsAndConditions(t *testing.T) {
 	}
 
 	// A condition whose type ends in Ready reads the other way (SystemdUnitsReady on a Gardener
-	// cluster of STACKIT, the owner's finding of 2026-10-17): True is healthy, no warning, green in
-	// the drawer's chips only; False or Unknown is the problem, named with its status.
+	// cluster of STACKIT, the owner's finding): True is healthy, no warning, green in the drawer's
+	// chips only; False or Unknown is the problem, named with its status.
 	systemd := func(status string) map[string]any {
 		return map[string]any{"status": map[string]any{"conditions": []any{
 			map[string]any{"type": "Ready", "status": "True"},
@@ -69,8 +69,8 @@ func TestNodeWarningsAndConditions(t *testing.T) {
 			t.Errorf("SystemdUnitsReady %s: cell %q, row %q, warning %+v", status, c.Text, s.token, s.warning())
 		}
 	}
-	// RKE2's and k3s's EtcdIsVoter reads the same way (the owner's finding of 2026-10-20): True on an
-	// etcd member that votes is healthy, False (a learner) the problem.
+	// RKE2's and k3s's EtcdIsVoter reads the same way (the owner's finding): True on an etcd member
+	// that votes is healthy, False (a learner) the problem.
 	etcd := func(status string) map[string]any {
 		return map[string]any{"status": map[string]any{"conditions": []any{
 			map[string]any{"type": "Ready", "status": "True"},
@@ -119,9 +119,9 @@ func TestNodeDetailTables(t *testing.T) {
 	}
 }
 
-// TestNodeDrawerBytesInBinaryUnits is the owner's Node drawer of 2026-10-13 (D-32): Capacity's
-// memory and ephemeral storage in Ki, Allocatable's in plain bytes, all shown in binary units with
-// one decimal; CPU and pods as the API writes them.
+// TestNodeDrawerBytesInBinaryUnits is the owner's Node drawer (D-32): Capacity's memory and
+// ephemeral storage in Ki, Allocatable's in plain bytes, all shown in binary units with one
+// decimal; CPU and pods as the API writes them.
 func TestNodeDrawerBytesInBinaryUnits(t *testing.T) {
 	node := &unstructured.Unstructured{Object: map[string]any{"status": map[string]any{
 		"capacity": map[string]any{

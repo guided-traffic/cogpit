@@ -16,9 +16,9 @@ func FuzzResourceClaimTemplates(f *testing.F) { fuzzProfile(f, "resourceclaimtem
 func FuzzDeviceClasses(f *testing.F)          { fuzzProfile(f, "deviceclasses") }
 func FuzzResourceSlices(f *testing.F)         { fuzzProfile(f, "resourceslices") }
 
-// TestDeviceResourcesColumns pins the columns of Lens's documentation (read 2026-10-13, not
-// captured) for the four Device Resources views; Resource Claims' Devices and Reserved For are
-// Cogpit's own hidden columns.
+// TestDeviceResourcesColumns pins the columns of Lens's documentation (read, not captured) for the
+// four Device Resources views; Resource Claims' Devices and Reserved For are Cogpit's own hidden
+// columns.
 func TestDeviceResourcesColumns(t *testing.T) {
 	assertColumnOrder(t, "resourceclaims", []model.Column{
 		{ID: "name", Title: "Name"}, {ID: "signals", Title: "Signals"}, {ID: "namespace", Title: "Namespace"},

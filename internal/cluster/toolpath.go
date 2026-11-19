@@ -18,8 +18,8 @@ import (
 // terminal's kubectl (H-6, D-120). A GUI app started from the Dock, Finder, a desktop launcher or
 // the Start menu does not inherit the PATH a login shell's profile sets, so a credential plugin
 // installed by a package manager or by krew is "not found" in Cogpit while it runs in a terminal
-// (the owner's colleague's `kubectl oidc-login`, 2026-10-23: krew's kubectl-oidc_login in
-// ~/.krew/bin; kubectl, which client-go runs, then answers `unknown command "oidc-login"`).
+// (the owner's colleague's `kubectl oidc-login`: krew's kubectl-oidc_login in ~/.krew/bin; kubectl,
+// which client-go runs, then answers `unknown command "oidc-login"`).
 //
 // Cogpit therefore appends two kinds of folders to its own PATH, after every folder PATH already
 // has:

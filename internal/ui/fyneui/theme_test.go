@@ -228,8 +228,8 @@ func TestPaletteContrast(t *testing.T) {
 		}
 		check("placeholder", c(theme.ColorNamePlaceHolder), theme.ColorNameInputBackground, 3.0)
 		// A field's outline (the input border Fyne's entries, checks and radios and Cogpit's dropdown
-		// draw) on every surface a field stands on, its own plate included (the owner's AW1 of
-		// 2026-10-22: a closed dropdown on a dialog read as the dialog's own colour).
+		// draw) on every surface a field stands on, its own plate included (the owner's AW1: a
+		// closed dropdown on a dialog read as the dialog's own colour).
 		for _, bg := range []fyne.ThemeColorName{theme.ColorNameBackground, colorSidebar, colorDrawer,
 			theme.ColorNameOverlayBackground, theme.ColorNameHeaderBackground, theme.ColorNameInputBackground} {
 			check("field outline", c(theme.ColorNameInputBorder), bg, 2.0)

@@ -13,23 +13,23 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// A Config Map's values edited in the drawer (the owner's F3, decided 2026-10-15; decisions D-55).
-// The drawer shows each key of the data with its value in an editor and a Save at the end, as
-// Lens's drawer does. configMap.readData hands the drawer the values whole from the cache (the
-// drawer model's are cut for agents and the YAML has them all), with the resourceVersion they are
-// of; configMap.reviewData diffs the values the user changed against the object as the cache holds
-// it and asks the server for a dry run; configMap.saveData writes them. The write is the Edit tab's
+// A Config Map's values edited in the drawer (the owner's F3, decided; decisions D-55). The drawer
+// shows each key of the data with its value in an editor and a Save at the end, as Lens's drawer
+// does. configMap.readData hands the drawer the values whole from the cache (the drawer model's are
+// cut for agents and the YAML has them all), with the resourceVersion they are of;
+// configMap.reviewData diffs the values the user changed against the object as the cache holds it
+// and asks the server for a dry run; configMap.saveData writes them. The write is the Edit tab's
 // (editor.go): the object from the cache with the changed values set, sent through the backend's
 // ObjectWriter, a server-side dry run first, then the update with the resourceVersion the values
 // are based on as its precondition. When the Config Map changed since, nothing is written and the
 // caller gets a *DataConflictError with the values against the newer version; writing them over it
 // takes a second call that names the newer version. A review that is given the edited keys' values
 // at the version the values are based on (from) rebases them onto the newer version when none of
-// those keys changed there (the owner's answer of 2026-10-15): the diff and the dry run are then
-// against the newer version, which the caller saves with, after the user has seen them. Keys are
-// added and removed in the same write (add and remove, the owner's audit decision of 2026-10-16;
-// datakeys.go); a save that removes one is destructive. Binary data and a Helm release record's
-// payload are not edited, and an immutable Config Map is refused.
+// those keys changed there (the owner's answer): the diff and the dry run are then against the
+// newer version, which the caller saves with, after the user has seen them. Keys are added and
+// removed in the same write (add and remove, the owner's audit decision; datakeys.go); a save that
+// removes one is destructive. Binary data and a Helm release record's payload are not edited, and
+// an immutable Config Map is refused.
 
 // configMapAPIKind is a Config Map's kind as its manifest names it.
 const configMapAPIKind = "ConfigMap"

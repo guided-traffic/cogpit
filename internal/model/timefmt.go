@@ -7,14 +7,13 @@ import (
 	"unicode"
 )
 
-// Absolute times as the user reads them (D-31, owner 2026-10-13): every timestamp Cogpit shows is
-// written in the Preferences' time zone (the computer's by default, summer and winter time
-// included) and in the date and time format of the computer's region, "10.09.2026 17:41:01" in
-// Germany, "9/10/2026 5:41:01 PM" in the US. The layout comes from the operating system once at
-// start (internal/locale) and is kept so that a format preference can replace it later; the zone
-// comes from the Preferences whenever they change. Ages ("5m", "160d") stay as they are; what
-// Cogpit writes for machines (its files, the structured times of MCP results, an object's YAML)
-// stays RFC 3339.
+// Absolute times as the user reads them (D-31, owner): every timestamp Cogpit shows is written in
+// the Preferences' time zone (the computer's by default, summer and winter time included) and in
+// the date and time format of the computer's region, "10.09.2026 17:41:01" in Germany, "9/10/2026
+// 5:41:01 PM" in the US. The layout comes from the operating system once at start (internal/locale)
+// and is kept so that a format preference can replace it later; the zone comes from the Preferences
+// whenever they change. Ages ("5m", "160d") stay as they are; what Cogpit writes for machines (its
+// files, the structured times of MCP results, an object's YAML) stays RFC 3339.
 
 // The ISO 8601 layouts: the zero TimeLayout's, where the region's format is unknown.
 const (

@@ -9,14 +9,14 @@ import (
 	"fyne.io/fyne/v2/canvas"
 )
 
-// Chart icons in the window (D-46, decided by the owner 2026-10-14; HELM2;
-// engine/helmicons.go): the Charts view's first column and a chart drawer's header show the icon
-// the chart's repository index names. The window asks the engine for an icon only when a cell or
-// the drawer shows it, and not at all while Preferences › Kubernetes › Load chart icons is off;
-// until it arrives, and when there is none or it failed, Cogpit's own helm-wheel glyph shows
-// (Cogpit's drawing, not Helm's logo). An SVG icon is rasterised to a PNG before the window sees
-// it (helmcharticons_svg.go, H-88). Fetched icons are kept for the window's life; turning the
-// preference off shows the glyph everywhere at once.
+// Chart icons in the window (D-46, decided by the owner; HELM2; engine/helmicons.go): the Charts
+// view's first column and a chart drawer's header show the icon the chart's repository index names.
+// The window asks the engine for an icon only when a cell or the drawer shows it, and not at all
+// while Preferences › Kubernetes › Load chart icons is off; until it arrives, and when there is
+// none or it failed, Cogpit's own helm-wheel glyph shows (Cogpit's drawing, not Helm's logo). An
+// SVG icon is rasterised to a PNG before the window sees it (helmcharticons_svg.go, H-88). Fetched
+// icons are kept for the window's life; turning the preference off shows the glyph everywhere at
+// once.
 
 // chartIconSource fetches a chart's icon: the real engine (*engine.Session). A test fake without
 // it draws the glyph.

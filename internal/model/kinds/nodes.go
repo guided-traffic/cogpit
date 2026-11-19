@@ -130,7 +130,7 @@ type nodeSummary struct {
 // summariseNode reads the Ready condition, every other condition that names a problem
 // (conditionProblem), and whether the node is cordoned. The row's status is the Ready state's; a
 // Ready node with a problem condition is a warning. Cordoning is not a problem: Lens shows a
-// cordoned Ready node without a warning (capture, 2026-10-11).
+// cordoned Ready node without a warning (capture).
 func summariseNode(obj any) nodeSummary { return nodeConditionRules{}.summarise(obj) }
 
 // summarise is summariseNode by these rules.
@@ -173,8 +173,8 @@ func (r nodeConditionRules) summarise(obj any) nodeSummary {
 
 // positiveCondition reports whether a node condition names a healthy state when True: its type ends
 // in "Ready", as Ready itself and SystemdUnitsReady (seen on a Gardener cluster of STACKIT, the
-// owner's finding of 2026-10-17) do, or it is one of positiveConditions. The others name a problem
-// when True: the kubelet's MemoryPressure, DiskPressure, PIDPressure, NetworkUnavailable, and what
+// owner's finding) do, or it is one of positiveConditions. The others name a problem when True: the
+// kubelet's MemoryPressure, DiskPressure, PIDPressure, NetworkUnavailable, and what
 // node-problem-detector adds (KernelDeadlock, ReadonlyFilesystem, FrequentKubeletRestart, …).
 // Cogpit's rule, inferred: the API has no field that says which way a condition reads.
 func positiveCondition(typ string) bool {
@@ -183,7 +183,7 @@ func positiveCondition(typ string) bool {
 
 // positiveConditions are the conditions healthy when True whose type does not end in "Ready":
 // EtcdIsVoter, which RKE2 and k3s set on a server node whose etcd member votes (False while it is
-// a learner; the owner's finding on an RKE2 cluster, 2026-10-20: "ein guter Node Zustand").
+// a learner; the owner's finding on an RKE2 cluster: "ein guter Node Zustand").
 var positiveConditions = []string{"EtcdIsVoter"}
 
 // builtinAcceptedConditions are the condition types that are no fault in any cluster although True
@@ -230,8 +230,8 @@ func (r nodeConditionRules) problem(typ, status string) (string, bool) {
 
 // parts are the Conditions column's coloured parts: "SchedulingDisabled" first and uncoloured on
 // a cordoned node, then the Ready state in its colour ("Ready" green), then the problem conditions
-// in the warning colour (capture of a cordoned node, 2026-10-11; the place and colour of the
-// problem conditions are inferred).
+// in the warning colour (capture of a cordoned node; the place and colour of the problem conditions
+// are inferred).
 func (s nodeSummary) parts() []model.CellPart {
 	parts := make([]model.CellPart, 0, 2+len(s.problems))
 	if s.cordoned {
@@ -266,10 +266,9 @@ func (s nodeSummary) conditionsCell() model.Cell {
 }
 
 // warning is the node's state signal, its slot in the Signals column (D-150). Inferred: Lens shows
-// a warning column for nodes and gives a cordoned node no icon (capture, 2026-10-11); which states
-// do get one is not captured.
-// Cogpit's rule: a node warns when it is not Ready (the Ready condition False or Unknown) or
-// reports a problem condition, and the reason names them.
+// a warning column for nodes and gives a cordoned node no icon (capture); which states do get one
+// is not captured. Cogpit's rule: a node warns when it is not Ready (the Ready condition False or
+// Unknown) or reports a problem condition, and the reason names them.
 func (s nodeSummary) warning() model.Cell {
 	var reasons []string
 	switch s.readyStatus {
@@ -296,8 +295,8 @@ func nodeAddresses(obj any, typ string) []string {
 	return out
 }
 
-// nodeDetail is the node's drawer as Lens shows it (capture, 2026-10-11): Properties (after the
-// generic metadata: Addresses, OS, OS Image, Kernel version, Container runtime, Kubelet version,
+// nodeDetail is the node's drawer as Lens shows it (capture): Properties (after the generic
+// metadata: Addresses, OS, OS Image, Kernel version, Container runtime, Kubelet version,
 // Conditions), then Capacity and Allocatable as tables. The node's Pods follow in nodeDetailWith,
 // which has them. Taints are Cogpit's own addition to Properties.
 func nodeDetail(obj *unstructured.Unstructured) []model.DetailSection {
@@ -362,8 +361,8 @@ func (r nodeConditionRules) detail(obj *unstructured.Unstructured) []model.Detai
 }
 
 // resourceTitles names the resources of a node's capacity in the order Lens's tables show them
-// (capture, 2026-10-11: CPU, Memory, Ephemeral Storage, Hugepages, Pods); other resources (GPUs,
-// devices) follow, sorted, under their own names.
+// (capture: CPU, Memory, Ephemeral Storage, Hugepages, Pods); other resources (GPUs, devices)
+// follow, sorted, under their own names.
 var resourceTitles = []struct{ name, title string }{
 	{"cpu", titleCPU}, {"memory", titleMemory}, {"ephemeral-storage", "Ephemeral Storage"},
 	{"hugepages-1Gi", "Hugepages 1Gi"}, {"hugepages-2Mi", "Hugepages 2Mi"}, {podsResource, podsTitle},
@@ -418,11 +417,11 @@ func taintText(t any) string {
 	return key
 }
 
-// nodePodColumns are the columns of the node's Pods table as Lens shows them (capture,
-// 2026-10-11): Name, the warning icon, Node, Namespace, Ready, CPU, Memory, Status. CPU and Memory
-// are the Pods list's metric columns: the profile leaves them empty and the engine fills them from
-// the metrics it polls while the drawer shows the table (engine/drawerpods.go). Ready sorts by the
-// ready containers (Cell.Num).
+// nodePodColumns are the columns of the node's Pods table as Lens shows them (capture): Name, the
+// warning icon, Node, Namespace, Ready, CPU, Memory, Status. CPU and Memory are the Pods list's
+// metric columns: the profile leaves them empty and the engine fills them from the metrics it polls
+// while the drawer shows the table (engine/drawerpods.go). Ready sorts by the ready containers
+// (Cell.Num).
 var nodePodColumns = []model.Column{
 	nameColumn,
 	signalsColumn,
@@ -434,10 +433,10 @@ var nodePodColumns = []model.Column{
 	statusColumn,
 }
 
-// workloadPodColumns are a workload's Pods table's (D-40, owner 2026-10-14): the node drawer's
-// without Namespace, which a workload's pods share with it, and with the pods' Age after Status
-// (the owner's, 2026-10-26, on a Deployment's drawer): Name, the warning icon, Node, Ready, CPU,
-// Memory, Status, Age.
+// workloadPodColumns are a workload's Pods table's (D-40, owner): the node drawer's without
+// Namespace, which a workload's pods share with it, and with the pods' Age after Status (the
+// owner's, on a Deployment's drawer): Name, the warning icon, Node, Ready, CPU, Memory, Status,
+// Age.
 var workloadPodColumns = []model.Column{
 	nameColumn,
 	signalsColumn,
@@ -478,7 +477,7 @@ func podsSection(objs []*unstructured.Unstructured, ofWorkload bool) (model.Deta
 	sortByName(pods)
 	cols := nodePodColumns
 	if ofWorkload {
-		cols = workloadPodColumns // no Namespace: the workload's (D-40, owner 2026-10-14)
+		cols = workloadPodColumns // no Namespace: the workload's (D-40, owner)
 	}
 	rows := make([][]model.Cell, 0, len(pods))
 	for _, p := range pods {

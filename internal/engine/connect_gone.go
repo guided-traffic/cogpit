@@ -51,8 +51,8 @@ func (s *Session) settleGoneConnect(id string, b *Backend) {
 // source's connection (disconnectBackend) takes the backend from the pool before it changes the
 // UI; when it ran in the kubeconfig watcher meanwhile, settleGoneConnect, at the run's end, found
 // the window still Connecting, left the context alone, and the connect returned with the window
-// "connecting" for a context that is gone (found in a race-detector run on CI, 2026-10-23). That
-// Connecting is the window's own connect's, which is over: the context is forgotten here.
+// "connecting" for a context that is gone (found in a race-detector run on CI). That Connecting is
+// the window's own connect's, which is over: the context is forgotten here.
 func (s *Session) settleClosedConnect(id string) {
 	if reason := s.goneReason(id); reason != "" {
 		s.forgetGoneContext(id, "Disconnected from "+kubeconfig.DisplayText(id, 200)+": "+reason+".", true, true)

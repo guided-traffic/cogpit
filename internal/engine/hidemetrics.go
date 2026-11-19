@@ -28,7 +28,7 @@ import (
 // forbid reading them.
 //
 // Which entries the list has is Cogpit's: the places are what Cogpit shows metrics for (Lens's own
-// list is not captured), the measures the drawer's variants (the lead's list, 2026-10-13).
+// list is not captured), the measures the drawer's variants (the lead's list).
 
 // MetricSet is a set of hideable metrics. JSON: the list of their names, in HideableMetrics' order.
 type MetricSet uint16
@@ -482,10 +482,10 @@ func (d *drawerWatch) wantsLocked() metrics.Want {
 
 // usageShownLocked reports whether a visible chart of the drawer shows CPU or memory: one set to
 // either, or one at its default while either is visible (its default is CPU, else memory). Only
-// then does the drawer's poll ask for them (metrics.Subscription.SetUsage, 2026-10-16 night): a
-// drawer whose charts all show the network or the filesystem asks the Metrics Server nothing.
-// A pod whose containers the cache does not know yet counts their charts at the default. names
-// and known are chartNames'; d.wmu is held.
+// then does the drawer's poll ask for them (metrics.Subscription.SetUsage): a drawer whose charts
+// all show the network or the filesystem asks the Metrics Server nothing. A pod whose containers
+// the cache does not know yet counts their charts at the default. names and known are chartNames';
+// d.wmu is held.
 func (d *drawerWatch) usageShownLocked(names []string, known bool) bool {
 	if d.hidden.Has(HideCPU|HideMemory) || d.profile.Volume != nil {
 		return false

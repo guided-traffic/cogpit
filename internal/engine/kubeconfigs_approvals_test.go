@@ -11,7 +11,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
 )
 
-// Asking once per file and plugin (D-28, owner's decision 2026-10-12).
+// Asking once per file and plugin (D-28, owner's decision).
 
 // bundleCtx is one context of bundleKubeconfig: its name, the server of its cluster and the
 // arguments of its user's exec plugin (command "aws"), or a token file when tokenFile is set.

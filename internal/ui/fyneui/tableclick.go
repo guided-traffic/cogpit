@@ -4,13 +4,13 @@ import (
 	"fyne.io/fyne/v2"
 )
 
-// A click on the empty area below a list's rows (the owner's gate walk, 2026-10-20, GW1: "a click
-// below the rows should deselect the current pod, so its drawer closes") closes the drawer through
+// A click on the empty area below a list's rows (the owner's gate walk, GW1: "a click below the
+// rows should deselect the current pod, so its drawer closes") closes the drawer through
 // ui.closeDrawer, so the row it showed is no longer marked and agents see the drawer closed (UI
-// state is engine state). What it leaves, the lead's decision of 2026-10-20, open to revision
-// (D-106): the checked rows stay checked, as the click on a row keeps them (A73); they are the
-// bulk actions' selection, which the selection bar's Clear and the header's checkbox end. Lens's
-// behaviour is not captured.
+// state is engine state). What it leaves, the lead's decision, open to revision (D-106): the
+// checked rows stay checked, as the click on a row keeps them (A73); they are the bulk actions'
+// selection, which the selection bar's Clear and the header's checkbox end. Lens's behaviour is not
+// captured.
 //
 // Below the rows is where Fyne's table, not one of its cells, takes the click: the table's own
 // area under its last row, in a list shorter than the view, or under the header of an empty one.

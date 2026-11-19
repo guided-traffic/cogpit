@@ -268,9 +268,9 @@ func kindFluxLogs(ctx context.Context, t *testing.T, conn *cluster.Conn, d dispa
 	merged.waitLines(ctx, t, "front's lines after the widening", func([]string) bool { return count("front") > front })
 }
 
-// kindFluxWithSourceAndReset (D-33, owner 2026-10-14): Reconcile with Source annotates the
-// Kustomization's GitRepository and then the Kustomization on the API server; Reset writes resetAt
-// and requestedAt with one token on a Helm release.
+// kindFluxWithSourceAndReset (D-33, owner): Reconcile with Source annotates the Kustomization's
+// GitRepository and then the Kustomization on the API server; Reset writes resetAt and requestedAt
+// with one token on a Helm release.
 func kindFluxWithSourceAndReset(ctx context.Context, t *testing.T, conn *cluster.Conn, s *engine.Session, d dispatcher, ks model.ObjectRef, annotation func() string) {
 	t.Helper()
 	gitGVR := schema.GroupVersionResource{Group: "source.toolkit.fluxcd.io", Version: "v1", Resource: "gitrepositories"}
@@ -292,7 +292,7 @@ func kindFluxWithSourceAndReset(ctx context.Context, t *testing.T, conn *cluster
 	create(gitGVR, testkit.Object("source.toolkit.fluxcd.io/v1", "GitRepository", fluxNamespace, "flux-system", map[string]any{
 		"spec": map[string]any{"url": "https://example.invalid/fleet", "interval": "1m"}}))
 	// The command reads the source from the cache, which the watch fills a moment after the create
-	// (CI, 2026-10-21: "not found in the cache").
+	// (CI: "not found in the cache").
 	gitRef := model.ObjectRef{Kind: "gitrepositories.source.toolkit.fluxcd.io", Namespace: fluxNamespace, Name: "flux-system"}
 	waitFor(ctx, t, "the GitRepository in the cache", func() bool { _, err := s.Lookup(gitRef); return err == nil })
 	before := annotation()

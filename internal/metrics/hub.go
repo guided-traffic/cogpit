@@ -530,16 +530,15 @@ func (h *Hub) stepOf(shortest, longest time.Duration) time.Duration {
 	return step
 }
 
-// bandsLocked are the query sets of an object scope's charts, the finest first (A46, owner
-// 2026-10-14 evening: "charts of one object whose ranges lie far apart get separate Prometheus
-// queries, each at its own step"). The last, the coarsest, is the one set there was before: the
-// longest range at the step of the shortest (at most the default hour's), within MaxRangePoints, so
-// no chart gets less than it did. A range that would get fewer than half its StepsPerWindow points
-// at that step (a container's hour beside the pod's week: 6 points at ten minutes) gets a finer set
-// of its own, shared with the ranges near it: those that stay within MaxRangePoints at the step
-// their shortest needs. A finer set exists only when its step is finer than the next coarser one's.
-// The choices are the lead's for the owner to confirm (night run, D-43's neighbour in
-// architecture §9).
+// bandsLocked are the query sets of an object scope's charts, the finest first (A46, owner: "charts
+// of one object whose ranges lie far apart get separate Prometheus queries, each at its own step").
+// The last, the coarsest, is the one set there was before: the longest range at the step of the
+// shortest (at most the default hour's), within MaxRangePoints, so no chart gets less than it did.
+// A range that would get fewer than half its StepsPerWindow points at that step (a container's hour
+// beside the pod's week: 6 points at ten minutes) gets a finer set of its own, shared with the
+// ranges near it: those that stay within MaxRangePoints at the step their shortest needs. A finer
+// set exists only when its step is finer than the next coarser one's. The choices are the lead's
+// for the owner to confirm (night run, D-43's neighbour in architecture §9).
 func (h *Hub) bandsLocked(st *scopeState) []band {
 	ws := h.windowsLocked(st)
 	longest := ws[len(ws)-1]
@@ -621,11 +620,10 @@ func (s *Subscription) SetWants(w Want) {
 // SetUsage tells the hub whether the subscriber's charts show CPU or memory; they do until it is
 // told otherwise. While no subscription of an object scope shows them (a drawer whose charts all
 // show the network or the filesystem, or whose CPU and memory are hidden), its poll asks for
-// neither: no live value of the Metrics Server, no CPU and memory history, no gap to fill
-// (2026-10-16 night; before, every object poll asked for them). The cluster's scope always shows
-// them (the Overview holds it only while its CPU or Memory chart shows). Shown again, the
-// history is asked for over the range, and the live values go on. A change makes the scope poll
-// at once.
+// neither: no live value of the Metrics Server, no CPU and memory history, no gap to fill.
+// The cluster's scope always shows them (the Overview
+// holds it only while its CPU or Memory chart shows). Shown again, the history is asked for over
+// the range, and the live values go on. A change makes the scope poll at once.
 func (s *Subscription) SetUsage(shown bool) {
 	if s == nil {
 		return
@@ -1101,13 +1099,12 @@ func (h *Hub) failLocked(ctx context.Context, sl *slot, sc Scope, err error) Sta
 }
 
 // namespaceRefusal reports whether err is the Metrics API's refusal of one namespace's pods, and
-// returns that scope's state (D-39, owner 2026-10-14). RBAC grants pods.metrics.k8s.io per
-// namespace, apart from the pods themselves: a 403 for a namespace's pods says nothing about the
-// provider's other scopes. So the scope's pods get no values and the state forbidden for that
-// namespace, while the provider keeps its status, the other namespaces keep its values, and no
-// other provider stands in for the refused one. A refusal of every pod (no namespace), of the
-// nodes, or by a provider with history (a Prometheus behind a refused service proxy) is the
-// provider's, as before (failLocked).
+// returns that scope's state (D-39, owner). RBAC grants pods.metrics.k8s.io per namespace, apart
+// from the pods themselves: a 403 for a namespace's pods says nothing about the provider's other
+// scopes. So the scope's pods get no values and the state forbidden for that namespace, while the
+// provider keeps its status, the other namespaces keep its values, and no other provider stands in
+// for the refused one. A refusal of every pod (no namespace), of the nodes, or by a provider with
+// history (a Prometheus behind a refused service proxy) is the provider's, as before (failLocked).
 func namespaceRefusal(sc Scope, prov Provider, err error) (State, bool) {
 	if sc.Kind != KindPods || sc.Namespace == "" || prov == nil || hasHistory(prov) || !apierrors.IsForbidden(err) {
 		return State{}, false
@@ -1156,7 +1153,7 @@ func (h *Hub) fetch(ctx context.Context, sc Scope, object bool) State {
 		h.mu.Lock()
 		// A fetch of a loop that was cancelled meanwhile (its last subscriber left and a new one
 		// came at once: a view started again with its namespace plan) answered nothing: fetch
-		// again rather than wait a whole interval with no values (review 2026-10-13).
+		// again rather than wait a whole interval with no values.
 		if ctx.Err() != nil || !f.cancelled.Load() {
 			defer h.mu.Unlock()
 			return st.state

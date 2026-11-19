@@ -8,7 +8,7 @@ import (
 )
 
 // The Flux CD group of the navigator (ui-parity › Cluster sidebar; G23): under the heading
-// Integrations, before Argo CD (the owner, 2026-11-03), the Dashboard first, then Helm Releases and
+// Integrations, before Argo CD (the owner), the Dashboard first, then Helm Releases and
 // Kustomizations, and the sub-groups Image Automation, Notifications and Sources, each kind under
 // its plural title. Its kinds are the Flux toolkit's CRD kinds with Cogpit's curated profiles
 // (internal/model/kinds/flux*.go): only those the cluster serves appear, a sub-group without any
@@ -58,7 +58,7 @@ func init() {
 	// The drawer's toolbar icons of the Flux actions (commandIcons), as Restart's, Suspend's and
 	// Resume's of the built-in kinds.
 	commandIcons["flux.reconcile"] = theme.IconNameViewRefresh
-	// Cogpit's choices (D-33, owner 2026-10-14): the source is fetched first; a reset starts over.
+	// Cogpit's choices (D-33, owner): the source is fetched first; a reset starts over.
 	commandIcons["flux.reconcileWithSource"] = theme.IconNameDownload
 	commandIcons["flux.reset"] = theme.IconNameMediaReplay
 	commandIcons["flux.suspend"] = theme.IconNameMediaPause

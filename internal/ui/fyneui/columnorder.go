@@ -16,13 +16,13 @@ import (
 // columns, so agents see and set it; the view's snapshot carries it (TableSnapshot.Order) and the
 // table shows its columns in that order (tableView.cols), as do the ⋮'s column list and the CSV.
 //
-// Cogpit's look and rules (inferred, not the owner's decision, 2026-10-13; Lens's is not captured):
-// once a header is dragged further than minColumnDrag, a chip with the column's title follows the
-// pointer along the header row and an accent line marks the gap it drops into; dropping it there
-// sends the view's new order; a drop on its own place, a shorter drag and a drop after the view
-// changed do nothing; the checkboxes and the ⋮ stay where they are; Reset Column Order at the end
-// of the ⋮'s column list returns the view to its kind's order. A header that is dragged does not
-// sort: Fyne taps only what was not dragged.
+// Cogpit's look and rules (inferred, not the owner's decision; Lens's is not captured): once a
+// header is dragged further than minColumnDrag, a chip with the column's title follows the pointer
+// along the header row and an accent line marks the gap it drops into; dropping it there sends the
+// view's new order; a drop on its own place, a shorter drag and a drop after the view changed do
+// nothing; the checkboxes and the ⋮ stay where they are; Reset Column Order at the end of the ⋮'s
+// column list returns the view to its kind's order. A header that is dragged does not sort: Fyne
+// taps only what was not dragged.
 
 // minColumnDrag is how far a header must move before it is dragged: less is a click that slipped.
 const minColumnDrag = 8

@@ -29,14 +29,14 @@ const secretDataNamespace = "cogpit-secdata"
 
 var kindSecretsGVR = schema.GroupVersionResource{Version: "v1", Resource: "secrets"}
 
-// TestKindSecretDataSave walks the drawer's Save of a Secret's values (the owner's audit answer of
-// 2026-10-15, D-59) against the kind cluster, in its own namespace: the window reveals a value
-// whole, secret.reviewData shows a masked diff and the API server accepts its dry run,
-// secret.saveData writes it base64-encoded (the other keys kept); another client changes another
-// key and the review rebases onto it; a change of the edited key is the conflict, written over by
-// a second save naming it; an agent is refused before anything is sent. Measured too: kubectl's
-// last-applied annotation, which Cogpit's cache drops from Secrets, does not survive a save
-// (H-103). The namespace is deleted at the end.
+// TestKindSecretDataSave walks the drawer's Save of a Secret's values (the owner's audit answer,
+// D-59) against the kind cluster, in its own namespace: the window reveals a value whole,
+// secret.reviewData shows a masked diff and the API server accepts its dry run, secret.saveData
+// writes it base64-encoded (the other keys kept); another client changes another key and the review
+// rebases onto it; a change of the edited key is the conflict, written over by a second save naming
+// it; an agent is refused before anything is sent. Measured too: kubectl's last-applied annotation,
+// which Cogpit's cache drops from Secrets, does not survive a save (H-103). The namespace is
+// deleted at the end.
 func TestKindSecretDataSave(t *testing.T) {
 	kubeconfig, contextName := os.Getenv("COGPIT_KIND_KUBECONFIG"), os.Getenv("COGPIT_KIND_CONTEXT")
 	if kubeconfig == "" || contextName == "" {
@@ -207,10 +207,10 @@ stringData:
 		t.Fatal("the save over the newer version did not write")
 	}
 
-	// Keys added and removed (the owner's audit decision of 2026-10-16): the server accepts the dry
-	// run of an edit that adds a key and removes one; the save is destructive and asks the
-	// confirmer, naming the keys only; the Secret then holds the added value base64-encoded and not
-	// the removed key. A key added meanwhile by another client is a conflict, never a rebase.
+	// Keys added and removed (the owner's audit decision): the server accepts the dry run of an
+	// edit that adds a key and removes one; the save is destructive and asks the confirmer, naming
+	// the keys only; the Secret then holds the added value base64-encoded and not the removed key.
+	// A key added meanwhile by another client is a conflict, never a rebase.
 	var asked []engine.ConfirmRequest
 	s.SetConfirmer(engine.ConfirmFunc(func(_ context.Context, req engine.ConfirmRequest) (bool, error) {
 		asked = append(asked, req)

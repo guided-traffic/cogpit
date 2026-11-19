@@ -2,11 +2,11 @@ package model
 
 import "strings"
 
-// A row's states, which the views' status filter offers and matches (D-34, owner 2026-10-14):
-// the texts of the kind's state columns (a Pod's Status "Running", a Flux object's "Not Ready", a
-// Deployment's Conditions "Available" and "Progressing", an Argo CD Application's Sync and Health),
-// or, for a kind without one, its rows' status tokens by name ("OK", "Pending", "Error"). Cogpit's
-// rules (Cogpit's defaults, not the owner's decision, 2026-10-14):
+// A row's states, which the views' status filter offers and matches (D-34, owner): the texts of the
+// kind's state columns (a Pod's Status "Running", a Flux object's "Not Ready", a Deployment's
+// Conditions "Available" and "Progressing", an Argo CD Application's Sync and Health), or, for a
+// kind without one, its rows' status tokens by name ("OK", "Pending", "Error"). Cogpit's rules
+// (Cogpit's defaults, not the owner's decision):
 //   - a kind names its state columns (KindProfile.States), else the columns with the ids of
 //     DefaultStateColumns that it has are;
 //   - a cell drawn in parts gives one state per part; a Words column one per word; any other cell

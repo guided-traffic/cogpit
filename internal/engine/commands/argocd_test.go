@@ -514,10 +514,9 @@ func TestArgoSettingsNeverReachAgents(t *testing.T) {
 	}
 }
 
-// TestArgoSyncRespectsSyncWindows (A33, owner 2026-10-14 evening; H-67): a sync of an Application
-// its AppProject's open deny window covers is refused with the window named and nothing written,
-// also in a selection, where the others are synced; an Application the window does not cover is
-// synced.
+// TestArgoSyncRespectsSyncWindows (A33, owner; H-67): a sync of an Application its AppProject's
+// open deny window covers is refused with the window named and nothing written, also in a
+// selection, where the others are synced; an Application the window does not cover is synced.
 func TestArgoSyncRespectsSyncWindows(t *testing.T) {
 	h := newArgoHarness(t)
 	h.src.Set(testkit.ArgoProjectsGVR, testkit.Object("argoproj.io/v1alpha1", "AppProject", "argocd", "default", map[string]any{
@@ -551,9 +550,9 @@ func TestArgoSyncRespectsSyncWindows(t *testing.T) {
 // TestArgoSyncWindowsOfAnAppInAnotherNamespace: an Application outside Argo CD's namespace
 // ("Applications in any namespace") has its AppProject in the namespace Argo CD's controller runs
 // in, which it writes into status.controllerNamespace; the project's deny window greys its Sync
-// and refuses the write, as on a live Argo CD controller (checked on a real cluster, 2026-10-16:
-// before, Cogpit looked for the project in the Application's namespace, found none, and let the
-// sync through to wait in the controller).
+// and refuses the write, as on a live Argo CD controller (checked on a real cluster: before, Cogpit
+// looked for the project in the Application's namespace, found none, and let the sync through to
+// wait in the controller).
 func TestArgoSyncWindowsOfAnAppInAnotherNamespace(t *testing.T) {
 	h := newArgoHarness(t)
 	h.src.Set(testkit.ArgoProjectsGVR, testkit.Object("argoproj.io/v1alpha1", "AppProject", "argocd", "frozen", map[string]any{

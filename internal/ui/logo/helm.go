@@ -2,10 +2,10 @@ package logo
 
 import "math"
 
-// The "helm" version (2026-10-12), the C helm of D-24 as it was drawn then (internal/ui/logo at
-// 6c65340): base1 and Solarized cyan on base03, in the app icon's weights, the wheel painted over
-// the C and the plate's edge line on the plate's edge. The icon lab's "D-24 heute" comes close but
-// paints the wheel under the C and the rim inside the edge.
+// The "helm" version, the C helm of D-24 as it was drawn then (internal/ui/logo at 6c65340): base1
+// and Solarized cyan on base03, in the app icon's weights, the wheel painted over the C and the
+// plate's edge line on the plate's edge. The icon lab's "D-24 heute" comes close but paints the
+// wheel under the C and the rim inside the edge.
 var (
 	helmPlate  = rgb(0x00, 0x2b, 0x36) // base03
 	helmFrame  = rgb(0x93, 0xa1, 0xa1) // base1: the C, the handles and the outer ring

@@ -17,8 +17,8 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The source row under the drawer's charts and each chart's variant as engine state (G12, owner
-// 2026-10-12, evening). The providers' states are canned as the engine reports them.
+// The source row under the drawer's charts and each chart's variant as engine state (G12, owner,
+// evening). The providers' states are canned as the engine reports them.
 
 // bothAnswering is the normal case: Prometheus gives the history (and the network and the
 // filesystem), the Metrics Server the live values.

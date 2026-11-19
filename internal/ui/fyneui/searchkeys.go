@@ -6,12 +6,13 @@ import (
 )
 
 // F1–F12 open the hotbar's first twelve clusters in the plain search fields too (the
-// owner's A64, 2026-10-14 evening): the view's search, the navigator's, the logs tab's, the Argo CD
-// dashboard's activity filter, the editor's Find field, the command palette's filter and the
-// namespace filter's search (nsfilter.go, which closes its list first). A text
-// field takes every key while it has the focus, so the window's key handler never sees them there; these fields hand them to the hotbar first. The terminal and the YAML
-// editor keep their F-keys: a shell or a program in it may use them, and the editor is a text area,
-// not a search field. A field that is no search (a name, a path, a value in a dialog) keeps them too.
+// owner's A64): the view's search, the navigator's, the logs tab's, the Argo CD dashboard's
+// activity filter, the editor's Find field, the command palette's filter and the namespace filter's
+// search (nsfilter.go, which closes its list first). A text field takes every key while it has the
+// focus, so the window's key handler never sees them there; these fields hand them to the hotbar
+// first. The terminal and the YAML editor keep their F-keys: a shell or a program in it may use
+// them, and the editor is a text area, not a search field. A field that is no search (a name, a
+// path, a value in a dialog) keeps them too.
 
 // hotbarKey hands an F-key typed in a search field to the hotbar: true when it took it; a shifted
 // one it does not take (D-83). Shift comes from the desktop driver, as F-keys arrive without their
@@ -24,8 +25,8 @@ func hotbarKey(sh *shell, ev *fyne.KeyEvent) bool {
 }
 
 // searchEntry is a plain search field whose F-keys are the hotbar's. Escape ends the search (the
-// owner's AW4 of 2026-10-22; escape.go): a find bar closes (escape), any other search is cleared
-// and left, the keyboard going to back (the list's table) or nowhere.
+// owner's AW4; escape.go): a find bar closes (escape), any other search is cleared and left, the
+// keyboard going to back (the list's table) or nowhere.
 type searchEntry struct {
 	widget.Entry
 	sh *shell

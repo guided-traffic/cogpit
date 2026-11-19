@@ -12,13 +12,14 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The Helm Upgrade dock tab (architecture §8, G11): Lens's "Helm Upgrade: <name>" tab (captured
-// 2026-10-12) holds a release's user-supplied values in an editor whose text lives in the engine
-// (editor.get, editor.setText, as Edit tabs), with the chart and the version the upgrade installs
-// on the tab (DockTab.Helm). The values come from the cache: the newest revision's release record
-// (a Secret, or a ConfigMap for a release kept in ConfigMaps), decoded. The tab remembers the revision its values are based on, as an Edit tab remembers its
-// object's resourceVersion: helm.release.upgrade refuses to upgrade a release that moved to
-// another revision since, so that an upgrade never overwrites a change the tab has not shown.
+// The Helm Upgrade dock tab (architecture §8, G11): Lens's "Helm Upgrade: <name>" tab (captured)
+// holds a release's user-supplied values in an editor whose text lives in the engine (editor.get,
+// editor.setText, as Edit tabs), with the chart and the version the upgrade installs on the tab
+// (DockTab.Helm). The values come from the cache: the newest revision's release record (a Secret,
+// or a ConfigMap for a release kept in ConfigMaps), decoded. The tab remembers the revision its
+// values are based on, as an Edit tab remembers its object's resourceVersion: helm.release.upgrade
+// refuses to upgrade a release that moved to another revision since, so that an upgrade never
+// overwrites a change the tab has not shown.
 
 // helmUpgradeTitle starts a Helm Upgrade tab's title, as Lens titles it.
 const helmUpgradeTitle = "Helm Upgrade: "

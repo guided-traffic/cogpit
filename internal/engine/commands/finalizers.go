@@ -18,8 +18,8 @@ const orderRemoveFinalizers = (engine.OrderEdit + engine.OrderDelete) / 2
 // labelRemoveFinalizers is Remove finalizers' label, one object's and a selection's.
 const labelRemoveFinalizers = "Remove Finalizers"
 
-// registerFinalizers registers Remove finalizers (WF43, D-98; the owner's yes, Q1 2026-10-19) and
-// its action on a selection (the owner's pick of 2026-11-04).
+// registerFinalizers registers Remove finalizers (WF43, D-98; the owner's yes, Q1) and its action
+// on a selection (the owner's pick).
 func registerFinalizers(g *registrar) {
 	add(g, engine.Spec[engine.RemoveFinalizersParams]{
 		ID: engine.RemoveFinalizersCommand, Label: labelRemoveFinalizers, MenuPath: "Object/Remove Finalizers",

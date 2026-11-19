@@ -33,10 +33,10 @@ var hiddenNameColumn = func() model.Column {
 	return c
 }()
 
-// customResourceDefinitions is Lens's Definitions view (Custom Resources › Definitions, captured
-// 2026-10-11): Resource (the Kind, a link to that kind's view), Group, Version, Scope, Age. The
-// hidden Name column (the definition's name, "<plural>.<group>") is the default sort, so the list
-// is in the order of the definitions' names, as captured (that the order is by name is inferred).
+// customResourceDefinitions is Lens's Definitions view (Custom Resources › Definitions, captured):
+// Resource (the Kind, a link to that kind's view), Group, Version, Scope, Age. The hidden Name
+// column (the definition's name, "<plural>.<group>") is the default sort, so the list is in the
+// order of the definitions' names, as captured (that the order is by name is inferred).
 var customResourceDefinitions = &model.KindProfile{
 	Key:      KeyCustomResourceDefinitions,
 	Group:    "apiextensions.k8s.io",

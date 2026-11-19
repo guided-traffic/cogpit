@@ -18,8 +18,8 @@ import (
 // plain, with the old and new line numbers, and a row saying how many unchanged lines were left
 // out between two hunks. It is a widget.List, so a diff of a large object costs only the rows on
 // screen. A line's text is selectable as the drawer's texts are (selection.go, D-25: a drag, a
-// double click on a word, ⌘C copies through copied); the owner, 2026-10-26: "Ich möchte texte
-// markieren können. Überall".
+// double click on a word, ⌘C copies through copied); the owner: "Ich möchte texte markieren können.
+// Überall".
 type diffView struct {
 	rows   []diffRow
 	list   *widget.List

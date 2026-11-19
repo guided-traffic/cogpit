@@ -8,7 +8,7 @@ import (
 )
 
 func registerAttach(g *registrar) {
-	// Lens's pod menu (capture, 2026-10-11): Attach Pod › (a submenu of the containers) first.
+	// Lens's pod menu (capture): Attach Pod › (a submenu of the containers) first.
 	add(g, engine.Spec[containerParams]{
 		ID: "pod.attach", Label: "Attach Pod", MenuPath: "Pod/Attach", Kinds: []string{kindPods}, Order: 100, RowKeys: []string{"a"},
 		Danger: engine.DangerMutating,

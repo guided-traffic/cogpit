@@ -14,9 +14,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/metrics"
 )
 
-// The alert board's history (the owner, 2026-10-27: how often an alert fired in the past, "um das
-// besser einschätzen zu können"): per card, how often its alertname started firing in each of the
-// last 24 hours, read from the cluster's Prometheus (its ALERTS series, metrics/promalerts.go).
+// The alert board's history (the owner: how often an alert fired in the past, "um das besser
+// einschätzen zu können"): per card, how often its alertname started firing in each of the last 24
+// hours, read from the cluster's Prometheus (its ALERTS series, metrics/promalerts.go).
 //
 // Two requests through the service proxy, every 5 minutes, while the alert board is the shown view
 // of the shown, connected cluster and the Alertmanager and the Prometheus integration are on; none

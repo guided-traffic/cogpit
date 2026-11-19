@@ -255,10 +255,10 @@ func signedFeed(t *testing.T, priv ed25519.PrivateKey, pub, channel string, vers
 }
 
 // verify with the served feed refuses a feed that would take back a newer release Pages offers,
-// the way v0.15.0's appcast, approved after v0.16.0's, replaced the feed with 0.15.0 alone on
-// 2026-10-16; the newer release wins over an older item its draft never saw, the way v0.19.0's
-// draft ran before v0.18.0's appcast was deployed (2026-10-16), and that item is reported; an item
-// older than every item its channel keeps goes silently, and a re-run replaces its own item.
+// the way v0.15.0's appcast, approved after v0.16.0's, replaced the feed with 0.15.0 alone; the
+// newer release wins over an older item its draft never saw, the way v0.19.0's draft ran before
+// v0.18.0's appcast was deployed, and that item is reported; an item older than every item its
+// channel keeps goes silently, and a re-run replaces its own item.
 func TestVerifyKeepsTheServedFeed(t *testing.T) {
 	priv, pub := testKey(t)
 	write := func(data []byte) string {

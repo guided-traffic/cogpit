@@ -112,9 +112,8 @@ func (sh *shell) runAction(a actionState, ref model.ObjectRef, container string)
 	sh.dispatch(a.cmd.ID, a.cmd.ObjectParams(ref, container), sh.actionDone(a.cmd.ID))
 }
 
-// rowMenu builds the actions menu of a row, as Lens's (capture, 2026-10-11): Show Details, then
-// the kind's actions in their order, Edit and Delete last; the drawer-only ones (Copy) are not in
-// it.
+// rowMenu builds the actions menu of a row, as Lens's (capture): Show Details, then the kind's
+// actions in their order, Edit and Delete last; the drawer-only ones (Copy) are not in it.
 func (sh *shell) rowMenu(ref model.ObjectRef, acts []actionState) *fyne.Menu {
 	details := fyne.NewMenuItem("Show Details", func() {
 		sh.openDetails(ref) // as a click on the row: the checked rows stay checked (A73)
@@ -185,7 +184,7 @@ func (sh *shell) containersFor(ref model.ObjectRef) []string {
 
 // podContainers are the containers a pod's Logs, Shell and Attach submenus offer: its containers,
 // then its init containers, then its ephemeral (debug) containers (the owner's "Fix bauen",
-// 2026-10-19, D-102).
+// D-102).
 func podContainers(m *engine.DetailModel) []string {
 	return slices.Concat(m.Containers, m.InitContainers, m.EphemeralContainers)
 }

@@ -14,7 +14,7 @@ import (
 // The row marks of the owner's VW16 (a checked row has the fill, the drawer's row the bar over its
 // whole height, a row that is both the two) and the keyboard's ring of his VW17 (a click puts the
 // keyboard on the cell clicked without the ring; a key or the keyboard's focus shows it, not on the
-// drawer's row), both of his live walk of 2026-10-25.
+// drawer's row), both of his live walk.
 
 // rowMarksScene opens Pods with seven columns hidden, so that a row shows from its checkbox to its
 // ⋮ beside the drawer.

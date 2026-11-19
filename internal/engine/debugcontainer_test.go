@@ -170,10 +170,9 @@ func TestPodEnded(t *testing.T) {
 	}
 }
 
-// TestImageFromField (the owner's R30, 2026-10-20: the short name, the pin behind it): an image
-// field shows the short name; while its text is the configured image's short name the configured
-// image runs, its digest included; the default's short name or nothing is the default; anything
-// else runs as typed.
+// TestImageFromField (the owner's R30: the short name, the pin behind it): an image field shows the
+// short name; while its text is the configured image's short name the configured image runs, its
+// digest included; the default's short name or nothing is the default; anything else runs as typed.
 func TestImageFromField(t *testing.T) {
 	const custom = "registry.example.com/tools/netshoot:v1@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 	for _, tc := range []struct{ image, short string }{

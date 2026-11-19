@@ -17,10 +17,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The Workloads Overview's upper part (resource-parity › Workloads › Overview, captured 2026-10-11):
-// one link per workload kind with its count and a health bar, in two columns. The engine builds the
-// model from the cache (workloads.overview); the events below are the page's table, which the
-// table view shows as it shows any view's.
+// The Workloads Overview's upper part (resource-parity › Workloads › Overview, captured): one link
+// per workload kind with its count and a health bar, in two columns. The engine builds the model
+// from the cache (workloads.overview); the events below are the page's table, which the table view
+// shows as it shows any view's.
 
 // overviewPanel shows the kinds of the Workloads Overview.
 type overviewPanel struct {

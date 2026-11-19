@@ -213,7 +213,7 @@ const noticePrefix = "[cogpit]"
 // runsOf splits text[from:to] into runs: the name in the accent colour, the timestamp muted, the
 // rest in the foreground colour, matches of search highlighted. A line of Cogpit's own (a notice
 // such as the marker where the connection was lost) is drawn in the warning colour, apart from the
-// container's lines (the owner's WF35 of 2026-10-19).
+// container's lines (the owner's WF35).
 func runsOf(text string, sp shownSpans, from, to int, search string, dst []logRun) []logRun {
 	body := theme.ColorNameForeground
 	if at := max(sp.nameEnd, sp.tsEnd); strings.HasPrefix(text, noticePrefix) || // a merged log's: "[cogpit]" in the name's place

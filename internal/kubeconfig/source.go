@@ -14,11 +14,11 @@ const MaxFileSize = 1 << 20
 var ErrNoContexts = errors.New("kubeconfig: the document defines no context")
 
 // SyncCandidate reports whether a file of this name in a sync folder is read as a kubeconfig.
-// Hidden files are (".kubeconfig", ".config"): Lens reads them (capture, 2026-10-12) and a user's
-// ~/.kube holds some. What keeps a hidden or any other file harmless is not its name but the
-// checks after it: only regular files (a FIFO or device is never opened), at most MaxFileSize
-// bytes, and it must parse as a kubeconfig that defines a context. Editor backups, swap files,
-// temporary downloads and the Finder's .DS_Store are skipped by name, as noise.
+// Hidden files are (".kubeconfig", ".config"): Lens reads them (capture) and a user's ~/.kube holds
+// some. What keeps a hidden or any other file harmless is not its name but the checks after it:
+// only regular files (a FIFO or device is never opened), at most MaxFileSize bytes, and it must
+// parse as a kubeconfig that defines a context. Editor backups, swap files, temporary downloads and
+// the Finder's .DS_Store are skipped by name, as noise.
 func SyncCandidate(name string) bool {
 	switch {
 	case name == "", name == ".DS_Store", strings.HasPrefix(name, "._"), strings.HasSuffix(name, "~"),

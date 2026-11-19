@@ -123,9 +123,9 @@ func TestTabCommands(t *testing.T) {
 }
 
 // ui.tab.back after a link in a drawer comes back to the drawer the link was in, its view's
-// namespace filter and search as they were (the owner's finding of 2026-10-25: a Deployment's pod
-// opened from its drawer, back, and the Deployment's drawer was closed); ui.tab.forward goes to the
-// link's object again. A link to another object of the same view is a step too.
+// namespace filter and search as they were (the owner's finding: a Deployment's pod opened from its
+// drawer, back, and the Deployment's drawer was closed); ui.tab.forward goes to the link's object
+// again. A link to another object of the same view is a step too.
 func TestBackComesBackToTheDrawer(t *testing.T) {
 	h := newHarness(t, seed(), engine.Options{})
 	gui := engine.OriginGUI

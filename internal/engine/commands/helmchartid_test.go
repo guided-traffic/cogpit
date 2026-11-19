@@ -13,9 +13,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// A repository whose name holds a dot is used (A36, owner 2026-10-14 evening): its charts' ids
-// double the dot ("charts..example.web"), and the id reaches the chart through every path that
-// takes one: the object, ui.navigate and the drawer (an agent's, and a cogpit:// link's name),
+// A repository whose name holds a dot is used (A36, owner): its charts' ids double the dot
+// ("charts..example.web"), and the id reaches the chart through every path that takes one: the
+// object, ui.navigate and the drawer (an agent's, and a cogpit:// link's name),
 // helm.chart.installTab and an install from its tab. A repository without a dot keeps the ids it
 // always had, and an id read the old way ("charts.example.web") names no chart of the dotted one.
 func TestHelmRepositoryWithADot(t *testing.T) {

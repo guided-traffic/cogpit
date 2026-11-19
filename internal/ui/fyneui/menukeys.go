@@ -6,11 +6,11 @@ import (
 )
 
 // ⌘F and ⌘⇧T are main-menu items that show their keys, View › Search and View › New Terminal, while
-// the keys stay the window's shortcuts (the owner's A55, 2026-10-14 evening): a focused widget that
-// takes shortcuts keeps them, so a text field or a terminal swallows them as before; ⌘F with the
-// keys in a dock tab's editor, or anywhere in that tab, opens its find bar (GW3, findkeys.go). A
-// main-menu shortcut would take them from any focus (Fyne asks the main menu first; on macOS it is
-// the native menu's key equivalent), as ⌘⇧P and ⌘P do on purpose.
+// the keys stay the window's shortcuts (the owner's A55): a focused widget that takes shortcuts
+// keeps them, so a text field or a terminal swallows them as before; ⌘F with the keys in a dock
+// tab's editor, or anywhere in that tab, opens its find bar (GW3, findkeys.go). A main-menu
+// shortcut would take them from any focus (Fyne asks the main menu first; on macOS it is the native
+// menu's key equivalent), as ⌘⇧P and ⌘P do on purpose.
 //
 // How (Cogpit's, read in Fyne 2.8.1's source, not tried in a real window):
 //   - the item's shortcut is a shownShortcut: it has the key and the modifiers, so the menu draws

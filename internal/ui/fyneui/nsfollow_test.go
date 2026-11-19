@@ -7,8 +7,8 @@ import (
 	"fyne.io/fyne/v2/test"
 )
 
-// TestNamespaceFilterOffersANamespaceCreatedSince is the owner's WF10 (walk 2026-10-17): a
-// namespace created after the cluster was shown is in the filter's list when it opens next.
+// TestNamespaceFilterOffersANamespaceCreatedSince is the owner's WF10: a namespace created after
+// the cluster was shown is in the filter's list when it opens next.
 func TestNamespaceFilterOffersANamespaceCreatedSince(t *testing.T) {
 	sh, _, q, f := nsFilterShell(t, ThemeDark)
 	f.mu.Lock()

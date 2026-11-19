@@ -7,14 +7,14 @@ import (
 	"time"
 )
 
-// A terminal tab agents may read (H-83, owner 2026-10-14; D-44): while its "Agents may read"
-// switch is on, the tab carries a marker, which flashes at each read by an agent (EventDockRead,
-// the window's reaction); and the switch turns itself off once AgentReadIdle passed without an
-// agent's read, or at the latest AgentReadMax after it went on whatever the reads (A3, owner
-// 2026-10-14 evening), which the tab then says (DockTab.AgentReadExpired, AgentReadCapped) until
-// the user turns it on again. The switch, the last read, the time it turns off and that it did are UI state, so agents
-// see them in ui_state as the window does. The time comes from the session's clock (Options.Now)
-// and the expiry from Options.AfterFunc, so tests move the clock instead of waiting.
+// A terminal tab agents may read (H-83, owner; D-44): while its "Agents may read" switch is on, the
+// tab carries a marker, which flashes at each read by an agent (EventDockRead, the window's
+// reaction); and the switch turns itself off once AgentReadIdle passed without an agent's read, or
+// at the latest AgentReadMax after it went on whatever the reads (A3, owner), which the tab then
+// says (DockTab.AgentReadExpired, AgentReadCapped) until the user turns it on again. The switch,
+// the last read, the time it turns off and that it did are UI state, so agents see them in ui_state
+// as the window does. The time comes from the session's clock (Options.Now) and the expiry from
+// Options.AfterFunc, so tests move the clock instead of waiting.
 //
 // What counts as a read is one the switch allowed: a dock.read of the tab by anyone but the user's
 // window, an agent or the CLI forwarding to the window. The user's own reads change nothing.

@@ -312,7 +312,7 @@ func fingerprint(labels map[string]string) string {
 }
 
 // SampleAlerts is a synthetic set of alerts shaped like a real cluster's Alertmanager answer (D-77,
-// the owner's test cluster read on 2026-10-17; no name or text of it): kube-prometheus' rules over
+// the owner's test cluster read; no name or text of it): kube-prometheus' rules over
 // kube-state-metrics (the exporter's own pod and service on a workload's alert), kube-state-metrics'
 // custom resource state of Flux objects at severity major, an x509 exporter's certificate alerts,
 // a pod crash looping in three pods, runbook links, one alert without a severity, an info alert,

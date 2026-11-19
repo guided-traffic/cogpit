@@ -196,9 +196,8 @@ func newTipButton(sh *shell, icon fyne.Resource, tip string, tapped func()) *tip
 
 // newBareTipButton is a tipButton in Fyne's own look, without the outline and the room beside a
 // word: the window's chrome, the title bar's history arrows and layout switches and the
-// navigator's header (the owner's answer of 2026-10-23: the outline on a content surface's icon
-// buttons, the chrome's bare), and the search's switches Aa, ab and .*, whose on state has its
-// plate (D-104).
+// navigator's header (the owner's answer: the outline on a content surface's icon buttons, the
+// chrome's bare), and the search's switches Aa, ab and .*, whose on state has its plate (D-104).
 func newBareTipButton(sh *shell, icon fyne.Resource, tip string, tapped func()) *tipButton {
 	b := newTipButton(sh, icon, tip, tapped)
 	b.bare = true
@@ -206,8 +205,8 @@ func newBareTipButton(sh *shell, icon fyne.Resource, tip string, tapped func()) 
 }
 
 // oneWidth makes buttons that stand side by side as switches one width, the widest one's: the find
-// bar's Aa, ab and .*, the list search's Aa and .* (the owner's VW3 of 2026-10-23: "Die Button …
-// sind nicht gleich breit"). Each keeps its word centred.
+// bar's Aa, ab and .*, the list search's Aa and .* (the owner's VW3: "Die Button … sind nicht
+// gleich breit"). Each keeps its word centred.
 func oneWidth(bs ...*tipButton) {
 	var w float32
 	for _, b := range bs {

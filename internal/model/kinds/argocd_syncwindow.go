@@ -10,19 +10,19 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// An AppProject's sync windows (A33, owner 2026-10-14 evening; H-67): a sync Cogpit writes is a
-// manual sync, and it respects the windows as Argo CD's own check of a manual sync does
-// (SyncWindows.Matches, then CanSync(isManual) in Argo CD 3.5.5's
-// pkg/apis/application/v1alpha1/types.go, read 2026-10-16; checked against a live Argo CD
-// controller on a real cluster the same night): the windows that match the Application (its
-// name, its destination's cluster by server or name, its destination namespace, by Argo CD's glob,
-// whose * also matches "/"; with andOperator every list given must match) decide. An active deny
-// window blocks unless every active deny window allows manual syncs (manualSync); else an active
-// allow window lets it through; else, when allow windows match but none is active, it is blocked
-// unless every one of them allows manual syncs; without matching windows it goes through. A window
-// is active from each time its cron schedule (five fields, no descriptors, as Argo CD parses it)
-// fires, in its time zone (UTC without one), for its duration. A window that cannot be read blocks
-// (Argo CD refuses the sync then too). Argo CD's RBAC is not emulated. Pure: no I/O.
+// An AppProject's sync windows (A33, owner; H-67): a sync Cogpit writes is a manual sync, and it
+// respects the windows as Argo CD's own check of a manual sync does (SyncWindows.Matches, then
+// CanSync(isManual) in Argo CD 3.5.5's pkg/apis/application/v1alpha1/types.go, read; checked
+// against a live Argo CD controller on a real cluster the same night): the windows that match the
+// Application (its name, its destination's cluster by server or name, its destination namespace, by
+// Argo CD's glob, whose * also matches "/"; with andOperator every list given must match) decide.
+// An active deny window blocks unless every active deny window allows manual syncs (manualSync);
+// else an active allow window lets it through; else, when allow windows match but none is active,
+// it is blocked unless every one of them allows manual syncs; without matching windows it goes
+// through. A window is active from each time its cron schedule (five fields, no descriptors, as
+// Argo CD parses it) fires, in its time zone (UTC without one), for its duration. A window that
+// cannot be read blocks (Argo CD refuses the sync then too). Argo CD's RBAC is not emulated. Pure:
+// no I/O.
 
 // The kinds of a sync window.
 const (

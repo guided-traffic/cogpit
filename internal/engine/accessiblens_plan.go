@@ -390,10 +390,10 @@ func (b *Backend) settledPlan(ctx context.Context, p *model.KindProfile) nsPlan 
 // acquireIn is acquireSettled for a read of one namespace's objects (one object, a workload's
 // logs, a port forward's pods and service): once the plan is decided, a user who may not list the
 // kind in all namespaces gets that namespace alone, shared with every other reader of it, whether
-// the namespaces the plan names include it or not. Cogpit's default (2026-10-13, not the owner's
-// decision): the target is what the read is about, and the named namespaces (the accessible ones,
-// the filter's, else the context's own) can miss it. A user who may list the kind everywhere, a
-// cluster-scoped kind (namespace "") and a plan still undecided read as acquireSettled does.
+// the namespaces the plan names include it or not. Cogpit's default (not the owner's decision): the
+// target is what the read is about, and the named namespaces (the accessible ones, the filter's,
+// else the context's own) can miss it. A user who may list the kind everywhere, a cluster-scoped
+// kind (namespace "") and a plan still undecided read as acquireSettled does.
 func (b *Backend) acquireIn(ctx context.Context, p *model.KindProfile, namespace string) *cache.Handle {
 	plan := b.settledPlan(ctx, p)
 	switch {

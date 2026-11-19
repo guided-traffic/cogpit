@@ -40,8 +40,8 @@ func (c *blockingConnector) Connect(ctx context.Context, name string) (*Backend,
 	return b, err
 }
 
-// stuckNamespace is walk-fin as the namespace controller leaves it on kind v1.36.1 (2026-10-19),
-// naming the kinds remaining.
+// stuckNamespace is walk-fin as the namespace controller leaves it on kind v1.36.1, naming the
+// kinds remaining.
 func stuckNamespace(remaining string, extra ...map[string]any) *unstructured.Unstructured {
 	conds := []any{
 		map[string]any{"type": kinds.CondDiscoveryFailure, "status": "False", "message": "All resources successfully discovered"},

@@ -12,14 +12,14 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/k8seol"
 )
 
-// The cluster's Kubernetes version in the navigator's root row (D-91, the owner's WF30 of
-// 2026-10-18): the API server's version on a line of its own under the user, so that neither the
-// cluster's name nor the user is cut for it in the navigator's default width, in the muted colour
-// while upstream supports its minor, in the pending colour during the minor's maintenance mode
-// (its last two months) and in the warning colour with a ⚠ past its end of life. Its tooltip says
-// until when upstream supports it and how many days are left, or since when it ended, "about …
-// estimated" for a minor newer than this Cogpit's release table, and the day of the table; dates
-// in the computer's format (D-31). Shown while the cluster is live (UIState.ClusterVersion).
+// The cluster's Kubernetes version in the navigator's root row (D-91, the owner's WF30): the API
+// server's version on a line of its own under the user, so that neither the cluster's name nor the
+// user is cut for it in the navigator's default width, in the muted colour while upstream supports
+// its minor, in the pending colour during the minor's maintenance mode (its last two months) and in
+// the warning colour with a ⚠ past its end of life. Its tooltip says until when upstream supports
+// it and how many days are left, or since when it ended, "about … estimated" for a minor newer than
+// this Cogpit's release table, and the day of the table; dates in the computer's format (D-31).
+// Shown while the cluster is live (UIState.ClusterVersion).
 //
 // And the gear before the root's dot (D-92, the owner's WF29): Cluster Settings of the shown
 // cluster, as ⌘⇧, and the row's menu open them.

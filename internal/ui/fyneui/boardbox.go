@@ -8,9 +8,9 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
-// The alert board's and the silences page's state box (the owner, 2026-11-17): what the page says
-// instead of cards (no Alertmanager found, not allowed, not answering; no alerts at all, none in
-// the namespaces chosen, none the search keeps; no silences) stands in one box in the middle of the
+// The alert board's and the silences page's state box (the owner): what the page says instead of
+// cards (no Alertmanager found, not allowed, not answering; no alerts at all, none in the
+// namespaces chosen, none the search keeps; no silences) stands in one box in the middle of the
 // page, its text centred under an optional picture, its buttons (Set Its Address…, Remove Namespace
 // Filter, Clear Search) at its bottom right. A board without alerts shows a steaming cup.
 

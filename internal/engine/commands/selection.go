@@ -16,8 +16,8 @@ import (
 // actions on a selection, which take its objects in "refs" (engine/selection.go): Delete here,
 // Restart (restartmany.go), the Flux actions (flux.go) and Argo CD's Sync and Refresh (argocd.go);
 // more than engine.DirectSelection objects run as a background job (manyjob.go, G4). The other
-// actions stay on one object (Cogpit's default, inferred, 2026-10-13: each has its own dialog or
-// confirmation per object, and none is as common on many objects at once).
+// actions stay on one object (Cogpit's default, inferred: each has its own dialog or confirmation
+// per object, and none is as common on many objects at once).
 
 type selectionParams struct {
 	Refs []model.ObjectRef `json:"refs" jsonschema:"the objects, as ui_state's selected lists them: objects of any kind of one connected cluster (their refs' context; the shown cluster without one), at most 500"`

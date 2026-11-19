@@ -16,12 +16,11 @@ import (
 )
 
 // A workload's Pods table in its drawer (D-40): the node drawer's table without its Namespace column
-// (the owner's, 2026-10-14: a workload's pods share its namespace) and with the pods' Age after
-// Status (the owner's, 2026-10-26), with the pods the workload
-// controls, their CPU and Memory and the same sorting, built from the real profiles
-// (engine.BuildDetailWith with the fixture's related objects, engine.FillPodTable,
-// engine.SortDrawerTables, engine.LimitDrawerTables). PNGs: testdata/deployment_pods_drawer_*.png,
-// statefulset_pods_drawer_*.png.
+// (the owner's: a workload's pods share its namespace) and with the pods' Age after Status (the
+// owner's), with the pods the workload controls, their CPU and Memory and the same sorting, built
+// from the real profiles (engine.BuildDetailWith with the fixture's related objects,
+// engine.FillPodTable, engine.SortDrawerTables, engine.LimitDrawerTables). PNGs:
+// testdata/deployment_pods_drawer_*.png, statefulset_pods_drawer_*.png.
 
 // The Deployment checkout-api mid-rollout: three pods of its new replica set (one not ready), one
 // of the old one terminating.

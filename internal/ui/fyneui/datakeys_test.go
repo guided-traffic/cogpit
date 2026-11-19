@@ -14,12 +14,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Keys added and removed in a Config Map's and a Secret's drawer (the owner's audit decision of
-// 2026-10-16, N152 (b)): Add Key checks the name as the API server does and against the keys there
-// are, each key's remove button marks it removed with Undo, the review names the keys removed in
-// the error colour with the object, its namespace and its context, its Save arms after the
-// confirmation's delay and is the engine's confirmation of the removal, and the kept edits hold the
-// keys too.
+// Keys added and removed in a Config Map's and a Secret's drawer (the owner's audit decision, N152
+// (b)): Add Key checks the name as the API server does and against the keys there are, each key's
+// remove button marks it removed with Undo, the review names the keys removed in the error colour
+// with the object, its namespace and its context, its Save arms after the confirmation's delay and
+// is the engine's confirmation of the removal, and the kept edits hold the keys too.
 
 // removeButton returns the remove button of key's line under root.
 func removeButtonOf(t *testing.T, root fyne.CanvasObject, key string) *tipButton {

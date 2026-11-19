@@ -383,10 +383,10 @@ func TestFluxKustomizationsInTheWindow(t *testing.T) {
 	}
 }
 
-// TestFluxHelmReleaseActionsInTheWindow (D-33, owner 2026-10-14): a Helm release's row menu has
-// Reconcile, Reconcile with Source and Reset before Suspend; Reconcile with Source patches the
-// chart's Helm repository, the release's HelmChart and the release, in that order; Reset writes
-// resetAt; on a suspended release both are greyed with why.
+// TestFluxHelmReleaseActionsInTheWindow (D-33, owner): a Helm release's row menu has Reconcile,
+// Reconcile with Source and Reset before Suspend; Reconcile with Source patches the chart's Helm
+// repository, the release's HelmChart and the release, in that order; Reset writes resetAt; on a
+// suspended release both are greyed with why.
 func TestFluxHelmReleaseActionsInTheWindow(t *testing.T) {
 	sh, _, q, s, rec, src := fluxEngineShellOn(t, ThemeDark)
 	playFluxControllers(s, rec, src) // Reconcile with Source waits for each (A91)

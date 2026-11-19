@@ -6,10 +6,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// A Helm repository's user and password over plain http (credentials H-40, owner 2026-10-14):
-// such a repository downloads nothing until the user allowed it, once, in Cogpit's window; the
-// allowance is bound to its name, URL and user name. helm.repo.list says which repositories wait
-// and why; the allowance is GUI-only, so that no agent allows its own requests (D-2).
+// A Helm repository's user and password over plain http (credentials H-40, owner): such a
+// repository downloads nothing until the user allowed it, once, in Cogpit's window; the allowance
+// is bound to its name, URL and user name. helm.repo.list says which repositories wait and why; the
+// allowance is GUI-only, so that no agent allows its own requests (D-2).
 
 type allowHTTPParams struct {
 	Repositories []engine.HelmHTTPAllowItem `json:"repositories" jsonschema:"the repositories to allow, each with the httpToken helm_repo_list returned for it: all of them or none are allowed, and the call is refused, naming them, if any changed since"`

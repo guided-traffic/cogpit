@@ -11,8 +11,8 @@ import (
 
 func FuzzSecrets(f *testing.F) { fuzzProfile(f, "secrets") }
 
-// Secrets come from a full watch (D-13 revised, 2026-10-12): Keys lists the names of the keys,
-// sorted, and Type the type, as in Lens; no status token (inferred).
+// Secrets come from a full watch (D-13 revised): Keys lists the names of the keys, sorted, and Type
+// the type, as in Lens; no status token (inferred).
 func TestSecretTexts(t *testing.T) {
 	checkStatusTexts(t, []statusText{
 		{"secrets", "healthy", "labels", "app.kubernetes.io/component=database, app.kubernetes.io/name=checkout-api", model.StatusNone, model.StatusNone},

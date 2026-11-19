@@ -22,29 +22,27 @@ import (
 
 // The welcome page (ui-parity › Layout, "Welcome page (Help › Welcome)"; G5, G13). Lens has one
 // behind Help › Welcome; its content is not captured, so the page, its wording and its layout are
-// Cogpit's own (inferred, Cogpit's defaults 2026-10-13, not the owner's decision):
+// Cogpit's own (inferred, Cogpit's defaults, not the owner's decision):
 //   - Cogpit's logo, "Welcome to Cogpit" and a line saying what Cogpit is;
 //   - a note about the connection when there is one to tell, in a banner of its own that names its
 //     level (the owner's RW4, welcomenote.go): a connection Cogpit closed, a failed connect without
 //     a context to name, or the cluster that stays connected under the page (a chosen cluster's
 //     failed connect has its own page instead, errorpage.go, D-114);
 //   - the clusters to connect with one click: the hotbar's, then Recent, the clusters of
-//     this session (the connected or last one, the tabs' ones; the heading "Recent" since the
-//     owner's A67, 2026-10-14 evening, was "This session"); each row as the context picker had it
-//     (clusterrow.go), with its right-click menu. The "Other clusters" group that followed (up to
-//     eight more the kubeconfig sources offer) is gone at the owner's AW13 of 2026-10-22 ("dass ich
-//     auf der Welcome-Seite keine 'other Cluster' Sektion mehr haben will", D-114): the navigator's
-//     section beside the page lists every cluster. Only on a first start, with no hotbar tile and
-//     no recent cluster, the page lists them as "Your clusters" (up to eight, the kubeconfig's
-//     current one first), so that it never offers nothing at all (the lead's detail, open to
-//     revision);
+//     this session (the connected or last one, the tabs' ones; the heading "Recent" is the
+//     owner's A67); each row as the context picker had it (clusterrow.go), with
+//     its right-click menu. The "Other clusters" group that followed (up to eight more the
+//     kubeconfig sources offer) is gone at the owner's AW13 ("dass ich auf der Welcome-Seite keine
+//     'other Cluster' Sektion mehr haben will", D-114): the navigator's section beside the page
+//     lists every cluster. Only on a first start, with no hotbar tile and no recent cluster, the
+//     page lists them as "Your clusters" (up to eight, the kubeconfig's current one first), so that
+//     it never offers nothing at all (the lead's detail, open to revision);
 //   - "Add Kubeconfigs…" (the Sync Files and Folders dialog) and below it the checkbox of the
-//     preference "Restore the last session" (welcomeRestoreLabel), the documentation and the shortcuts
-//     to remember, ⌘P finding a cluster by name among them. The page has no "Connect to Cluster…"
-//     (the owner, 2026-10-16 evening, N122; D-57): its cluster rows and the navigator's section
-//     beside it are the list already. It had one from 2026-10-15 (D-57; "All Clusters…" with the
-//     context picker until then); the workspace's button without a live connection stays. The documentation is two links to
-//     the repository on GitHub, opened in the browser (the owner's A113, 2026-10-14 evening): the
+//     preference "Restore the last session" (welcomeRestoreLabel), the documentation and the
+//     shortcuts to remember, ⌘P finding a cluster by name among them. The page has no "Connect to
+//     Cluster…" (the owner, N122; D-57): its cluster rows and the navigator's section beside it are
+//     the list already; the workspace's button without a live connection stays. The documentation
+//     is two links to the repository on GitHub, opened in the browser (the owner's A113): the
 //     README for what Cogpit does (the showcase), and docs/developer/commands.md for the commands.
 //
 // Whether the page shows is engine state, UIState.Welcome (engine/welcome.go): the workspace shows it
@@ -137,11 +135,11 @@ func newWelcomePage(sh *shell) *welcomePage {
 }
 
 // welcomeRestoreLabel is the welcome page's checkbox of the preference "Restore the last session"
-// (Preferences › App, D-69 item 8), which the owner missed on the page (walk 2026-10-17, WF1: "eine
-// kleine Box …, die anbietet den letzten Zustand von Cogpit beim Beenden zu speichern und beim
-// Wiederöffnen wiederherzustellen"). The same preference, not a second one: on or off here is on or
-// off in the Preferences. It shows whether it is on or off, under "Add Kubeconfigs…", where the page
-// lists what a start offers (the lead's decision, 2026-10-17 evening).
+// (Preferences › App, D-69 item 8), which the owner missed on the page (walk, WF1: "eine kleine Box
+// …, die anbietet den letzten Zustand von Cogpit beim Beenden zu speichern und beim Wiederöffnen
+// wiederherzustellen"). The same preference, not a second one: on or off here is on or off in the
+// Preferences. It shows whether it is on or off, under "Add Kubeconfigs…", where the page lists
+// what a start offers (the lead's decision).
 const welcomeRestoreLabel = "Restore this session at the next start: its tabs and connected clusters"
 
 // renderRestore shows the preference in the checkbox.
@@ -420,7 +418,7 @@ func (w *welcomePage) labels(c engine.ContextInfo) (title, sub string) {
 
 // sharedTitles counts the titles the page's rows show: a row whose title another row shows too
 // names its kubeconfig file, so that the two can be told apart; every other row leaves the file
-// out (the owner, 2026-10-21: the path only for the clusters whose names occur more than once).
+// out (the owner: the path only for the clusters whose names occur more than once).
 func (w *welcomePage) sharedTitles(groups []welcomeGroup) map[string]int {
 	n := map[string]int{}
 	for _, g := range groups {

@@ -6,12 +6,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// clusterRoleBindings has the columns captured from Lens on 2026-10-11: Name, the warning icon,
-// Bindings (the subjects' names, comma-separated), Age; no namespace filter (the kind is
-// cluster-scoped). The warning rule is inferred: a binding grants nothing when the cluster role it
-// names does not exist (read from the cached cluster roles through ClusterRolesByName) or when it
-// has no subjects, unless the API server maintains it (system:node has none on purpose). A
-// binding has no state, so a row without a warning has no status token.
+// clusterRoleBindings has the columns captured from Lens: Name, the warning icon, Bindings (the
+// subjects' names, comma-separated), Age; no namespace filter (the kind is cluster-scoped). The
+// warning rule is inferred: a binding grants nothing when the cluster role it names does not exist
+// (read from the cached cluster roles through ClusterRolesByName) or when it has no subjects,
+// unless the API server maintains it (system:node has none on purpose). A binding has no state, so
+// a row without a warning has no status token.
 var clusterRoleBindings = &model.KindProfile{
 	Key:      "clusterrolebindings",
 	Group:    groupRBAC,

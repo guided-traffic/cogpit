@@ -398,7 +398,7 @@ func TestRegistryShortcutsDoNotCollide(t *testing.T) {
 	}
 	if sd != fyne.KeyModifierControl {
 		// macOS's full screen, ⌃⌘F; where the default modifier is Control (Linux, Windows) the same
-		// expression would read Ctrl+F, the filter's own shortcut there (CI 2026-10-13).
+		// expression would read Ctrl+F, the filter's own shortcut there.
 		platform = append(platform, &desktop.CustomShortcut{KeyName: fyne.KeyF, Modifier: sd | fyne.KeyModifierControl})
 	}
 	for _, sc := range platform {

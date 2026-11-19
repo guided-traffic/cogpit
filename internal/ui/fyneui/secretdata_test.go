@@ -21,12 +21,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/ui/fyneui/yamlview"
 )
 
-// A Secret's values edited in the drawer, the window's only (the owner's audit answer of
-// 2026-10-15, D-59): Show puts the whole value into an editor, Save reviews a masked diff and a
-// dry run and writes through secret.saveData, a newer version rebases or shows the conflict,
-// edited values the drawer moves away from stay in the window's memory, never on disk, and no
-// value reaches a toast, the notifications or a command but the GUI-only ones. The Secret is
-// checkout-db of secretsFake; every value is made up.
+// A Secret's values edited in the drawer, the window's only (the owner's audit answer, D-59): Show
+// puts the whole value into an editor, Save reviews a masked diff and a dry run and writes through
+// secret.saveData, a newer version rebases or shows the conflict, edited values the drawer moves
+// away from stay in the window's memory, never on disk, and no value reaches a toast, the
+// notifications or a command but the GUI-only ones. The Secret is checkout-db of secretsFake; every
+// value is made up.
 
 const secTyped = "new-horse-battery-staple-77"
 
@@ -500,13 +500,12 @@ func TestSecretEditorCopiesAsASecret(t *testing.T) {
 	}
 }
 
-// TestSecretEditorCopyIcon (the owner's audit decision of 2026-10-16, D-59 (c)): a value in an
-// editor has a copy icon in its key's line, above the editor's right end and over none of its
-// text; a click copies the whole value as typed so far through the clipboard for Secret values
-// (concealed, cleared after the time), never the plain clipboard, with the copy icons' toast and
-// checkmark. An empty value copies nothing; a masked value has no pinned icon (the drawer's icon on
-// hover copies it without showing it, TestSecretEditorMaskedValueCopiedWithoutShowing); an added
-// key's editor has one.
+// TestSecretEditorCopyIcon (the owner's audit decision, D-59 (c)): a value in an editor has a copy
+// icon in its key's line, above the editor's right end and over none of its text; a click copies
+// the whole value as typed so far through the clipboard for Secret values (concealed, cleared after
+// the time), never the plain clipboard, with the copy icons' toast and checkmark. An empty value
+// copies nothing; a masked value has no pinned icon (the drawer's icon on hover copies it without
+// showing it, TestSecretEditorMaskedValueCopiedWithoutShowing); an added key's editor has one.
 func TestSecretEditorCopyIcon(t *testing.T) {
 	sh, w, q, f, _ := secShell(t, ThemeDark)
 	sh.secretClipTTL = 40 * time.Millisecond
@@ -578,11 +577,11 @@ func TestSecretEditorCopyIcon(t *testing.T) {
 	}
 }
 
-// TestSecretEditorMaskedValueCopiedWithoutShowing (the owner's decision of 2026-10-22, D-25, D-59):
-// where the values can be saved, a masked value's copy icon reads the whole value and copies it
-// without showing it, and opens no editor; a value edited and hidden again copies what was typed
-// from the editor's memory, still masked; an added key hidden again likewise. No value reaches a
-// toast or a command but the GUI-only reveal.
+// TestSecretEditorMaskedValueCopiedWithoutShowing (the owner's decision, D-25, D-59): where the
+// values can be saved, a masked value's copy icon reads the whole value and copies it without
+// showing it, and opens no editor; a value edited and hidden again copies what was typed from the
+// editor's memory, still masked; an added key hidden again likewise. No value reaches a toast or a
+// command but the GUI-only reveal.
 func TestSecretEditorMaskedValueCopiedWithoutShowing(t *testing.T) {
 	sh, _, q, f, _ := secShell(t, ThemeDark)
 	sh.secretClipTTL = time.Minute

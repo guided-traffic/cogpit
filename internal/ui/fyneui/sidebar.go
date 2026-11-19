@@ -92,9 +92,8 @@ const (
 // cluster is connected: the cluster Overview first (as captured), Workloads › Overview, Flux CD ›
 // Dashboard; a group whose kinds the cluster serves none of is left out with its pages (the Flux CD
 // group without Flux). Listener Sets are listed under both groups Gateway API releases used for
-// them. Last, under the heading Integrations (the owner, 2026-11-03), the views of the tools a
-// cluster runs: Flux CD and Argo CD, each while the cluster serves it; the heading shows with
-// either.
+// them. Last, under the heading Integrations (the owner), the views of the tools a cluster runs:
+// Flux CD and Argo CD, each while the cluster serves it; the heading shows with either.
 var navLayout = []navEntry{
 	page(engine.ClusterOverview),
 	{id: "nodes"},
@@ -369,9 +368,9 @@ func (s *sidebar) updateHeader() {
 
 // setKinds rebuilds the tree from kinds.list. It runs on connect and whenever the cluster's
 // custom resource kinds or the access reviews' answers change; branches keep the open or closed
-// state they had, and new ones start closed (owner, 2026-10-12; Lens opened them, and the API
-// groups of Custom Resources closed): the group of the open view is opened by selectView, so the
-// selection stays visible. A kind the user may not list is left out; one not known yet is shown.
+// state they had, and new ones start closed (owner; Lens opened them, and the API groups of Custom
+// Resources closed): the group of the open view is opened by selectView, so the selection stays
+// visible. A kind the user may not list is left out; one not known yet is shown.
 func (s *sidebar) setKinds(kinds []kindInfo) {
 	kinds = listableKinds(kinds) // the View menu offers the same (menuaccess.go)
 	s.children = map[string][]string{}

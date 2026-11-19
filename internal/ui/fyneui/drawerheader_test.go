@@ -10,9 +10,9 @@ import (
 )
 
 // The drawer's header after a move to another pod whose detail came before the next frame (the
-// owner's finding of 2026-10-22, drawer.layoutHeader): the icons were drawn from the close button on
-// past the drawer's edge and the status under the tabs, because no frame saw the header's minimum
-// size change.
+// owner's finding, drawer.layoutHeader): the icons were drawn from the close button on past the
+// drawer's edge and the status under the tabs, because no frame saw the header's minimum size
+// change.
 
 // twoHealthyPods are two running fixture pods with two containers each: the same actions, so that
 // their headers are as wide and as tall.

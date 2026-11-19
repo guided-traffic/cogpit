@@ -242,8 +242,8 @@ func (c stepConnector) Connect(ctx context.Context, name string) (*Backend, erro
 }
 
 // The user's Cancel Connecting is the user's own act: the steps it ended are INFO, its attempt
-// "cancelled", no ERROR line (the lead's note of the walk of 2026-10-19; D-66 keeps ERROR for a
-// connect that failed).
+// "cancelled", no ERROR line (the lead's note of the walk; D-66 keeps ERROR for a connect that
+// failed).
 func TestACancelledConnectWritesNoError(t *testing.T) {
 	s := New(Options{Connector: stepConnector{newPoolConnector(time.Minute, "alpha")}, SnapshotInterval: 10 * time.Millisecond, ConnWatch: fastWatch})
 	t.Cleanup(s.Close)

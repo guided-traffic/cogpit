@@ -666,8 +666,8 @@ func (b *Backend) promServices(ctx context.Context) ([]metrics.Service, error) {
 		}
 	}
 	// In all namespaces, or in each namespace the user named when they may not list Services
-	// everywhere, also after a refusal in all namespaces (accessiblens_follow.go); before
-	// (2026-10-13) a refused read in all namespaces waited the whole 8 seconds.
+	// everywhere, also after a refusal in all namespaces (accessiblens_follow.go), so that a
+	// refused read in all namespaces does not wait the whole 8 seconds.
 	wctx, cancel := context.WithTimeout(ctx, servicesSyncTimeout)
 	defer cancel()
 	r := startRead(wctx, p, func(ctx context.Context) *cache.Handle { return b.acquireSettled(ctx, p) })
@@ -769,8 +769,8 @@ func nodeTargets(hub *metrics.Hub, ref model.ObjectRef, obj *unstructured.Unstru
 // all namespaces for a user who may list pods there, else one list per namespace the plan reads,
 // side by side (at most four at once), merged. The plan is waited for as an agent's read of pods
 // waits (settledPlan); without an answer the one list in all namespaces is asked, as before. It
-// also returns the namespaces whose pods' metrics were refused (owner, 2026-10-14): their pods are
-// left out, the others' are there.
+// also returns the namespaces whose pods' metrics were refused (owner): their pods are left out,
+// the others' are there.
 func (b *Backend) fetchPodLists(ctx context.Context) (metrics.Result, []string) {
 	scopes := []metrics.Scope{{Kind: metrics.KindPods}}
 	if pp, ok := b.Profile(logKindPods); ok {

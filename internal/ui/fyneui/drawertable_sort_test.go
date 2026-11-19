@@ -14,10 +14,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
-// The node drawer's Pods table with its pods' CPU and Memory and sortable columns (owner,
-// 2026-10-13). The fake's drawer models go through the engine's own fill and sort
-// (engine.FillPodTable, engine.SortDrawerTables), and its ui.sortDrawerTable does what the
-// engine's does: it sets the UI state's order and announces the drawer.
+// The node drawer's Pods table with its pods' CPU and Memory and sortable columns (owner). The
+// fake's drawer models go through the engine's own fill and sort (engine.FillPodTable,
+// engine.SortDrawerTables), and its ui.sortDrawerTable does what the engine's does: it sets the UI
+// state's order and announces the drawer.
 
 // fixturePodUsage is what the fake Metrics Server measures of a fixture pod: running pods, and
 // those that crash or are not ready, use some CPU and memory; completed and never-started ones

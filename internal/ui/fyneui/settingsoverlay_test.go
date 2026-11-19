@@ -217,10 +217,10 @@ func typeIntoSetting(t *testing.T, w fyne.Window, q *mainQueue, p *settingsPage,
 	test.Type(f, text)
 }
 
-// TestSettingsEscapeInATextFieldClosesTheCard (the owner's decision (a) of 2026-10-23 after VW6,
-// D-116, D-118): Escape in a text field of Preferences or Cluster Settings, the keyboard in the
-// field, closes the card, and the value typed is set (D-118's flushTyping), a multi-line field and a
-// field with a list (the time zone) too; before, the field kept Escape and nothing happened.
+// TestSettingsEscapeInATextFieldClosesTheCard (the owner's decision (a) after VW6, D-116, D-118):
+// Escape in a text field of Preferences or Cluster Settings, the keyboard in the field, closes the
+// card, and the value typed is set (D-118's flushTyping), a multi-line field and a field with a
+// list (the time zone) too; before, the field kept Escape and nothing happened.
 func TestSettingsEscapeInATextFieldClosesTheCard(t *testing.T) {
 	s, sh, w, q := overlayScene(t, engine.SectionTerminal)
 	p := sh.settings
@@ -261,9 +261,9 @@ func TestSettingsEscapeInATextFieldClosesTheCard(t *testing.T) {
 	}
 }
 
-// TestSettingsEscapeInTheAgentFormClosesTheForm (D-116's innermost thing, the lead's detail of
-// 2026-10-24): Escape in a field of Preferences › Agent's connection form closes the form, as its
-// Cancel does, and leaves the card open; the next Escape, the keyboard nowhere, closes the card.
+// TestSettingsEscapeInTheAgentFormClosesTheForm (D-116's innermost thing, the lead's detail):
+// Escape in a field of Preferences › Agent's connection form closes the form, as its Cancel does,
+// and leaves the card open; the next Escape, the keyboard nowhere, closes the card.
 func TestSettingsEscapeInTheAgentFormClosesTheForm(t *testing.T) {
 	sh, w, q, ch := agentPrefsShell(t, ThemeDark)
 	a := sh.settings.agent

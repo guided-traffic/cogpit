@@ -89,10 +89,10 @@ type dispatched struct {
 }
 
 // Another cluster shown while a command's connect waits: every command answers without an error
-// (the owner's AW16 of 2026-10-22; D-97 had it for cluster.connect only): cluster.connect and
-// hotbar.openCluster say "held" is connecting, the tab and the navigator answer the UI state as
-// it stood when the connect stopped waiting; the window shows the cluster chosen last, and the
-// connect goes on in the background.
+// (the owner's AW16; D-97 had it for cluster.connect only): cluster.connect and hotbar.openCluster
+// say "held" is connecting, the tab and the navigator answer the UI state as it stood when the
+// connect stopped waiting; the window shows the cluster chosen last, and the connect goes on in the
+// background.
 func TestConnectCommandsAnswerABackgroundConnect(t *testing.T) {
 	for _, c := range connectCommands {
 		t.Run(c.id, func(t *testing.T) {

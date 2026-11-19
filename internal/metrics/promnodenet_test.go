@@ -9,17 +9,17 @@ import (
 )
 
 // A node's Network and Filesystem charts read node-exporter where it runs, as its CPU and memory
-// do (G12, 2026-10-16): on kube-prometheus-stack, which drops cAdvisor's root cgroup, they stayed
-// empty before. The exporter is found by the node's address, its pods' and overlays' interfaces
-// are left out of the traffic, and its block devices are counted once each.
+// do (G12): on kube-prometheus-stack, which drops cAdvisor's root cgroup, they stayed empty before.
+// The exporter is found by the node's address, its pods' and overlays' interfaces are left out of
+// the traffic, and its block devices are counted once each.
 func TestNodeNetworkAndFilesystemFromNodeExporter(t *testing.T) {
 	ctx := context.Background()
 	inst := `instance=~"(n1|10\\.0\\.0\\.7)(:[0-9]+)?"`
 	want := metrics.WantNetwork | metrics.WantFilesystem
 
 	// kube-prometheus-stack's node-exporter labels a node's series with the exporter's host-network
-	// address as the instance and no node label (a real cluster, 2026-10-16; the names here are
-	// synthetic). Every query sums its series, so the answers carry no labels, as the real one's did.
+	// address as the instance and no node label (a real cluster; the names here are synthetic).
+	// Every query sums its series, so the answers carry no labels, as the real one's did.
 	t.Run("kube-prometheus-stack: node-exporter by the address, no root cgroup", func(t *testing.T) {
 		c := newPromCluster(t, false)
 		c.prom.on(`node_network_receive_bytes_total{`+inst, s(nil, 1000, 900e3, 1030, 950e3))

@@ -50,9 +50,9 @@ func proxyConfirmer(s *engine.Session, answer *bool) *[]engine.ConfirmRequest {
 
 // The user sets a cluster's proxy in the window; an agent's proxy always waits for the user's
 // acceptance, also where agent writes are allowed, and the question never shows the password
-// (A20, owner 2026-10-14 evening); the CLI is refused before anything is kept. Agents and the CLI
-// may clear it, and read it back with the password as •••. The audit log carries the attempts
-// with the password redacted.
+// (A20, owner); the CLI is refused before anything is kept. Agents and the CLI may clear it, and
+// read it back with the password as •••. The audit log carries the attempts with the password
+// redacted.
 func TestClusterProxyCommands(t *testing.T) {
 	s, audit, cfg := proxySession(t)
 	answer := false

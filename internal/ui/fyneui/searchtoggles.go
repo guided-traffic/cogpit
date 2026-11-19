@@ -14,7 +14,7 @@ import (
 )
 
 // The search field's toggles (ui-parity › Tables, G5): match case ("Aa") and regular expression
-// (".*"), captured in Lens Desktop's search field (2026-10-11). Their state is the engine's
+// (".*"), captured in Lens Desktop's search field. Their state is the engine's
 // (UIState.FilterOptions, set with ui.setFilter), each tab its own, so an agent sees and sets what
 // the user sees. Cogpit's look and rules, inferred (Lens's are not captured): the two sit inside
 // the field at its right end, look as the editor's find widget's switches do (findbar.go: filled

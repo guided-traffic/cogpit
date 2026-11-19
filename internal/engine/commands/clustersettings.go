@@ -15,14 +15,14 @@ import (
 // Every command changes only Cogpit's own cluster settings file (and its icons folder), never a
 // cluster or a kubeconfig, so they are UI commands that agents run freely (D-2), except what marks
 // which cluster this is, the user's alone, in the window: the display name and the icon (H-125, the
-// owner's decision of 2026-10-19: cluster.settings.set's name and iconColor refused for agents and
-// the CLI, set or cleared, engine.ErrClusterIdentityGUIOnly; cluster.settings.resetIcon GUI-only;
-// the icon upload GUI-only, it also reads a file on this computer, engine.ErrIconGUIOnly) and the
-// accent colour (accentcolor.go, D-80). The Prometheus a cluster's metrics come from stays
+// owner's decision: cluster.settings.set's name and iconColor refused for agents and the CLI, set
+// or cleared, engine.ErrClusterIdentityGUIOnly; cluster.settings.resetIcon GUI-only; the icon
+// upload GUI-only, it also reads a file on this computer, engine.ErrIconGUIOnly) and the accent
+// colour (accentcolor.go, D-80). The Prometheus a cluster's metrics come from stays
 // cluster.setPrometheus. Its integrations (D-76) only the user switches, on or off (H-126, the
-// owner's decision of 2026-10-19; H-133, his decision of 2026-10-20; engine/integrationsguionly.go):
-// agents and the CLI read them; where an integration is read from when it is not found by name
-// (cluster.setPrometheus) stays the user's (A16).
+// owner's decision; H-133, his decision; engine/integrationsguionly.go): agents and the CLI read
+// them; where an integration is read from when it is not found by name (cluster.setPrometheus)
+// stays the user's (A16).
 
 type clusterSettingsParams struct {
 	Context string `json:"context,omitempty" jsonschema:"context id as cluster_contexts lists it (a bare context name works when one file only defines it); empty or omitted: the connected context"`
@@ -232,7 +232,7 @@ func registerClusterSettings(g *registrar) {
 			return p.refuse(ctx)
 		},
 		// A proxy decides where the user's cluster traffic goes, credentials in it: an agent's always
-		// waits for the user (A20, owner 2026-10-14 evening).
+		// waits for the user (A20, owner).
 		AgentsAsk: func(_ *engine.Session, p clusterSettingsSetParams) bool { return setsProxy(p.Proxy) },
 		Effects: func(s *engine.Session, p clusterSettingsSetParams) []engine.Effect {
 			if !setsProxy(p.Proxy) {

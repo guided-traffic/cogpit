@@ -13,7 +13,7 @@ import (
 )
 
 // A context whose cluster skips the certificate check asks once before its first connect, the
-// answer kept like a credential plugin's approval (A28, owner 2026-10-14 evening; H-37).
+// answer kept like a credential plugin's approval (A28, owner; H-37).
 
 // approveInsecure allows the unchecked connection of a source context as the window's dialog does:
 // the context's pending group, which holds it alone, with the fingerprint the listing showed.

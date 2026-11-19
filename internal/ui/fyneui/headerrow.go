@@ -10,7 +10,7 @@ import (
 // narrower than both at their widths; then the tools give way, the search first, then the status
 // filter, then the namespace filter, each down to a width that still reads ("All states ▾"), and
 // the heading keeps its room, instead of the tools running over the heading and out of the view's
-// left edge (seen after the status filter came, 2026-10-14).
+// left edge (seen after the status filter came).
 
 // headerRowLayout lays out [heading, tools]: the heading at its minimum width at the left, the
 // tools right-aligned in what is left, between their shrunk and their full widths.

@@ -6,12 +6,13 @@ import (
 	"time"
 )
 
-// The editor's undo history (the owner's WF9 of 2026-10-17; decisions D-84). Every edit is one
-// replacement: at start the text old became new, with the caret and the selection before and after
-// it. A run of typed characters is one step until a pause of typingPause, a caret move, a new line
-// or an edit of another kind; consecutive Backspaces are one step, and so are consecutive forward
-// Deletes; a run also ends at runBytes of text; a paste, a cut, a deleted selection, an indentation change and a replacement from outside
-// the keyboard (ReplaceSelection: the find widget's Replace and Replace All) are a step each.
+// The editor's undo history (the owner's WF9; decisions D-84). Every edit is one replacement: at
+// start the text old became new, with the caret and the selection before and after it. A run of
+// typed characters is one step until a pause of typingPause, a caret move, a new line or an edit of
+// another kind; consecutive Backspaces are one step, and so are consecutive forward Deletes; a run
+// also ends at runBytes of text; a paste, a cut, a deleted selection, an indentation change and a
+// replacement from outside the keyboard (ReplaceSelection: the find widget's Replace and Replace
+// All) are a step each.
 //
 // The history holds only the user's own edits since the text was last set from outside: SetText,
 // and UpdateText with a different text, clear it, because its steps describe another text (an

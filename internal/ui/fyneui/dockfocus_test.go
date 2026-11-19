@@ -15,9 +15,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/terminal"
 )
 
-// The keyboard focus of the dock's tabs (the owner's alpha walk of 2026-10-22, AW5, AW6, AW8;
-// dockfocus.go): a tab the user opens or shows from the window takes the keys on its main widget,
-// a tab an agent opens leaves them where they are.
+// The keyboard focus of the dock's tabs (the owner's alpha walk, AW5, AW6, AW8; dockfocus.go): a
+// tab the user opens or shows from the window takes the keys on its main widget, a tab an agent
+// opens leaves them where they are.
 
 // editOnTab is the Edit tab the fake's object.edit opens.
 const editOnTab = "edit-aw5"

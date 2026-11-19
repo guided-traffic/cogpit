@@ -78,7 +78,7 @@ type Column struct {
 // Link, when set, is the object the cell names (a Namespace, Node, Controlled By or Involved
 // Object cell), and the UI renders the cell as a link. Its Kind is a kind key; an empty Context
 // means the row's context. A link to a namespace in a list's Namespace column narrows the open
-// view's namespace filter to it (ui.setNamespace, owner 2026-10-11); other links go to the object
+// view's namespace filter to it (ui.setNamespace, owner); other links go to the object
 // (ui.navigate); a link with an empty Name opens the list view of its kind (ui.openView), as a
 // definition's Resource cell does. Rows are shared and immutable, and so are their links.
 //
@@ -95,10 +95,10 @@ type Cell struct {
 	Link   *ObjectRef  `json:"link,omitempty"`
 	Parts  *[]CellPart `json:"parts,omitempty"`
 	// Marks, when set, draws the cell as a row of small squares, one per mark in its status colour:
-	// a pod's Containers cell, one square per container, init containers first (Lens; owner
-	// 2026-10-12). Text stays the readable form ("1/2") for sorting, search, CSV and agents; each
-	// mark's Text says what it stands for, and the cell's tooltip lists them. A pointer, so that
-	// Cell stays comparable; shared and immutable like Parts.
+	// a pod's Containers cell, one square per container, init containers first (Lens; owner). Text
+	// stays the readable form ("1/2") for sorting, search, CSV and agents; each mark's Text says
+	// what it stands for, and the cell's tooltip lists them. A pointer, so that Cell stays
+	// comparable; shared and immutable like Parts.
 	Marks *[]CellMark `json:"marks,omitempty"`
 	// Image is the URL of the image a ColumnIcon cell draws (a chart's icon); empty: the column's
 	// glyph.

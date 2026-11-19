@@ -13,11 +13,11 @@ import (
 	toolscache "k8s.io/client-go/tools/cache"
 )
 
-// Covering scopes (architecture §5, decided 2026-10-12). A label-selected scope is a subset of
-// the unselected scope of the same resource, namespace and metadata flag, its cover. While the
-// cover runs (a handle holds it, or it is warm), the selected scope reads from the cover's
-// informer, filtered by its selector, and starts no watch of its own; otherwise it runs an
-// informer of its own, which sends the selector to the server.
+// Covering scopes (architecture §5). A label-selected scope is a subset of the unselected scope of
+// the same resource, namespace and metadata flag, its cover. While the cover runs (a handle holds
+// it, or it is warm), the selected scope reads from the cover's informer, filtered by its selector,
+// and starts no watch of its own; otherwise it runs an informer of its own, which sends the
+// selector to the server.
 //
 // A selected scope's handles read its view: the objects its subscribers have been told about,
 // kept by an event handler on whichever informer serves it (its source). Switching sources is a

@@ -10,8 +10,8 @@ import (
 
 func FuzzPodSecurityPolicies(f *testing.F) { fuzzProfile(f, "podsecuritypolicies") }
 
-// TestPodSecurityPoliciesColumns pins the columns of Lens's documentation (read 2026-10-13, not
-// captured): Name, Privileged, Volume, Age, at policy/v1beta1, which clusters served until 1.25.
+// TestPodSecurityPoliciesColumns pins the columns of Lens's documentation (read, not captured):
+// Name, Privileged, Volume, Age, at policy/v1beta1, which clusters served until 1.25.
 func TestPodSecurityPoliciesColumns(t *testing.T) {
 	assertColumnOrder(t, "podsecuritypolicies", []model.Column{
 		{ID: "name", Title: "Name"}, {ID: "privileged", Title: "Privileged"},

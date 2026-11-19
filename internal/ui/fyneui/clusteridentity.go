@@ -14,22 +14,22 @@ import (
 )
 
 // A cluster's identity (Lens: Cluster settings › General, the name and the icon, "Upload Icon",
-// "Pick Icon Color", "Reset Icon"; captured 2026-10-11): the name it shows and its icon, the
-// initials on a tinted square in a colour of the theme's accent palette, or an image the user
-// uploaded. The hotbar's tiles, the navigator's rows and root and the welcome page show the same
-// identity, read from UIState.ClusterSettings (engine state, so a change from Cluster Settings shows
-// everywhere at once; only the user changes it, in the window, engine.ErrClusterIdentityGUIOnly);
-// the image's bytes come from the engine's kept copy (Session.ClusterIcon), loaded off the main
-// goroutine once per image.
+// "Pick Icon Color", "Reset Icon"; captured): the name it shows and its icon, the initials on a
+// tinted square in a colour of the theme's accent palette, or an image the user uploaded. The
+// hotbar's tiles, the navigator's rows and root and the welcome page show the same identity, read
+// from UIState.ClusterSettings (engine state, so a change from Cluster Settings shows everywhere at
+// once; only the user changes it, in the window, engine.ErrClusterIdentityGUIOnly); the image's
+// bytes come from the engine's kept copy (Session.ClusterIcon), loaded off the main goroutine once
+// per image.
 
 // iconCorner is the corner radius of a cluster's icon drawn side points wide: macOS's rounding, as
 // Cogpit's own app icon has it (logo.CornerRatio, 22 on 96), at every size, an image and a colour
-// tile alike (the owner's VW10 of 2026-10-24, D-119). Before, an image was drawn square and a tile
-// rounded by a fixed 7 points, rounder than this at the navigator's size and the tab's.
+// tile alike (the owner's VW10, D-119). Before, an image was drawn square and a tile rounded by a
+// fixed 7 points, rounder than this at the navigator's size and the tab's.
 func iconCorner(side float32) float32 { return side * float32(logoart.CornerRatio) }
 
 // initialsSide is the side on which a cluster icon's letters were drawn at the subheading's size, 16:
-// the hotbar's tile before it grew to 50 (the owner's LS19 of 2026-10-24).
+// the hotbar's tile before it grew to 50 (the owner's LS19).
 const initialsSide = 38
 
 // initialsSize is the size of a cluster icon's letters on a square side points wide: in proportion to

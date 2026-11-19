@@ -13,9 +13,9 @@ import (
 
 // The connection log (G2, D-66): what happened each time Cogpit connected to a context, logged in
 // again, reconnected or disconnected, step by step with times and durations, successful attempts
-// too (the owner's decision of 2026-10-16). Lens shows INFO and ERROR lines behind a warning icon
-// beside a context whose connect failed ("Connection Updates", captured 2026-10-12); Cogpit's
-// dialog of that name opens from every status dot of a cluster and follows the log live.
+// too (the owner's decision). Lens shows INFO and ERROR lines behind a warning icon beside a
+// context whose connect failed ("Connection Updates", captured); Cogpit's dialog of that name opens
+// from every status dot of a cluster and follows the log live.
 //
 // The log is kept in attempts: a connect (Session.Connect), a reconnect (the connection watch's
 // interruption until it is back, connwatch.go), a login (the credential plugin renewing an expired
@@ -50,7 +50,7 @@ const (
 	AttemptDisconnect = "disconnect"
 	// AttemptInterruption is a connection's interruption with its cause, an entry of its own that
 	// ends at once (OutcomeInterrupted); the reconnect after it is the next attempt (the owner's
-	// WF37 of 2026-10-19: a reconnect that succeeded read as ending in "Connection interrupted").
+	// WF37: a reconnect that succeeded read as ending in "Connection interrupted").
 	AttemptInterruption = "interruption"
 )
 

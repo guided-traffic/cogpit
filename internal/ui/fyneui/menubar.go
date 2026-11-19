@@ -15,9 +15,9 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// The window's menus on Windows and Linux (the owner, 2026-10-21, after the first look at Cogpit on
-// Ubuntu, three bars on top of each other, GNOME's title bar, Fyne's menu bar and Cogpit's own:
-// "zwei Leisten, nativ"): the system's title bar stays, with its buttons and everything the window
+// The window's menus on Windows and Linux (the owner, after the first look at Cogpit on Ubuntu,
+// three bars on top of each other, GNOME's title bar, Fyne's menu bar and Cogpit's own: "zwei
+// Leisten, nativ"): the system's title bar stays, with its buttons and everything the window
 // manager does with it, and the menus' titles move into Cogpit's top bar, at its left before the
 // logo, instead of Fyne's menu bar as a row of its own. On macOS the menus are the system's menu
 // bar (Fyne's native menu) and Cogpit's bar is the window's title bar (titlebar.go).
@@ -32,12 +32,12 @@ import (
 // Fyne would build its bar later, from the filled menu, so there the keys wait for the window's
 // start (deferMenuKeys).
 //
-// The lead's decisions (2026-10-21), open to revision: the titles in the bar's text, a hover pill
-// behind them as the bar's other buttons have; one menu open at a time, under its title below the
-// bar; while one is open, the pointer on another title opens that one, a click outside or Escape
-// closes it, ← and → go to the neighbouring menu where no submenu takes them; Alt no longer opens
-// the menus, as Fyne's bar did (the command palette, ⌃⇧P, reaches every command from the
-// keyboard); Quit at the end of the first menu, as Fyne added it there.
+// The lead's decisions, open to revision: the titles in the bar's text, a hover pill behind them as
+// the bar's other buttons have; one menu open at a time, under its title below the bar; while one
+// is open, the pointer on another title opens that one, a click outside or Escape closes it, ← and
+// → go to the neighbouring menu where no submenu takes them; Alt no longer opens the menus, as
+// Fyne's bar did (the command palette, ⌃⇧P, reaches every command from the keyboard); Quit at the
+// end of the first menu, as Fyne added it there.
 
 // quitLabel is the first menu's last item on Windows and Linux, as Fyne's own menu bar added it.
 const quitLabel = "Quit"

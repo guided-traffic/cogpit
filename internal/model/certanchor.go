@@ -8,14 +8,14 @@ import (
 	"golang.org/x/crypto/x509roots/fallback/bundle"
 )
 
-// The kind of certificate authority a Secret's certificate chain leads to (the owner's R1 of
-// 2026-10-14 evening; the lead's design, a night decision for the owner to confirm): a public CA
-// (a root of Mozilla's NSS root program, the bundle golang.org/x/crypto/x509roots ships, embedded
-// in Cogpit and independent of the computer), one this computer trusts (its trust store: a
-// corporate root installed on the Mac counts here, not as public), or an internal or self-signed
-// one. The chain is judged as the value holds it: the first certificate, the value's others as
-// intermediates; at a time inside the first certificate's validity, so that an expired certificate
-// still names its anchor. Pure but for the system pool the caller passes.
+// The kind of certificate authority a Secret's certificate chain leads to (the owner's R1; the
+// lead's design, a night decision for the owner to confirm): a public CA (a root of Mozilla's NSS
+// root program, the bundle golang.org/x/crypto/x509roots ships, embedded in Cogpit and independent
+// of the computer), one this computer trusts (its trust store: a corporate root installed on the
+// Mac counts here, not as public), or an internal or self-signed one. The chain is judged as the
+// value holds it: the first certificate, the value's others as intermediates; at a time inside the
+// first certificate's validity, so that an expired certificate still names its anchor. Pure but for
+// the system pool the caller passes.
 
 // Anchor kinds (CertAnchor.Kind).
 const (

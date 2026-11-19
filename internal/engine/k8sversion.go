@@ -21,14 +21,13 @@ import (
 //
 //   - The shown cluster: UIState.ClusterVersion, which the navigator's root row shows.
 //   - Its nodes: Cogpit's own overlay on the Nodes list's Version and Signals columns (overlay.go;
-//     the owner, 2026-11-04): a kubelet outside the version skew policy against the API server is
-//     drawn in the error colour; one past its minor's end of life or of another release than the
-//     API server's, a patch's included, in the warning colour; one in maintenance mode in the
-//     pending colour; the cell's tooltip says the support and the skew. The Signals column's "!",
-//     in its slot after the node's state, marks the kubelet outside the policy (error), past its
-//     end of life or a minor behind (warning). The node drawer's Kubelet version takes the cell's
-//     colour, with "Upstream support" and, for another release, "Version skew" after it
-//     (markNodeVersion).
+//     the owner): a kubelet outside the version skew policy against the API server is drawn in the
+//     error colour; one past its minor's end of life or of another release than the API server's, a
+//     patch's included, in the warning colour; one in maintenance mode in the pending colour; the
+//     cell's tooltip says the support and the skew. The Signals column's "!", in its slot after the
+//     node's state, marks the kubelet outside the policy (error), past its end of life or a minor
+//     behind (warning). The node drawer's Kubelet version takes the cell's colour, with "Upstream
+//     support" and, for another release, "Version skew" after it (markNodeVersion).
 //   - A day passing is seen when the row is built again: a Node's status changes at least every five
 //     minutes (the kubelet's report), the UI state at every change, ui_state when read.
 
@@ -173,9 +172,9 @@ func (n kubeletNote) outside() bool { return n.known && n.skew.Outside() }
 // differs reports whether the kubelet runs another minor or patch release than the API server.
 func (n kubeletNote) differs() bool { return n.known && n.skew.Differs() }
 
-// status is the version's colour (the owner, 2026-11-04): error outside the skew policy; warning
-// past the minor's end of life or for any other release than the API server's, a patch's
-// included; pending in maintenance mode.
+// status is the version's colour (the owner): error outside the skew policy; warning past the
+// minor's end of life or for any other release than the API server's, a patch's included; pending
+// in maintenance mode.
 func (n kubeletNote) status() model.Status {
 	switch {
 	case n.outside():
@@ -188,9 +187,9 @@ func (n kubeletNote) status() model.Status {
 	return model.StatusNone
 }
 
-// signalStatus is the colour of the version's "!" in the Signals column (the owner, 2026-11-04):
-// error outside the skew policy, warning past the minor's end of life or a minor behind the API
-// server; none for another patch release or maintenance mode, which colour the cell only.
+// signalStatus is the colour of the version's "!" in the Signals column (the owner): error outside
+// the skew policy, warning past the minor's end of life or a minor behind the API server; none for
+// another patch release or maintenance mode, which colour the cell only.
 func (n kubeletNote) signalStatus() model.Status {
 	switch {
 	case n.outside():
@@ -210,7 +209,7 @@ func (n kubeletNote) tip() string {
 }
 
 // cell is the overlay's Version cell: the version in its colour, plain text without a pill (the
-// owner, 2026-11-05), and the tooltip; its symbol is the Signals column's (signal).
+// owner), and the tooltip; its symbol is the Signals column's (signal).
 func (n kubeletNote) cell() model.Cell {
 	return model.Cell{Status: n.status(), Tip: n.tip(), Tint: true}
 }

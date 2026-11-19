@@ -18,8 +18,8 @@ import (
 )
 
 // The Kyverno integration's fixtures: synthetic, shaped like Kyverno 1.17's reports on a real
-// cluster (2026-10-17): one report per object named by its UID, its scope the object, results
-// with properties.process, timestamps as seconds and nanos.
+// cluster: one report per object named by its UID, its scope the object, results with
+// properties.process, timestamps as seconds and nanos.
 var (
 	polrGVR  = schema.GroupVersionResource{Group: kinds.PolicyReportGroup, Version: "v1alpha2", Resource: "policyreports"}
 	cpolrGVR = schema.GroupVersionResource{Group: kinds.PolicyReportGroup, Version: "v1alpha2", Resource: "clusterpolicyreports"}

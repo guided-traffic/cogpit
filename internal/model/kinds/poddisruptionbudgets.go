@@ -9,8 +9,7 @@ import (
 )
 
 const (
-	// pdbNotSet is what the bound columns read when the budget does not set that bound (capture,
-	// 2026-10-11).
+	// pdbNotSet is what the bound columns read when the budget does not set that bound (capture).
 	pdbNotSet = "N/A"
 	// pdbDisruptionAllowed is the budget's condition, False when no pod may be evicted;
 	// pdbSyncFailed its reason when the disruption controller could not compute the budget.
@@ -24,10 +23,10 @@ const (
 	pdbTextNoneMayGo  = "Allows no disruptions: evictions and node drains wait"
 )
 
-// podDisruptionBudgets has the columns captured from Lens on 2026-10-11: Name, the warning icon,
-// Namespace, Min Available, Max Unavailable, Current Healthy, Desired Healthy, Age, and "N/A" for a
-// bound the budget does not set. When the icon shows is not captured; the rule of pdbHealth is
-// inferred, as is the drawer.
+// podDisruptionBudgets has the columns captured from Lens: Name, the warning icon, Namespace, Min
+// Available, Max Unavailable, Current Healthy, Desired Healthy, Age, and "N/A" for a bound the
+// budget does not set. When the icon shows is not captured; the rule of pdbHealth is inferred, as
+// is the drawer.
 var podDisruptionBudgets = &model.KindProfile{
 	Key:        keyPodDisruptionBudgets,
 	Group:      "policy",

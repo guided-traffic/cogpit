@@ -14,10 +14,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// A Config Map's values edited in the drawer and not saved (the owner's answer of 2026-10-15): the
-// window keeps them through configMap.keepEdits, in memory and as a draft on disk; a restart
-// offers the draft when the context connects and editor.restoreDraft opens the drawer on the
-// Config Map with them; only the window keeps or reads them.
+// A Config Map's values edited in the drawer and not saved (the owner's answer): the window keeps
+// them through configMap.keepEdits, in memory and as a draft on disk; a restart offers the draft
+// when the context connects and editor.restoreDraft opens the drawer on the Config Map with them;
+// only the window keeps or reads them.
 
 // cmAppIn is cilium-config of the harness's context "test", as the drawer names it.
 var cmAppIn = func() any {

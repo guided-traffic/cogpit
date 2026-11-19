@@ -14,9 +14,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The Trivy integration (D-78; the owner's I6, 2026-10-17: "an allen Pods das schlechteste
-// Image-Rating aller Container, im Pod Drawer das Image Rating pro Image, wenn verfügbar"). Trivy
-// Operator scans the images of a cluster's workloads and writes one VulnerabilityReport
+// The Trivy integration (D-78; the owner's I6: "an allen Pods das schlechteste Image-Rating aller
+// Container, im Pod Drawer das Image Rating pro Image, wenn verfügbar"). Trivy Operator scans the
+// images of a cluster's workloads and writes one VulnerabilityReport
 // (aquasecurity.github.io/v1alpha1, namespaced) per workload and container, labelled with the
 // workload's kind, name and namespace and the container's name (model.TrivyLabel*). Cogpit installs
 // nothing: it reads the reports a running Trivy Operator wrote.
@@ -37,13 +37,13 @@ import (
 // read.
 //
 // A pod's reports are its controller's, as Trivy Operator resolves a pod's workload (its
-// ReportOwner, read in its source and seen on kind 2026-10-17): a ReplicaSet's (a Deployment's
-// pods), a StatefulSet's, a DaemonSet's, a ReplicationController's, a Job's, the CronJob's of a
-// Job a CronJob made, and the pod's own for a bare pod or one another controller made. The
-// CronJob of a Job is found by the Job's name, as the CronJob controller names its Jobs
-// ("<cronjob>-<scheduled minute>"), after the Job's own reports: the lead's decision (2026-10-17),
-// so that a pod costs no read of its Job (the Jobs are not watched for it); a Job made by hand from
-// a CronJob under another name has no rating.
+// ReportOwner, read in its source and seen on kind): a ReplicaSet's (a Deployment's pods), a
+// StatefulSet's, a DaemonSet's, a ReplicationController's, a Job's, the CronJob's of a Job a
+// CronJob made, and the pod's own for a bare pod or one another controller made. The CronJob of a
+// Job is found by the Job's name, as the CronJob controller names its Jobs ("<cronjob>-<scheduled
+// minute>"), after the Job's own reports: the lead's decision, so that a pod costs no read of its
+// Job (the Jobs are not watched for it); a Job made by hand from a CronJob under another name has
+// no rating.
 
 // trivyReportsKind is the kind key of Trivy Operator's vulnerability reports.
 const trivyReportsKind = "vulnerabilityreports.aquasecurity.github.io"
@@ -96,7 +96,7 @@ func followTrivy(st *state, b *Backend, now UIState) {
 	p, served := b.Profile(trivyReportsKind)
 	// Read only while the cluster is the one shown, as Kyverno's reports (kyverno.go): its ratings show
 	// only in its views, and a cluster connected in the background goes cold (D-69; the lead's
-	// decision, 2026-10-17, D-78).
+	// decision, D-78).
 	want := served && p.Namespaced && now.IntegrationOn(b.Context, IntegrationTrivy) && now.Context == b.Context
 	key := ""
 	if want {
@@ -288,9 +288,9 @@ func (t *trivySource) columns(p *model.KindProfile) []overlayColumn {
 // count that decides it ("D · 2 Critical"), its tooltip every severity's count, the end of life of
 // the image's OS, and which of several images it is; it sorts by the grade, then that count, and a
 // click opens the drawer at the section of the container that runs the image. A pod none of whose
-// images has a report is N/A (the owner, 2026-10-22: N/A everywhere, unobtrusive; dimmed in the
-// Signals column, the owner, 2026-11-03); a pod some of whose images have one, the worst of those
-// (D-78). None while the reports list.
+// images has a report is N/A (the owner: N/A everywhere, unobtrusive; dimmed in the Signals column,
+// the owner); a pod some of whose images have one, the worst of those (D-78). None while the
+// reports list.
 func (t *trivySource) cell(p *model.KindProfile, column string, obj *unstructured.Unstructured) (model.Cell, bool) {
 	if column != model.SignalsColumnID || !isPodsKind(p) || !t.synced() {
 		return model.Cell{}, false
@@ -510,15 +510,15 @@ func probeTrivy(_ *Session, b *Backend, on bool) (IntegrationState, string, stri
 	return IntegrationChecking, where, ""
 }
 
-// The drawer's grades (D-78, D-113; the owner, 2026-10-22: no section of their own, each in its
-// container's section, as a symbol and a detail card): every init container's and container's
-// section of a pod gets its image's grade card (model.GradeCard): the grade, its text and rule, the
-// counts, the report's OS and its end of life, when it was scanned, and the report as a link to its
-// object (the reports' custom kind view). An image without a report is N/A, also when none of the
-// pod's images has one (the owner's N/A everywhere). Ephemeral containers get none: no workload's
-// template has them, so no report does. Nothing while the integration is off, the cluster does not
-// serve the reports, or they are still being listed. The grades come through the overlay
-// (trivySource.amend), into the kind's own sections.
+// The drawer's grades (D-78, D-113; the owner: no section of their own, each in its container's
+// section, as a symbol and a detail card): every init container's and container's section of a pod
+// gets its image's grade card (model.GradeCard): the grade, its text and rule, the counts, the
+// report's OS and its end of life, when it was scanned, and the report as a link to its object (the
+// reports' custom kind view). An image without a report is N/A, also when none of the pod's images
+// has one (the owner's N/A everywhere). Ephemeral containers get none: no workload's template has
+// them, so no report does. Nothing while the integration is off, the cluster does not serve the
+// reports, or they are still being listed. The grades come through the overlay (trivySource.amend),
+// into the kind's own sections.
 
 // PodImageGrades returns a pod's drawer sections with each container's image grade from Trivy
 // Operator's report objects, as the overlay builds them from its index, with absolute times in ISO

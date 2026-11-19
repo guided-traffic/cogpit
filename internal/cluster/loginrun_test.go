@@ -75,9 +75,9 @@ func waitCtx(t *testing.T, d time.Duration) context.Context {
 	return ctx
 }
 
-// The owner's finding (2026-10-16 night): a connect waiting for an interactive login that the user
-// abandoned could not be cancelled. Now a cancel of the connect ends the plugin's process at once,
-// the connect returns with "login cancelled", and the watch says the login waited until then.
+// The owner's finding: a connect waiting for an interactive login that the user abandoned could not
+// be cancelled. Now a cancel of the connect ends the plugin's process at once, the connect returns
+// with "login cancelled", and the watch says the login waited until then.
 func TestCancelledConnectEndsThePlugin(t *testing.T) {
 	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: secretToken})
 	defer srv.Close()
@@ -360,10 +360,10 @@ func result(t *testing.T, done <-chan connectResult) connectResult {
 	return connectResult{}
 }
 
-// WF38 (the lead's walk of 2026-10-19), part 3: a credential plugin that is a wrapper and replaces
-// itself with the real login program (exec) keeps its process number while its command line
-// becomes the program's. Cogpit finds it at the run's begin and ends it by its number: the cancel
-// ends the process, and the log says so truthfully.
+// WF38 (the lead's walk), part 3: a credential plugin that is a wrapper and replaces itself with
+// the real login program (exec) keeps its process number while its command line becomes the
+// program's. Cogpit finds it at the run's begin and ends it by its number: the cancel ends the
+// process, and the log says so truthfully.
 func TestCancelEndsAPluginThatExecs(t *testing.T) {
 	if runtime.GOOS == goosWindows {
 		t.Skip("Windows has no exec")

@@ -64,7 +64,7 @@ func TestRenderClusterSettingsStreams(t *testing.T) {
 	}
 }
 
-// The text names no other product and points at Kubernetes' feature (the owner, 2026-10-26).
+// The text names no other product and points at Kubernetes' feature (the owner).
 func TestStreamingText(t *testing.T) {
 	if strings.Contains(streamsText, "Lens") || strings.Contains(streamsText, "kubectl") || !strings.Contains(streamsText, "WatchListClient") {
 		t.Errorf("text %q", streamsText)

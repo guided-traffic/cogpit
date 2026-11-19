@@ -19,38 +19,36 @@ import (
 )
 
 // A Secret's Data in the drawer, its values edited as a Config Map's are, in Cogpit's own window
-// only (the owner's audit answer of 2026-10-15; decisions D-59). Each key stands on a line of its
-// own with its value masked below; its buttons end the key's line, "Show [copy] [b64] [remove]",
-// always shown, as a revealed key's "Hide [copy] [b64] [remove]" (the owner's RW1 of 2026-10-23; b64,
-// the value base64-encoded, his VW7 of 2026-10-24, secretcopy.go), the value line holding the mask
-// and the size only; a binary value's line holds "[b64] [remove]". Where the user may save the
-// Secret's values (secret.saveData enabled: not the demo cluster, an update right on its Secrets,
-// not immutable, no Helm release record), Show reads the whole value (secret.reveal with whole,
-// GUI-only) into an editor below the key, the Config Map's editor row (configmapdata.go), and Hide
-// in the key's line masks it again; an edited value Hide keeps, masked, until it is saved or
-// reverted. Save at the end of the data reviews every edited value at once in a dialog: a masked
-// diff (the keys that change and their sizes, never a value) and the server's dry run
-// (secret.reviewData), then secret.saveData writes them with the version they are based on as
-// precondition. A Secret that changed meanwhile in other keys than the edited ones is reviewed
-// rebased onto its newer version (the review shows it); one whose edited keys changed shows the
-// conflict and "Save over version N", never an overwrite unasked. Where nothing can be saved Show
-// reveals the value read-only as before (secretreveal.go), with the reason under the data.
+// only (the owner's audit answer; decisions D-59). Each key stands on a line of its own with its
+// value masked below; its buttons end the key's line, "Show [copy] [b64] [remove]", always shown,
+// as a revealed key's "Hide [copy] [b64] [remove]" (the owner's RW1; b64, the value base64-encoded,
+// his VW7, secretcopy.go), the value line holding the mask and the size only; a binary value's line
+// holds "[b64] [remove]". Where the user may save the Secret's values (secret.saveData enabled: not
+// the demo cluster, an update right on its Secrets, not immutable, no Helm release record), Show
+// reads the whole value (secret.reveal with whole, GUI-only) into an editor below the key, the
+// Config Map's editor row (configmapdata.go), and Hide in the key's line masks it again; an edited
+// value Hide keeps, masked, until it is saved or reverted. Save at the end of the data reviews
+// every edited value at once in a dialog: a masked diff (the keys that change and their sizes,
+// never a value) and the server's dry run (secret.reviewData), then secret.saveData writes them
+// with the version they are based on as precondition. A Secret that changed meanwhile in other keys
+// than the edited ones is reviewed rebased onto its newer version (the review shows it); one whose
+// edited keys changed shows the conflict and "Save over version N", never an overwrite unasked.
+// Where nothing can be saved Show reveals the value read-only as before (secretreveal.go), with the
+// reason under the data.
 //
 // The values stay in this window's widgets and memory: no command but the GUI-only reveal, review
 // and save sees them, no draft keeps them (edited values the drawer moves away from are kept in
 // drawer.secretUnsaved until Cogpit quits, and come back masked), a copy from an editor (⌘C, ⌘X or
 // the copy icon in its key's line) goes to the clipboard as a Secret's value (concealed, cleared
 // after 60 seconds), as does the copy icon in a masked key's line, which copies the value without
-// showing it (secretcopy.go, the owner's decision of 2026-10-22), and no toast or status line names
-// one.
+// showing it (secretcopy.go, the owner's decision), and no toast or status line names one.
 //
-// Keys are added and removed here too (the owner's audit decision of 2026-10-16, datakeys.go): Add
-// Key opens a row for the new key's name and puts the key with an empty editor at the end of the
-// data, its value typed as text and saved base64-encoded, kept as the other values are (memory
-// only, Hide masks it); each key's line ends with a remove button, a removed key shows as removed
-// with Undo. The review's masked diff names the keys added and removed, the removed ones in the
-// error colour with the Secret, its namespace and its context, and is the confirmation of a
-// removal.
+// Keys are added and removed here too (the owner's audit decision, datakeys.go): Add Key opens a
+// row for the new key's name and puts the key with an empty editor at the end of the data, its
+// value typed as text and saved base64-encoded, kept as the other values are (memory only, Hide
+// masks it); each key's line ends with a remove button, a removed key shows as removed with Undo.
+// The review's masked diff names the keys added and removed, the removed ones in the error colour
+// with the Secret, its namespace and its context, and is the confirmation of a removal.
 
 func init() { drawerSections["secrets\x00Data"] = secretDataSection }
 
@@ -471,10 +469,9 @@ func (sd *secData) addedLines(r *secRow, exists bool) []fyne.CanvasObject {
 
 // copyIcon is the copy icon in the line of a key whose value is in an editor, right above the
 // editor's top right and covering none of its text: a click copies the editor's whole value as
-// ⌘C and ⌘X copy a selection of it, to the clipboard for Secret values (the owner's audit decision
-// of 2026-10-16, D-59, D-25); while Hide masks the value, as typed, without showing it. A Config
-// Map's editors have none. The row keeps the icon across the drawer's rebuilds, so that its
-// checkmark stays.
+// ⌘C and ⌘X copy a selection of it, to the clipboard for Secret values (the owner's audit decision,
+// D-59, D-25); while Hide masks the value, as typed, without showing it. A Config Map's editors
+// have none. The row keeps the icon across the drawer's rebuilds, so that its checkmark stays.
 func (sd *secData) copyIcon(r *secRow) fyne.CanvasObject {
 	if r.copyBtn == nil {
 		r.copyBtn = newPinnedCopyIcon(sd.d.sh, wholeCopyTip, func() { sd.copyValue(r) })
@@ -574,8 +571,8 @@ func (sd *secData) beginEdit() {
 }
 
 // maskedLine is an edited value hidden again: masked, Show and the copy icon in its key's line
-// (keyLine), the icon copying the value as typed without showing it (the owner's decision of
-// 2026-10-22, secretcopy.go).
+// (keyLine), the icon copying the value as typed without showing it (the owner's decision,
+// secretcopy.go).
 func (sd *secData) maskedLine() fyne.CanvasObject {
 	line := newTextLine(engine.MaskedValue+" (edited, not saved)", colorStatusWarning, theme.SizeNameText, fyne.TextStyle{})
 	return newSelLine(line, nil, func(sel string) { sd.d.sh.copyText(sel, false) })

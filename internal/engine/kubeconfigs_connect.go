@@ -212,9 +212,9 @@ func (s *Session) WatchKubeconfigs(interval time.Duration) (stop func()) {
 
 // CloseGoneSourceConnection closes every connection, shown or not (D-69), made from a kubeconfig
 // source's file that is gone, or whose source was removed (Lens closes a cluster whose file leaves
-// a synced folder; captured 2026-10-12). For the shown cluster the UI is left Disconnected, with
-// the reason in Connection.Error; every closed one gets a warning toast and the reason in its
-// context's connect log. It reports whether it closed a connection.
+// a synced folder; captured). For the shown cluster the UI is left Disconnected, with the reason in
+// Connection.Error; every closed one gets a warning toast and the reason in its context's connect
+// log. It reports whether it closed a connection.
 //
 // Only a plain fact closes a connection: the file does not exist, or no source covers it under the
 // label in the connection's context id (FateOf: the same file offered by a synced folder too is
@@ -253,8 +253,8 @@ func (s *Session) CloseGoneSourceConnection() bool {
 // UI Disconnected, naming the reason; another connected cluster's entry of Connections goes. It
 // reports whether it did. A connect that started meanwhile is not touched. byUser: the user's own
 // act closed it (a source removed, Remove from Cogpit), which the log says as INFO, its outcome a
-// disconnect (the lead's note of the walk of 2026-10-19: D-66 keeps ERROR for what failed); a file
-// gone is Cogpit's close, an error that marks the context.
+// disconnect (the lead's note of the walk: D-66 keeps ERROR for what failed); a file gone is
+// Cogpit's close, an error that marks the context.
 func (s *Session) disconnectBackend(b *Backend, reason string, byUser bool) bool {
 	st := s.state
 	st.mu.Lock()

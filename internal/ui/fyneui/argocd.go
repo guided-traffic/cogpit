@@ -18,11 +18,11 @@ import (
 // Argo CD in the window (G23): the navigator's group, the Sync and Refresh dialogs, the
 // Dashboard's panel (argocd_dashboard.go).
 //
-// Lens's documentation (read 2026-10-13, not captured) lists the group's entries: Dashboard,
-// Applications, Application Sets, Projects, Settings › Repositories, Settings › Clusters. Cogpit
-// places the group under the navigator's heading Integrations, after Flux CD (the owner,
-// 2026-11-03). It shows while the cluster serves Argo CD's kinds; the argoproj.io group stays
-// under Custom Resources as well, as curated sections' groups do.
+// Lens's documentation (read, not captured) lists the group's entries: Dashboard, Applications,
+// Application Sets, Projects, Settings › Repositories, Settings › Clusters. Cogpit places the group
+// under the navigator's heading Integrations, after Flux CD (the owner). It shows while the cluster
+// serves Argo CD's kinds; the argoproj.io group stays under Custom Resources as well, as curated
+// sections' groups do.
 
 // argoGroup is the navigator group's path.
 const argoGroup = "argocd"

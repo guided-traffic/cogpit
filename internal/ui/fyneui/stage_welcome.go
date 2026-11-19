@@ -173,9 +173,9 @@ func clippedHorizon(floor float32) fyne.CanvasObject {
 // time, and under it in the free band below the content. The scrim follows the scroll offset and
 // the page's height (relayout, which the page calls after it renders).
 //
-// The owner, 2026-10-21, on the first build (a scrim the window's width, worked out from a stale
-// height until the first scroll): the grid seen at a fresh start "sehr gut gemacht", but gone after
-// the slightest scroll until a restart. The column's scrim keeps that look and the rule.
+// The owner, on the first build (a scrim the window's width, worked out from a stale height until
+// the first scroll): the grid seen at a fresh start "sehr gut gemacht", but gone after the
+// slightest scroll until a restart. The column's scrim keeps that look and the rule.
 type welcomeStage struct {
 	horizon fyne.CanvasObject
 	scrim   *canvas.Raster

@@ -464,7 +464,7 @@ func TestSyncFolderPicksUpAndDropsFiles(t *testing.T) {
 }
 
 // A folder's files that offer no context are named with a fixed reason, never with their content
-// or a parser's message, so that a sync that finds no cluster can say why (owner, 2026-10-12).
+// or a parser's message, so that a sync that finds no cluster can say why (owner).
 func TestSourceStatusNamesSkippedFiles(t *testing.T) {
 	dir := t.TempDir()
 	writeUserFile(t, filepath.Join(dir, "a.yaml"), sourceKubeconfig("a"))

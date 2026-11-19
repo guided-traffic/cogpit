@@ -7,10 +7,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/k8seol"
 )
 
-// The API server's version while connected (the owner's colleague's case of 2026-10-25: his
-// cluster was upgraded while Cogpit ran, and the version Cogpit showed never changed; the owner's
-// "Option A" of 2026-10-26). The heartbeat asks GET /version every 15 s anyway (connwatch.go), and
-// cluster.Conn keeps what it read (SeenVersion), so following the version costs no request:
+// The API server's version while connected (the owner's colleague's case: his cluster was upgraded
+// while Cogpit ran, and the version Cogpit showed never changed; the owner's "Option A"). The
+// heartbeat asks GET /version every 15 s anyway (connwatch.go), and cluster.Conn keeps what it read
+// (SeenVersion), so following the version costs no request:
 //
 //   - A version the heartbeat read twice in a row that differs from the one Cogpit holds becomes
 //     it (Backend.ServerVersion): the navigator's version, its upstream support, the Nodes list's

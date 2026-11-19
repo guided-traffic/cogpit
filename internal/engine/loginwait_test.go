@@ -12,8 +12,8 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// The owner's finding of 2026-10-16 night (D-73), end to end on client-go: a context whose
-// credential plugin waits for a login nobody finishes, as an OIDC login in the browser does.
+// The owner's finding (D-73), end to end on client-go: a context whose credential plugin waits for
+// a login nobody finishes, as an OIDC login in the browser does.
 
 const loginToken = "login-wait-token-0042"
 

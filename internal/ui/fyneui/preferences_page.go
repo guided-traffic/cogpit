@@ -19,18 +19,17 @@ import (
 
 // The settings pages (G13): Preferences (⌘,) and a cluster's Settings (⌘⇧,). Lens shows both as
 // pages (its cluster settings as a tab "Settings - <context>" with the cluster's icon and a page
-// list on the left, captured 2026-10-11; its Preferences as a page, inferred); Cogpit's title reads
-// "Cluster Settings: <name>" (the owner's VW11). Cogpit shows them as
-// a card over the whole window, Cogpit dimmed behind it and nothing behind it reachable until the
-// card is closed by its ×, Escape or a click on the shade (the owner's VW6 of 2026-10-23, D-118;
-// settingsoverlay.go): its header across the card holds the cluster's icon and the title at the
-// left and the × at the right, the section list stands below it on the left. Which page is open is
-// UI state (UIState.Settings: preferences.open, cluster.settings.open, settings.close), so an
-// agent sees it and can open one; the section list dispatches the open command with the section.
-// Each section shows its settings under upper-case headings with a help line below each, as the
-// captures show Lens's; a change is dispatched at once (a text field after a typing pause, which a
-// close or another section ends by setting the field at once), and the engine's refusal shows
-// under the field.
+// list on the left, captured; its Preferences as a page, inferred); Cogpit's title reads "Cluster
+// Settings: <name>" (the owner's VW11). Cogpit shows them as a card over the whole window, Cogpit
+// dimmed behind it and nothing behind it reachable until the card is closed by its ×, Escape or a
+// click on the shade (the owner's VW6, D-118; settingsoverlay.go): its header across the card holds
+// the cluster's icon and the title at the left and the × at the right, the section list stands
+// below it on the left. Which page is open is UI state (UIState.Settings: preferences.open,
+// cluster.settings.open, settings.close), so an agent sees it and can open one; the section list
+// dispatches the open command with the section. Each section shows its settings under upper-case
+// headings with a help line below each, as the captures show Lens's; a change is dispatched at once
+// (a text field after a typing pause, which a close or another section ends by setting the field at
+// once), and the engine's refusal shows under the field.
 
 // settingsTyping is the typing pause after which a text field's value is set.
 const settingsTyping = 600 * time.Millisecond
@@ -39,10 +38,10 @@ const settingsTyping = 600 * time.Millisecond
 const clusterSettingsTitle = "Cluster Settings: "
 
 // settingsHeaderRoom is the room around the card's header, in points: the cluster's icon 5 points
-// from the card's top and left edge, the × as far from its right (the owner's VW12 of 2026-10-24,
-// "5px Abstand nach oben und links"). With the icon's rounding (iconCorner, 8.7 points at 38) the
-// icon's corner then follows the card's (14 points) at 5 points all round; before, 4 points above
-// and 6 at the left, a square image's corner came within about a point of the card's rounded edge.
+// from the card's top and left edge, the × as far from its right (the owner's VW12, "5px Abstand
+// nach oben und links"). With the icon's rounding (iconCorner, 8.7 points at 38) the icon's corner
+// then follows the card's (14 points) at 5 points all round; before, 4 points above and 6 at the
+// left, a square image's corner came within about a point of the card's rounded edge.
 const settingsHeaderRoom = 5
 
 // roomLayout pads its objects by fixed points, h at the sides and v above and below.
@@ -226,8 +225,8 @@ func (p *settingsPage) build() {
 	p.body.Refresh()
 	// A section shown anew starts at its top. Fyne 2.8's Scroll keeps its offset when its content
 	// changes and checks it again only on a resize, so a section shorter than where the one before
-	// was scrolled drew nothing until a scroll (the owner's finding of 2026-10-25, as the tables'
-	// of 2026-10-23, tableView.scrollToTop).
+	// was scrolled drew nothing until a scroll (the owner's finding, as the tables',
+	// tableView.scrollToTop).
 	p.scroll.ScrollToTop()
 }
 
@@ -271,8 +270,7 @@ func (p *settingsPage) openSection(section string) {
 }
 
 // identityChanged shows the title: "Preferences", or "Cluster Settings: <name>" with the cluster's
-// icon (the owner's VW11 of 2026-10-24; before, "Settings - <name>", as Lens's tab is titled,
-// captured).
+// icon (the owner's VW11; before, "Settings - <name>", as Lens's tab is titled, captured).
 func (p *settingsPage) identityChanged() {
 	if !p.visible() {
 		return
@@ -386,9 +384,9 @@ func (p *settingsPage) showResult(name string, err error) {
 // The window follows a state only where it differs from the one it showed before
 // (settingsShowChanged) and takes the states queued for it as one (shell.onEvent): the state of the
 // user's tap and a change from elsewhere right after it (an agent's) can come as one state that
-// equals the one before the tap, and the control would go on showing the tapped value (CI,
-// 2026-10-21 and 2026-10-22). The state a change makes is queued before its answer, so the window
-// holds it, or a newer one, by then.
+// equals the one before the tap, and the control would go on showing the tapped value (CI). The
+// state a change makes is queued before its answer, so the window holds it, or a newer one, by
+// then.
 //
 // A section closed or left before the answer came has no line under the field any more: its
 // refusal shows as a toast (a value set as the page closed, flushTyping), and the page is not
@@ -411,9 +409,8 @@ func (p *settingsPage) settled(name string) func(any, error) {
 // end just before the next key: Stop comes too late for it, and its set waits on the main
 // goroutine. Run, it set the field before the pause after that key and dropped the newer pause
 // from p.timers, which the next key then no longer stopped: the field was set again, late, over a
-// change an agent had made in between (TestPrometheusSettingsOnThePage on CI, 2026-10-22). A
-// section's pauses end with it (flushTyping, which sets them), so a set left waiting finds no pause
-// of its own.
+// change an agent had made in between (TestPrometheusSettingsOnThePage on CI). A section's pauses
+// end with it (flushTyping, which sets them), so a set left waiting finds no pause of its own.
 func (p *settingsPage) typed(name string, set func()) {
 	if p.syncing {
 		return

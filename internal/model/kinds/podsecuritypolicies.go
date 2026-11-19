@@ -12,14 +12,14 @@ import (
 // fieldVolumes is the policy's list of allowed volume types, its Volume column and search field.
 const fieldVolumes = "volumes"
 
-// podSecurityPolicies has the columns of Lens's documentation (read 2026-10-13, not captured):
-// Name, Privileged, Volume, Age, and the view "is available only with clusters prior to
-// Kubernetes 1.25". Kubernetes removed policy/v1beta1 PodSecurityPolicy in 1.25; the connector
-// offers a profile only where discovery finds its resource, so the view appears on such clusters
-// alone. Inferred, capture needed: Privileged as "true" or "false" (as Lens shows the Cron Jobs'
-// Suspend), Volume as the volume types the policy allows (spec.volumes, "*" for all), no status
-// token (a policy has no state), and the drawer: what the policy allows and requires, field by
-// field of the API, with the user and group rules as a table.
+// podSecurityPolicies has the columns of Lens's documentation (read, not captured): Name,
+// Privileged, Volume, Age, and the view "is available only with clusters prior to Kubernetes 1.25".
+// Kubernetes removed policy/v1beta1 PodSecurityPolicy in 1.25; the connector offers a profile only
+// where discovery finds its resource, so the view appears on such clusters alone. Inferred, capture
+// needed: Privileged as "true" or "false" (as Lens shows the Cron Jobs' Suspend), Volume as the
+// volume types the policy allows (spec.volumes, "*" for all), no status token (a policy has no
+// state), and the drawer: what the policy allows and requires, field by field of the API, with the
+// user and group rules as a table.
 var podSecurityPolicies = &model.KindProfile{
 	Key:      "podsecuritypolicies",
 	Group:    "policy",

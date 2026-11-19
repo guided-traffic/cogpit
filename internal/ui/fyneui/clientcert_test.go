@@ -98,7 +98,7 @@ func TestClusterListsShowTheClientCertificate(t *testing.T) {
 	}{
 		certValid:   {"cert expires in 65 days", "client certificate expires in 65 days", colorMuted},
 		certNear:    {"cert expires in 5 days", "client certificate expires in 5 days", colorStatusWarning},
-		certExpired: {"expired", "expired", colorStatusError}, // just "expired" (the owner, 2026-10-17)
+		certExpired: {"expired", "expired", colorStatusError}, // just "expired" (the owner)
 	}
 
 	t.Run("the navigator's section", func(t *testing.T) {

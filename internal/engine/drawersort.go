@@ -7,11 +7,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Sorting the drawer's tables (owner, 2026-10-13: a node's Pods sort by Name, Namespace, CPU,
-// Memory and Status). A sortable table (model.SortableCellTable) is sorted by the engine, as the
-// lists are: the order is UI state (rule 2), UIState.DrawerSort, set with ui.sortDrawerTable by a
-// click on a column's title or by an agent, and every model of the drawer comes sorted, with the
-// order in DetailTable.Sort for the header's arrow. The rules are the lists' (compareRows): text
+// Sorting the drawer's tables (owner: a node's Pods sort by Name, Namespace, CPU, Memory and
+// Status). A sortable table (model.SortableCellTable) is sorted by the engine, as the lists are:
+// the order is UI state (rule 2), UIState.DrawerSort, set with ui.sortDrawerTable by a click on a
+// column's title or by an agent, and every model of the drawer comes sorted, with the order in
+// DetailTable.Sort for the header's arrow. The rules are the lists' (compareRows): text
 // case-insensitively, number, age, warning and metric columns by Cell.Num, empty cells (a pod
 // without a measurement) last in both directions, ties by namespace and name.
 //

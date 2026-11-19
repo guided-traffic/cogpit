@@ -16,8 +16,8 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/k8seol"
 )
 
-// versionTable is the release table of the window's tests: upstream's of 2026-10-18 from 1.31 on,
-// so that a refresh of the table built in moves no expectation.
+// versionTable is the release table of the window's tests: a copy of upstream's from 1.31 on, so
+// that a refresh of the table built in moves no expectation.
 func versionTable() *k8seol.Table {
 	return &k8seol.Table{Source: "test", Fetched: "2026-10-18", Minors: []k8seol.Minor{
 		{Minor: "1.31", EndOfLife: "2025-11-11"},
@@ -264,7 +264,7 @@ func renderNodesVersions(t *testing.T, mode ThemeMode, suffix string) {
 		return len(sh.kinds) > 0 && sh.view.snap != nil && sh.view.snap.View == "nodes" && sh.diag.total > 0
 	})
 	settle(w)
-	// The version is plain text in its colour, never a status pill with a dot (the owner, 2026-11-05).
+	// The version is plain text in its colour, never a status pill with a dot (the owner).
 	c := cellAt(t, sh, rowOf(t, f, "nodes", "worker-b-01"), columnOf(t, sh, "version"))
 	if c.pillShows() || c.text.Color != themeColor(c.Theme(), statusColorName(model.StatusError)) {
 		t.Errorf("worker-b-01's version: pill %v, colour %v", c.pillShows(), c.text.Color)

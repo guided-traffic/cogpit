@@ -216,8 +216,8 @@ type PrometheusSetting struct {
 	// InUse is the Prometheus the cluster's metrics come from now, as the status line names it
 	// ("Prometheus monitoring/prometheus-k8s:web", "Thanos monitoring/thanos-query:http"), and
 	// InUseStatus what Cogpit knows of it (metrics.Status: unknown while nothing looked for it,
-	// notServed when detection found none). Read from the hub's last answers: no request. Since
-	// 2026-10-16 night, for the address's line on Cluster Settings › Prometheus.
+	// notServed when detection found none). Read from the hub's last answers: no request. For
+	// the address's line on Cluster Settings › Prometheus.
 	InUse       string         `json:"inUse,omitempty"`
 	InUseStatus metrics.Status `json:"inUseStatus,omitempty"`
 }

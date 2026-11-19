@@ -55,7 +55,7 @@ type KindProfile struct {
 	// event's involved object: its Detail returns the whole drawer, Properties first.
 	Detail func(obj *unstructured.Unstructured) []DetailSection
 	// DetailTitle, when set, names the kind in the drawer's title ("<DetailTitle>: <name>") in
-	// place of Kind: Lens titles a Helm release's drawer "Release: <name>" (captured 2026-10-12).
+	// place of Kind: Lens titles a Helm release's drawer "Release: <name>" (captured).
 	DetailTitle string
 
 	// What the cache holds for the kind (architecture §5). The engine builds every cache scope of

@@ -24,8 +24,8 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// TestKindReconnectWithARenewedCertificate reproduces the owner's F28 of 2026-10-17 on the kind
-// cluster (D-81): a context logs in with a short-lived client certificate in its kubeconfig file
+// TestKindReconnectWithARenewedCertificate reproduces the owner's F28 on the kind cluster (D-81): a
+// context logs in with a short-lived client certificate in its kubeconfig file
 // (client-certificate-data, as a cloud's kubeconfig download holds it), signed by the kind
 // cluster's own CA; the certificate expires and the API server rejects it (Login expired); a
 // login on the same connection cannot help (nothing re-reads the certificate); the renewed

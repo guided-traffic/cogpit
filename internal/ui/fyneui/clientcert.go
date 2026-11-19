@@ -8,14 +8,13 @@ import (
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
 )
 
-// A context's client certificate in the cluster lists (D-75, the owner's F22 of 2026-10-17): for a
-// context whose user logs in with a client certificate, the time left or "expired".
-// Cogpit's own: Lens's cluster list shows no certificate. Where it shows (the lead's decisions,
-// 2026-10-17, open to revision):
+// A context's client certificate in the cluster lists (D-75, the owner's F22): for a context whose
+// user logs in with a client certificate, the time left or "expired". Cogpit's own: Lens's cluster
+// list shows no certificate. Where it shows (the lead's decisions, open to revision):
 //   - the navigator's section, the one list that chooses a cluster (D-57, ⌘P): a second line under
 //     the cluster's name, "cert expires in 23 days", or just "expired" in the error colour once it
-//     expired (the owner, 2026-10-17: "einfach nur 'expired' das reicht"), short enough for the
-//     sidebar's width; its tooltip a line with the date and time in the user's format (D-31);
+//     expired (the owner: "einfach nur 'expired' das reicht"), short enough for the sidebar's
+//     width; its tooltip a line with the date and time in the user's format (D-31);
 //   - the welcome page's cluster rows: a pill, "client certificate expires in 23 days", or
 //     "expired" (the "certificate not checked" pill beside it is the server's certificate);
 //   - the hotbar's tile: its tooltip's line, as the section's; the tile itself shows connections.
@@ -29,7 +28,7 @@ import (
 
 // certState is a certificate's state at now, its text after the subject ("expires in 23 days",
 // "expired", "not valid yet"; kubeconfig.CertValidity.Describe but for an expired one, which the
-// window names without since when: the owner, 2026-10-17) and its colour.
+// window names without since when: the owner) and its colour.
 func certState(v *kubeconfig.CertValidity, now time.Time) (state, text string, color fyne.ThemeColorName) {
 	state, text = v.StateAt(now), v.Describe(now)
 	switch state {

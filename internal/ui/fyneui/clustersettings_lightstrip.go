@@ -9,18 +9,17 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// Cluster Settings › General › Light strip (D-122, the owner's VW14 of 2026-10-24;
-// engine/lightstrip.go): under the accent colour, how the strip under the view's header shows it
-// while one of the cluster's tabs is shown: Static, or one of the animations Breathing, Scanner and
-// Flow. The animations stand in a frame of their own with an ⓘ whose tooltip says they cost CPU (the
-// owner's LS15: the animations framed, a small info icon whose tooltip notes the higher CPU use;
-// his words in D-122). While an animation is chosen but
-// stands still, because motion is reduced or the computer runs on battery and Preferences › App
-// asks for the power adapter, a warning line says why (the owner's LS13: "müsste in den Settings
-// wenigstens eine Warnung angezeigt werden … Das mit er weiß wieso nichts passiert"). Disabled, with
-// its reason beside it, while the cluster has no accent colour: the strip is frosted glass then. A
-// choice dispatches cluster.settings.setLightStrip, which only the window may run. Cogpit's own:
-// Lens has no light strip.
+// Cluster Settings › General › Light strip (D-122, the owner's VW14; engine/lightstrip.go): under
+// the accent colour, how the strip under the view's header shows it while one of the cluster's tabs
+// is shown: Static, or one of the animations Breathing, Scanner and Flow. The animations stand in a
+// frame of their own with an ⓘ whose tooltip says they cost CPU (the owner's LS15: the animations
+// framed, a small info icon whose tooltip notes the higher CPU use; his words in D-122). While an
+// animation is chosen but stands still, because motion is reduced or the computer runs on battery
+// and Preferences › App asks for the power adapter, a warning line says why (the owner's LS13:
+// "müsste in den Settings wenigstens eine Warnung angezeigt werden … Das mit er weiß wieso nichts
+// passiert"). Disabled, with its reason beside it, while the cluster has no accent colour: the
+// strip is frosted glass then. A choice dispatches cluster.settings.setLightStrip, which only the
+// window may run. Cogpit's own: Lens has no light strip.
 
 const (
 	lightStripSetting = "lightStrip"

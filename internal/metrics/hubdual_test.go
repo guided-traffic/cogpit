@@ -16,11 +16,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The owner's evening requirements (G12, 2026-10-12) on a hub over both providers, with a clock the
-// test moves and polls the test starts (metrics.Kick): history from Prometheus once, then the
-// Metrics Server's live values; the network and the filesystem only while shown; falling back to
-// one provider only while the other fails; the seam without a point twice and the gap filled once;
-// the status line's data.
+// The owner's evening requirements (G12) on a hub over both providers, with a clock the test moves
+// and polls the test starts (metrics.Kick): history from Prometheus once, then the Metrics Server's
+// live values; the network and the filesystem only while shown; falling back to one provider only
+// while the other fails; the seam without a point twice and the gap filled once; the status line's
+// data.
 
 type testClock struct {
 	mu sync.Mutex
@@ -321,7 +321,7 @@ func TestHistoryThenLiveValues(t *testing.T) {
 	}
 	prom, ms := ps[0], ps[1]
 	if prom.Status != metrics.StatusAvailable || prom.Service != "monitoring/prometheus-server:http" || prom.Label != "Prometheus" ||
-		prom.Namespace != "monitoring" || prom.ServiceName != "prometheus-server" || // the source line's links (2026-10-16 night)
+		prom.Namespace != "monitoring" || prom.ServiceName != "prometheus-server" || // the source line's links
 		!slices.Equal(prom.Serves, []string{metrics.ServesHistory, metrics.ServesNetwork, metrics.ServesFilesystem}) || prom.LastOK.IsZero() {
 		t.Errorf("Prometheus = %+v", prom)
 	}

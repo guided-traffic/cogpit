@@ -17,8 +17,8 @@ func promProviderWith(t *testing.T, c *promCluster, q metrics.QuerySettings) met
 }
 
 // A query format that fixes where a node's series come from asks that source alone (G12,
-// Cluster Settings › Metrics, 2026-10-16): the Prometheus Operator's never the root cgroup its
-// kubelet ServiceMonitor drops, cAdvisor-only never node-exporter.
+// Cluster Settings › Metrics): the Prometheus Operator's never the root cgroup its kubelet
+// ServiceMonitor drops, cAdvisor-only never node-exporter.
 func TestQueryFormatFixesTheNodeSource(t *testing.T) {
 	ctx := context.Background()
 	t.Run("Prometheus Operator: node-exporter alone", func(t *testing.T) {
@@ -169,7 +169,7 @@ func TestPrometheusOverHTTPS(t *testing.T) {
 
 // The prometheus chart's server is found under any release's name, and none ranks first for being
 // the release Cogpit Metrics installed in v0.16.0 and v0.17.0 (cogpit-metrics/cogpit-prometheus-server):
-// Cogpit installs nothing of its own (D-61, owner 2026-10-16), detection ranks what the cluster runs.
+// Cogpit installs nothing of its own (D-61, owner), detection ranks what the cluster runs.
 func TestPrometheusChartServerOfAnyRelease(t *testing.T) {
 	cands := metrics.Candidates([]metrics.Service{
 		web("cogpit-metrics", "cogpit-prometheus-server", 80),

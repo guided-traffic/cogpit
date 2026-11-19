@@ -8,10 +8,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Flux's credential fields in what agents read (agents-and-mcp H-63, owner 2026-10-14): the fields
-// of a Flux object that can hold a credential inline are withheld from the YAML an agent reads, as
-// a Helm release's values are (model.WithholdPrivate): a Helm release's inline spec.values, a
-// notification Provider's spec.address (a webhook URL with its token) and spec.proxy, a Receiver's
+// Flux's credential fields in what agents read (agents-and-mcp H-63, owner): the fields of a Flux
+// object that can hold a credential inline are withheld from the YAML an agent reads, as a Helm
+// release's values are (model.WithholdPrivate): a Helm release's inline spec.values, a notification
+// Provider's spec.address (a webhook URL with its token) and spec.proxy, a Receiver's
 // status.webhookPath (for a generic receiver all a caller needs to trigger reconciliations), and
 // the user information in a source's URL (GitRepository, HelmRepository, OCIRepository, Bucket).
 // The window's YAML shows them; the Flux views' cells and drawers never did (TestFluxKeepsSecretsOut).

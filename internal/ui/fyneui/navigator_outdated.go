@@ -8,13 +8,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// Hide outdated objects (the owner, 2026-11-03; engine.Preferences.HideOutdatedObjects, on by
-// default): the navigator leaves out the kinds Kubernetes has a successor for
-// (engine.OutdatedKinds: Replication Controllers, Endpoints). Hidden means only the navigator's
-// tree: its search still finds them (typing "endpoints" shows the entry), and the palette, the View
-// menu's kinds, links, open tabs and ui.openView reach them as before. The View menu's Hide
-// Outdated Objects, checked while on, and Preferences › App switch it, both through
-// preferences.set.
+// Hide outdated objects (the owner; engine.Preferences.HideOutdatedObjects, on by default): the
+// navigator leaves out the kinds Kubernetes has a successor for (engine.OutdatedKinds: Replication
+// Controllers, Endpoints). Hidden means only the navigator's tree: its search still finds them
+// (typing "endpoints" shows the entry), and the palette, the View menu's kinds, links, open tabs
+// and ui.openView reach them as before. The View menu's Hide Outdated Objects, checked while on,
+// and Preferences › App switch it, both through preferences.set.
 
 const (
 	outdatedMenuLabel = "Hide Outdated Objects"

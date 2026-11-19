@@ -6,15 +6,15 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// job.cancel (G4, 2026-10-16): stops a background job (engine/jobs.go) and keeps its tab with the
-// outcome, as the job tab's Cancel button does; dock.close stops it too and closes the tab.
+// job.cancel (G4): stops a background job (engine/jobs.go) and keeps its tab with the outcome, as
+// the job tab's Cancel button does; dock.close stops it too and closes the tab.
 //
-// Who may cancel (the lead's decision for the owner to confirm, 2026-10-16): every origin, any
-// job, a UI command (D-2: it runs without asking). A stop writes nothing to the cluster and undoes
-// nothing; agents could already stop any job by closing its tab (dock.close, a UI command), so
-// limiting job.cancel to the jobs an agent started would guard nothing. The tab's outcome says
-// when an agent cancelled it ("Stopped: cancelled by an agent."), and an agent's job.cancel is in
-// the audit log as every agent command is.
+// Who may cancel (the lead's decision for the owner to confirm): every origin, any job, a UI
+// command (D-2: it runs without asking). A stop writes nothing to the cluster and undoes nothing;
+// agents could already stop any job by closing its tab (dock.close, a UI command), so limiting
+// job.cancel to the jobs an agent started would guard nothing. The tab's outcome says when an agent
+// cancelled it ("Stopped: cancelled by an agent."), and an agent's job.cancel is in the audit log
+// as every agent command is.
 
 type jobParams struct {
 	ID string `json:"id" jsonschema:"the job's dock tab id, as ui_state's dock lists it (type job), e.g. job-1"`

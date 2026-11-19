@@ -19,18 +19,18 @@ import (
 )
 
 // The Connection Diagnostics dock tab (D-13 cache transparency, D-133; engine/diagnostics_view.go):
-// what the status bar's button opens (the owner, 2026-10-26: "Eigener Dock-Tab, die Connection
-// Infos aus der Status Leiste ziehen ebenfalls dahin um … Im Diagnosics-tab können wir dann richtig
-// aufdrehen mit Status-Informationen und Details. Ein Log welches Timeouts und andere
-// Verbindungsprobleme aufschreibt und vorhält."), read with diagnostics.get whenever the counters
-// or the log move (EventDiagnostics, at most once a second). Its first line sums the cluster's
-// requests, watches, objects and memory, says where discovery came from (D-65) and counts the table
-// snapshots built since start (the only place the GUI shows them since the status bar dropped them,
-// owner 2026-10-14); with several clusters connected (D-69) a line per connected cluster follows it.
-// Then the connection (the server, its version, the latest connect), the problems since that
-// connect, how the reads' initial lists came, and Cogpit's rate limits with what waited at them;
-// then four columns: the diagnostics log (the line seen last first), the API requests by verb and
-// resource, the watches with their load times, and the objects and memory per kind.
+// what the status bar's button opens (the owner: "Eigener Dock-Tab, die Connection Infos aus der
+// Status Leiste ziehen ebenfalls dahin um … Im Diagnosics-tab können wir dann richtig aufdrehen mit
+// Status-Informationen und Details. Ein Log welches Timeouts und andere Verbindungsprobleme
+// aufschreibt und vorhält."), read with diagnostics.get whenever the counters or the log move
+// (EventDiagnostics, at most once a second). Its first line sums the cluster's requests, watches,
+// objects and memory, says where discovery came from (D-65) and counts the table snapshots built
+// since start (the only place the GUI shows them since the status bar dropped them, owner); with
+// several clusters connected (D-69) a line per connected cluster follows it. Then the connection
+// (the server, its version, the latest connect), the problems since that connect, how the reads'
+// initial lists came, and Cogpit's rate limits with what waited at them; then four columns: the
+// diagnostics log (the line seen last first), the API requests by verb and resource, the watches
+// with their load times, and the objects and memory per kind.
 //
 // Overview and Report switch what the tab shows: Report is the anonymised report exactly as Copy and
 // Save Report… put it out (diagnostics.report: the endpoints replaced, the owner's choice). Its

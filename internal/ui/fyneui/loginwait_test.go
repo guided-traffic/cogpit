@@ -13,9 +13,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The owner's finding of 2026-10-16 night (D-73): a connect that waited for an OIDC login nobody
-// finished blinked with no way out. The connecting cluster's workspace and menus offer Cancel
-// Connecting (cluster.disconnect), and its state says what it waits for.
+// The owner's finding (D-73): a connect that waited for an OIDC login nobody finished blinked with
+// no way out. The connecting cluster's workspace and menus offer Cancel Connecting
+// (cluster.disconnect), and its state says what it waits for.
 
 // waitingConnection is a connect whose credential plugin pinniped has waited two minutes.
 func waitingConnection() engine.Connection {

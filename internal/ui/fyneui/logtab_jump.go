@@ -20,9 +20,9 @@ import (
 // shows, it loads them first (OlderLogs with since).
 
 // The field is as wide as a search box, and wider when its placeholder, which names the forms it
-// reads in the user's format, needs it (#169, a defect the owner reported on 2026-10-14 evening: at
-// 1440 points the placeholder was cut after "10m"). The header row has room for it: it holds only
-// the two selectors besides.
+// reads in the user's format, needs it (#169, a defect the owner reported: at 1440 points the
+// placeholder was cut after "10m"). The header row has room for it: it holds only the two selectors
+// besides.
 
 // jumpState is what the tab knows about jumps.
 type jumpState struct {

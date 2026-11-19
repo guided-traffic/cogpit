@@ -8,8 +8,8 @@ import (
 )
 
 // commandIcons are the icons of the drawer's action toolbar, by command id, from Fyne's theme.
-// Lens's drawer shows its actions as icons (capture, 2026-10-11: a node's Cordon is a pause icon,
-// Uncordon a play icon); the glyphs are Fyne's, chosen for Cogpit. A command without an entry gets
+// Lens's drawer shows its actions as icons (capture: a node's Cordon is a pause icon, Uncordon a
+// play icon); the glyphs are Fyne's, chosen for Cogpit. A command without an entry gets
 // genericCommandIcon; its tooltip names it either way.
 var commandIcons = map[string]fyne.ThemeIconName{
 	"pod.attach":          theme.IconNameMailAttachment,
@@ -43,7 +43,7 @@ var commandIcons = map[string]fyne.ThemeIconName{
 
 	"helm.release.rollback":  theme.IconNameHistory,
 	"helm.release.uninstall": theme.IconNameDelete,
-	upgradeTabCommand:        theme.IconNameViewRefresh, // Lens: a circular arrow (captured 2026-10-12)
+	upgradeTabCommand:        theme.IconNameViewRefresh, // Lens: a circular arrow (captured)
 	revisionsCommand:         theme.IconNameList,        // a release's revisions (D-131)
 	installTabCommand:        theme.IconNameDownload,    // Cogpit's choice: Lens's chart drawer is not captured
 }

@@ -48,17 +48,17 @@ func (s Severity) Rank() int {
 
 // metaAlerts are alerts that say something about the alerting pipeline, not about the cluster:
 // kube-prometheus' Watchdog (always firing, to prove the pipeline works) and InfoInhibitor (firing
-// to inhibit info alerts). They are left out whatever their severity (the owner, 2026-10-17: "nur
-// wirklich relevantes zeigen").
+// to inhibit info alerts). They are left out whatever their severity (the owner: "nur wirklich
+// relevantes zeigen").
 var metaAlerts = map[string]bool{"Watchdog": true, "InfoInhibitor": true}
 
 // Classify returns the severity an alert is shown with, from its alertname and its severity label,
-// and false for an alert that is left out of the count and the board. The owner's rule (2026-10-17):
-// critical red, warning orange and every severity above warning too ("Orange ab einem Warning
-// Alarm": major), info yellow; none (the meta alerts' severity) left out. The lead's decision for
-// what the owner did not name (D-77): a missing or unknown severity label shows as warning, since
-// the rule's author did not mark the alert as only informational; the label as written stays on the
-// alert (SeverityLabel). Labels are compared ignoring case and surrounding spaces.
+// and false for an alert that is left out of the count and the board. The owner's rule: critical
+// red, warning orange and every severity above warning too ("Orange ab einem Warning Alarm":
+// major), info yellow; none (the meta alerts' severity) left out. The lead's decision for what the
+// owner did not name (D-77): a missing or unknown severity label shows as warning, since the rule's
+// author did not mark the alert as only informational; the label as written stays on the alert
+// (SeverityLabel). Labels are compared ignoring case and surrounding spaces.
 func Classify(alertname, severity string) (Severity, bool) {
 	if metaAlerts[alertname] {
 		return "", false

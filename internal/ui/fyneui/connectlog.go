@@ -16,24 +16,25 @@ import (
 )
 
 // The connection log (G2, D-66): "Connection Updates: <context>", INFO, WARN and ERROR lines as Lens
-// shows them behind its warning icon (captured 2026-10-12), extended by Cogpit to every attempt
-// kept (7 days, 1 MiB per context): each connect, reconnect, login and disconnect with its kind,
-// start, outcome and duration, and its steps with their times and durations, successful ones too.
-// It opens from every status dot of a cluster (bars.go, the navigator's rows), from the welcome
-// page's warning icon and from Show Connection Updates… in a navigator row's menu, for any context:
-// one without a log says so.
+// shows them behind its warning icon (captured), extended by Cogpit to every attempt kept (7 days,
+// 1 MiB per context): each connect, reconnect, login and disconnect with its kind, start, outcome
+// and duration, and its steps with their times and durations, successful ones too. It opens from
+// every status dot of a cluster (bars.go, the navigator's rows), from the welcome page's warning
+// icon and from Show Connection Updates… in a navigator row's menu, for any context: one without a
+// log says so.
 //
 // The attempts are shown newest first, each with its lines in the order they happened: the latest
 // attempt is the first thing the dialog shows without scrolling, and each attempt reads top down
 // like a log and ends in how it ended, which its header says in its colour. An interruption is an
-// entry of its own under the reconnect after it (the owner's WF37 of 2026-10-19: a reconnect that
-// succeeded read as ending in "Connection interrupted", its cause written into its top). While the dialog is open it follows the log: the engine announces each change
-// (EventConnectLog, coalesced), and the dialog reads cluster.connectLog again (the engine's memory
-// and the context's file; nothing is asked of the cluster). Copy puts every attempt shown on the
-// clipboard as plain text, for a bug report. A line's time is its time of day in the user's zone
-// and format, an attempt's its date and time (D-31). Reconnect (cluster.reconnect, D-81) connects a
-// connected cluster anew from its kubeconfig file, where its log says why it needs it; it is
-// greyed while the context is not connected or reconnects.
+// entry of its own under the reconnect after it (the owner's WF37: a reconnect that succeeded read
+// as ending in "Connection interrupted", its cause written into its top). While the dialog is open
+// it follows the log: the engine announces each change (EventConnectLog, coalesced), and the dialog
+// reads cluster.connectLog again (the engine's memory and the context's file; nothing is asked of
+// the cluster). Copy puts every attempt shown on the clipboard as plain text, for a bug report. A
+// line's time is its time of day in the user's zone and format, an attempt's its date and time
+// (D-31). Reconnect (cluster.reconnect, D-81) connects a connected cluster anew from its kubeconfig
+// file, where its log says why it needs it; it is greyed while the context is not connected or
+// reconnects.
 
 // connectLogLimit is how many attempts the dialog shows, newest first.
 const connectLogLimit = 50

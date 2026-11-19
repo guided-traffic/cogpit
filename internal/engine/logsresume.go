@@ -20,14 +20,14 @@ import (
 // restarted container, is what the log reads then, and a line says so (notContinuedNotice).
 
 // interruptedMarker is the line a log shows where its stream broke with the connection and was
-// opened again (the owner's WF35 of 2026-10-19: "— interrupted 11:10–11:10 —" after ten minutes of
-// sleep could not be read). The gap runs from the last line that arrived before the break (seen,
-// by Cogpit's clock; the interruption's start, from, when it came first or no line had) to the
-// reconnect (to), with seconds and the zone, in the user's time format (D-31): the connection
-// watch notices a sleep only at the wake, so its own start says when the computer woke, not when
-// the lines stopped. The log is read again from its last line's time, so what the container wrote
-// meanwhile follows the marker; a kubelet that rotated the container's log meanwhile may have
-// dropped some, which Cogpit cannot tell, so the marker does not claim that none is missing.
+// opened again (the owner's WF35: "— interrupted 11:10–11:10 —" after ten minutes of sleep could
+// not be read). The gap runs from the last line that arrived before the break (seen, by Cogpit's
+// clock; the interruption's start, from, when it came first or no line had) to the reconnect (to),
+// with seconds and the zone, in the user's time format (D-31): the connection watch notices a sleep
+// only at the wake, so its own start says when the computer woke, not when the lines stopped. The
+// log is read again from its last line's time, so what the container wrote meanwhile follows the
+// marker; a kubelet that rotated the container's log meanwhile may have dropped some, which Cogpit
+// cannot tell, so the marker does not claim that none is missing.
 func (s *Session) interruptedMarker(from, to, seen time.Time) string {
 	if !seen.IsZero() && seen.Before(from) {
 		from = seen
@@ -103,8 +103,8 @@ func (r *resumingLog) run(rc io.ReadCloser, opened time.Time) {
 		if r.ctx.Err() != nil || errors.Is(err, io.ErrClosedPipe) {
 			return
 		}
-		// The stream may break only once the connection is back (CI, 2026-10-16): asked by when it
-		// opened, the interruption it lived through still counts.
+		// The stream may break only once the connection is back: asked by when it opened, the
+		// interruption it lived through still counts.
 		from, to, werr := r.w.await(r.ctx, opened, r.lapsedLine)
 		if werr != nil || from.IsZero() {
 			endErr = err // the stream ended while the connection works: the log ends here, as before

@@ -18,26 +18,26 @@ import (
 // Cogpit publishes prereleases. app.checkForUpdates (Help › Check for Updates…) checks now with
 // Sparkle's own window; installing stays the user's click in it.
 //
-// Who may change them (the lead's default, 2026-10-14, for the owner to confirm): the user turns
-// the automatic checks on and off; an agent or the CLI may turn them on but not off, since off
-// leaves a copy with known flaws unpatched (the reverse of Load chart icons, which an agent may
-// only turn off: there off is the safer side). Any origin may run app.checkForUpdates: it changes
-// nothing, and Sparkle asks the user before it installs anything.
+// Who may change them (the lead's default, for the owner to confirm): the user turns the automatic
+// checks on and off; an agent or the CLI may turn them on but not off, since off leaves a copy with
+// known flaws unpatched (the reverse of Load chart icons, which an agent may only turn off: there
+// off is the safer side). Any origin may run app.checkForUpdates: it changes nothing, and Sparkle
+// asks the user before it installs anything.
 //
-// The Update button (F7, the owner's finding of 2026-10-15): an updater that implements
-// UpdateNotifier tells when it holds a newer release for the user; UIState.Update says so, and the
-// window shows an Update button left of the layout toggles, which runs app.installUpdate: on macOS
-// it brings Sparkle's window with that release up, as app.checkForUpdates does; on Windows
-// (UpdateInstaller, D-111) it installs the release at once, the click being the user's decision.
-// Only the window runs app.installUpdate. A session without such an updater never shows it.
+// The Update button (F7, the owner's finding): an updater that implements UpdateNotifier tells when
+// it holds a newer release for the user; UIState.Update says so, and the window shows an Update
+// button left of the layout toggles, which runs app.installUpdate: on macOS it brings Sparkle's
+// window with that release up, as app.checkForUpdates does; on Windows (UpdateInstaller, D-111) it
+// installs the release at once, the click being the user's decision. Only the window runs
+// app.installUpdate. A session without such an updater never shows it.
 //
 // On Linux (D-108) the check acts instead of showing a window (UpdateActor): it installs the
 // release through apt after polkit asked for the password, or restarts Cogpit into the release
 // apt installed under it (UpdateRestarter, UIState.Update.Restart: the button reads Restart to
-// Update). Only the user's own click in the window starts that (the lead's decision, 2026-10-20):
-// an agent or the CLI would put a password prompt or a restart in front of the user unasked. What
-// it came to (installed, the newest already, cancelled, failed) the updater reports
-// (UpdateReporter), and the window shows it as a toast.
+// Update). Only the user's own click in the window starts that (the lead's decision): an agent or
+// the CLI would put a password prompt or a restart in front of the user unasked. What it came to
+// (installed, the newest already, cancelled, failed) the updater reports (UpdateReporter), and the
+// window shows it as a toast.
 
 // Update channels. Stable is the appcast's default channel; Beta (Sparkle's channel "beta") comes
 // with the first prerelease.
@@ -105,7 +105,7 @@ type UpdateActor interface {
 // UpdateInstaller is an Updater that installs the release it holds without its window's questions
 // when the user clicks the Update button (app.installUpdate): on Windows WinSparkle checks,
 // downloads, verifies and runs the setup in one go, where its window would ask twice more (the
-// owner, 2026-10-21, D-111). An Updater without it shows its window as app.checkForUpdates does.
+// owner, D-111). An Updater without it shows its window as app.checkForUpdates does.
 type UpdateInstaller interface {
 	InstallUpdate() error
 }

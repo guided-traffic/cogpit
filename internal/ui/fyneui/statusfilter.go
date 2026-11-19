@@ -13,15 +13,15 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The view header's status filter (D-34, owner 2026-10-14; ui-parity › Tables): beside the
-// namespace filter, a button naming the selection ("All states", the one state, "3 states") opens
-// the states the view's rows carry (the snapshot's StateChoices): "All states", then a check per
-// state with a dot in its colour and its count, under its column's title when the view has several
-// state columns (an Argo CD Application's Sync and Health). Checks toggle without closing the list,
-// as the namespace filter's do; the × beside the button clears the filter in one click. On a page
-// the filter sits in its table's header beside the search, since it filters the table only. Every
-// change is ui.setStatusFilter, so agents see and set the same state (AGENTS.md rule 2). Lens's
-// views have no status filter: the look is Cogpit's (inferred from the namespace filter's).
+// The view header's status filter (D-34, owner; ui-parity › Tables): beside the namespace filter, a
+// button naming the selection ("All states", the one state, "3 states") opens the states the view's
+// rows carry (the snapshot's StateChoices): "All states", then a check per state with a dot in its
+// colour and its count, under its column's title when the view has several state columns (an Argo
+// CD Application's Sync and Health). Checks toggle without closing the list, as the namespace
+// filter's do; the × beside the button clears the filter in one click. On a page the filter sits in
+// its table's header beside the search, since it filters the table only. Every change is
+// ui.setStatusFilter, so agents see and set the same state (AGENTS.md rule 2). Lens's views have no
+// status filter: the look is Cogpit's (inferred from the namespace filter's).
 
 // allStates is the status filter's label and first entry when nothing is selected.
 const allStates = "All states"
@@ -84,8 +84,8 @@ func (f *statusFilter) label() string {
 }
 
 // update shows the engine's selection and the snapshot's states: the button's label, the button in
-// the accent colour and the × while a state is selected (A80, owner 2026-10-14 evening), the button
-// greyed while the rows carry no state to choose, an open list rebuilt when its states changed.
+// the accent colour and the × while a state is selected (A80, owner), the button greyed while the
+// rows carry no state to choose, an open list rebuilt when its states changed.
 func (f *statusFilter) update() {
 	sel := f.selected()
 	importance := widget.MediumImportance

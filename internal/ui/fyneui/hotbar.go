@@ -17,23 +17,23 @@ import (
 )
 
 // The hotbar (G13; engine/hotbar.go): a narrow bar at the window's left edge, left of the
-// navigator, with one tile per pinned cluster, top to bottom, as captured from Lens (2026-10-11). A
-// tile, a 50-point square in a 76-point bar (the owner's LS19 of 2026-10-24; 38 in 64 before), is
-// the cluster's identity (clusteridentity.go: its initials in its icon colour, the accent by
-// default, or its uploaded image), its name under it (the display name its Settings give it, else
-// the context's) and a dot with the cluster's mark (clustermarks.go, D-69: live, (re)connecting,
-// cold, its login lapsed, failed); its tooltip is the full context id, the state and its F-key.
-// The shown cluster's tile is raised; a connected cluster's tile that is not shown has its dot
-// only. A click opens the cluster (hotbar.openCluster: a connected one is only shown, D-69); the
-// tile's menu (right-click) connects, moves it up or down and removes it; a tile dragged within the
-// bar is carried under the pointer while the others make room, and lands where it is dropped
-// (hotbardrag.go, D-83). F1–F12 open the first twelve tiles.
+// navigator, with one tile per pinned cluster, top to bottom, as captured from Lens. A tile, a
+// 50-point square in a 76-point bar (the owner's LS19; 38 in 64 before), is the cluster's identity
+// (clusteridentity.go: its initials in its icon colour, the accent by default, or its uploaded
+// image), its name under it (the display name its Settings give it, else the context's) and a dot
+// with the cluster's mark (clustermarks.go, D-69: live, (re)connecting, cold, its login lapsed,
+// failed); its tooltip is the full context id, the state and its F-key. The shown cluster's tile is
+// raised; a connected cluster's tile that is not shown has its dot only. A click opens the cluster
+// (hotbar.openCluster: a connected one is only shown, D-69); the tile's menu (right-click)
+// connects, moves it up or down and removes it; a tile dragged within the bar is carried under the
+// pointer while the others make room, and lands where it is dropped (hotbardrag.go, D-83). F1–F12
+// open the first twelve tiles.
 //
-// One hotbar (the owner's decision of 2026-10-17, D-83): Lens's banks and their switcher ("‹ 1 ›"
-// at the bar's foot, ⇧F1–⇧F12) are gone; the bar holds as many tiles as the user pins and scrolls
-// when they do not fit, the "+" below the last tile. Inferred, Cogpit's own: the "+" that pins the
-// connected cluster and the menus' items. Move Up and Move Down stay beside the drag, for whoever
-// does not drag.
+// One hotbar (the owner's decision, D-83): Lens's banks and their switcher ("‹ 1 ›" at the bar's
+// foot, ⇧F1–⇧F12) are gone; the bar holds as many tiles as the user pins and scrolls when they do
+// not fit, the "+" below the last tile. Inferred, Cogpit's own: the "+" that pins the connected
+// cluster and the menus' items. Move Up and Move Down stay beside the drag, for whoever does not
+// drag.
 //
 // The bar shows what hotbar.list returns, read again whenever UIState.Hotbar, the connection or
 // the contexts change; every change goes through the hotbar.* commands (UI state is engine state).

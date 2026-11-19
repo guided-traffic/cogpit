@@ -18,8 +18,8 @@ import (
 // rateWindow is the range of the rate() queries of the current values (the lists, metrics.get) and
 // the shortest of the charts'. Prometheus asks for at least four scrape intervals: the prometheus
 // chart scrapes every minute, and cAdvisor stamps a sample with its own collection time, up to a
-// minute before the scrape. On kind with that chart (2026-10-12) a [2m] range left 5 to 7 of 52
-// points of a half-hour chart empty and the newest one or two minutes missing; [4m] left none.
+// minute before the scrape. On kind with that chart a [2m] range left 5 to 7 of 52 points of a
+// half-hour chart empty and the newest one or two minutes missing; [4m] left none.
 const rateWindow = 4 * time.Minute
 
 // rangeRate is the rate() range of a chart's query at step: every sample between two points counts
@@ -224,8 +224,8 @@ func nodeSelectors(metric, extra string, m nodeMatch) [2]string {
 
 // nodeDisks keeps the node's block devices among its root cgroup's filesystem series. cAdvisor
 // reports every mount there, and the overlay mounts of the containers repeat the disk they live
-// on, so a sum over all of them counts one disk many times (kind, 2026-10-12: nine overlays of
-// /dev/vda1 summed to 503 GiB on a 56 GiB disk). /dev/shm is memory.
+// on, so a sum over all of them counts one disk many times (kind: nine overlays of /dev/vda1 summed
+// to 503 GiB on a 56 GiB disk). /dev/shm is memory.
 const nodeDisks = `device=~"/dev/.+",device!="/dev/shm"`
 
 // nodeSum sums the root cgroup of one node: a gauge as is (win 0), a counter as its rate over win.
@@ -248,8 +248,8 @@ func nodeSumWhere(metric, extra string, m nodeMatch, win time.Duration) string {
 }
 
 // node-exporter's metrics, which a node's CPU and memory come from where the cluster's Prometheus
-// has them (A43, D-43, owner 2026-10-14 evening): kube-prometheus-stack's kubelet ServiceMonitor
-// drops cAdvisor's root cgroup, so a node there had no history (F1).
+// has them (A43, D-43, owner): kube-prometheus-stack's kubelet ServiceMonitor drops cAdvisor's root
+// cgroup, so a node there had no history (F1).
 const (
 	metricNodeCPU          = "node_cpu_seconds_total"
 	metricNodeMemTotal     = "node_memory_MemTotal_bytes"
@@ -280,7 +280,7 @@ func exporterRate(metric, extra, matcher string, win time.Duration) string {
 }
 
 // node-exporter's network and disk metrics, which a node's Network and Filesystem charts read
-// where the cluster's Prometheus has them (G12, 2026-10-16), as its CPU and memory do (A43):
+// where the cluster's Prometheus has them (G12), as its CPU and memory do (A43):
 // kube-prometheus-stack drops cAdvisor's root cgroup, so those charts stayed empty there. The
 // filesystem's usage reads the disks' gauges (metricFSSize, metricFSAvail in disk.go).
 const (
@@ -294,10 +294,10 @@ const (
 // the container runtimes, the network plugins and the kernel create (the pods' veth and lxc ends,
 // the plugins' bridges, overlays and tunnels, the kernel's fallback tunnel devices, WireGuard) are
 // left out, since the same bytes pass them and the node's own interface, and a sum over all of
-// them counts the traffic several times (a real cluster with Cilium, 2026-10-16: 34 interfaces on
-// one node, the overlay, WireGuard and the physical interface each carrying the pods' traffic).
-// The names are the plugins' and the kernel's defaults; one not listed is counted (not guarded),
-// and so are a bond and its members (counted twice, not guarded).
+// them counts the traffic several times (a real cluster with Cilium: 34 interfaces on one node, the
+// overlay, WireGuard and the physical interface each carrying the pods' traffic). The names are the
+// plugins' and the kernel's defaults; one not listed is counted (not guarded), and so are a bond
+// and its members (counted twice, not guarded).
 const nodeInterfaces = `device!~"lo|veth.+|lxc.+|cali.+|cilium_.+|flannel.+|cni.+|cbr.+|docker.+|br-.+|virbr.+|vxlan.+|genev.+|tunl.+|tun.+|wg.+|kube-.+|weave.*|nodelocaldns|antrea-.+|ovs-.+|ovn-.+|gre.+|erspan.+|ip6gre.+|ip6tnl.+|ip_vti.+|ip6_vti.+|sit.+|dummy.+|nerdctl.+|[a-f0-9]{15}"`
 
 // nodeBlockDevices keeps the disks among node-exporter's disk statistics: device-mapper and

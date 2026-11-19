@@ -56,12 +56,11 @@ const (
 	idMode         = "mode"
 )
 
-// verticalPodAutoscalers has the default columns of Lens's documentation (read 2026-10-13, not
-// captured): Name, Namespace, Mode, Age, Status, and the row menu's Edit and Delete (generic). Lens
-// places the view in Config after Horizontal Pod Autoscalers. Inferred: Mode "Auto" when the
-// autoscaler sets none, Status as the True condition types with the rule of vpaStatus, the hidden
-// columns Target, CPU and Memory (the target recommendation summed over the containers), and the
-// drawer.
+// verticalPodAutoscalers has the default columns of Lens's documentation (read, not captured):
+// Name, Namespace, Mode, Age, Status, and the row menu's Edit and Delete (generic). Lens places the
+// view in Config after Horizontal Pod Autoscalers. Inferred: Mode "Auto" when the autoscaler sets
+// none, Status as the True condition types with the rule of vpaStatus, the hidden columns Target,
+// CPU and Memory (the target recommendation summed over the containers), and the drawer.
 var verticalPodAutoscalers = &model.KindProfile{
 	Key:              "verticalpodautoscalers.autoscaling.k8s.io",
 	Group:            "autoscaling.k8s.io",

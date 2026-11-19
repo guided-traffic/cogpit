@@ -10,11 +10,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
-// A sync Cogpit writes respects the AppProject's sync windows (A33, owner 2026-10-14 evening;
-// H-67; the check in kinds.ArgoSyncBlocked): Sync is greyed with the reason while the cache holds
-// the project and a window blocks, and the write is refused per Application once the project is
-// read for it. A project Cogpit may not read, or that is not there, blocks nothing here: Argo CD's
-// controller still honours its windows. A window that cannot be read blocks, with the reason.
+// A sync Cogpit writes respects the AppProject's sync windows (A33, owner; H-67; the check in
+// kinds.ArgoSyncBlocked): Sync is greyed with the reason while the cache holds the project and a
+// window blocks, and the write is refused per Application once the project is read for it. A
+// project Cogpit may not read, or that is not there, blocks nothing here: Argo CD's controller
+// still honours its windows. A window that cannot be read blocks, with the reason.
 
 // argoDefaultProject is the project an Application without spec.project belongs to.
 const argoDefaultProject = "default"

@@ -10,12 +10,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/metrics"
 )
 
-// F1 (owner, 2026-10-14 evening, in a real window): a node's drawer showed no past. On
-// kube-prometheus-stack the root cgroup the node's history was read from is dropped, and its
-// node-exporter carries the node's address, not its name. The drawer's history now comes from
-// node-exporter, found by the addresses the engine gives (SetNodeAddresses); the Metrics Server's
-// live values continue it. Addresses that come after the drawer opened (the node was not listed
-// yet) make the chart ask for its history again, once.
+// F1 (owner, in a real window): a node's drawer showed no past. On kube-prometheus-stack the root
+// cgroup the node's history was read from is dropped, and its node-exporter carries the node's
+// address, not its name. The drawer's history now comes from node-exporter, found by the addresses
+// the engine gives (SetNodeAddresses); the Metrics Server's live values continue it. Addresses that
+// come after the drawer opened (the node was not listed yet) make the chart ask for its history
+// again, once.
 func TestNodeDrawerHistoryFromNodeExporterByAddress(t *testing.T) {
 	c := newPromCluster(t, true)
 	c.srv.Set(nodeMetricsGVR, &unstructured.Unstructured{Object: map[string]any{

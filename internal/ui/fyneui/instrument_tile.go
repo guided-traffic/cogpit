@@ -34,8 +34,8 @@ func newInstrumentTile(name engine.Integration) *instrumentTile {
 
 // The integrations' glyphs, Cogpit's own drawings (clean-room, D-12) on a 24-unit grid: the
 // Metrics Server's chip, Prometheus' rising line, the Alertmanager's bell, Trivy's shield and
-// Kyverno's referee's whistle, a rule broken (the owner, 2026-11-03: "Wir nehmen eine
-// Trillerpfeife"; the same glyph on its tile and as its signal in the lists).
+// Kyverno's referee's whistle, a rule broken (the owner: "Wir nehmen eine Trillerpfeife"; the same
+// glyph on its tile and as its signal in the lists).
 var (
 	glyphPrometheus = metricIcon("cogpit-prometheus.svg", `<path d="M3 18.2 9 11l3.6 3.6L19.6 6.4l1.6 1.4-8.5 10-3.6-3.6-4.7 5.6z"/>`)
 	glyphTrivy      = metricIcon("cogpit-trivy.svg", `<path d="M12 2 4 5.5v5.7c0 4.7 3.3 8.7 8 10 4.7-1.3 8-5.3 8-10V5.5z"/>`)

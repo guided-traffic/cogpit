@@ -95,8 +95,8 @@ func TestCuratedProfiles(t *testing.T) {
 	}
 }
 
-// TestVerticalPodAutoscalerColumns pins the default columns of Lens's documentation (read
-// 2026-10-13, not captured) and Cogpit's hidden ones after them.
+// TestVerticalPodAutoscalerColumns pins the default columns of Lens's documentation (read, not
+// captured) and Cogpit's hidden ones after them.
 func TestVerticalPodAutoscalerColumns(t *testing.T) {
 	p := curatedProfile(t, vpaKey)
 	var got []string

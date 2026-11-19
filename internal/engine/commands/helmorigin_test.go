@@ -65,12 +65,12 @@ func chartRow(t *testing.T, h *repoUpgradeHarness, id string) string {
 	return ""
 }
 
-// A chart from a repository whose content nothing authenticates is marked (H-41, owner
-// 2026-10-14 evening, A14): its object says the origin, its Repository cell "lab (http)" or
-// "edge (insecure TLS)" in the warning colour and its drawer why, for the window and agents alike;
-// the Install tab and the preview carry the origin its archive came from, and an install's
-// confirmation shows the warning. A chart that came another way than the confirmation said is
-// refused. A repository over https with the certificate checked is not marked.
+// A chart from a repository whose content nothing authenticates is marked (H-41, owner, A14): its
+// object says the origin, its Repository cell "lab (http)" or "edge (insecure TLS)" in the warning
+// colour and its drawer why, for the window and agents alike; the Install tab and the preview carry
+// the origin its archive came from, and an install's confirmation shows the warning. A chart that
+// came another way than the confirmation said is refused. A repository over https with the
+// certificate checked is not marked.
 func TestHelmChartOriginMarked(t *testing.T) {
 	h := originHarness(t)
 	httpWarning, insecureWarning := kinds.HelmOriginWarning("lab", kinds.HelmOriginHTTP), kinds.HelmOriginWarning("edge", kinds.HelmOriginInsecureTLS)

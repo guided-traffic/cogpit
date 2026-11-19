@@ -11,15 +11,15 @@ import (
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
 )
 
-// Who Cogpit is logged in as (D-68, the owner, 2026-10-16). At every connect to a real cluster the
-// connection asks the API server who it is (cluster.Conn.ReviewUser: one SelfSubjectReview, what
-// `kubectl auth whoami` asks), and asks again whenever the connection comes back from an
-// interruption or a renewed login (connwatch.go's reconnect). The navigator's root row shows the
-// username, its groups behind a box's tooltip; agents read the same in ui_state's user. When the
-// API server does not know the review (older than 1.27) or refuses it, the kubeconfig's user entry's
-// name stands in, marked as such; while the cluster is not connected, the last username the API
-// server confirmed for the context, with when it was last seen (whoami_store.go). A review that
-// fails never fails the connect.
+// Who Cogpit is logged in as (D-68, the owner). At every connect to a real cluster the connection
+// asks the API server who it is (cluster.Conn.ReviewUser: one SelfSubjectReview, what `kubectl auth
+// whoami` asks), and asks again whenever the connection comes back from an interruption or a
+// renewed login (connwatch.go's reconnect). The navigator's root row shows the username, its groups
+// behind a box's tooltip; agents read the same in ui_state's user. When the API server does not
+// know the review (older than 1.27) or refuses it, the kubeconfig's user entry's name stands in,
+// marked as such; while the cluster is not connected, the last username the API server confirmed
+// for the context, with when it was last seen (whoami_store.go). A review that fails never fails
+// the connect.
 
 // Where ClusterUser.Username comes from.
 const (

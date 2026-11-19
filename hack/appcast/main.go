@@ -24,12 +24,12 @@
 // With -live it also fetches the feed Pages serves now (past its cache) and refuses a feed that
 // would take back a release Pages offers: each draft builds on the feed served when the draft ran,
 // so a release whose appcast is approved after a newer one's would otherwise deploy its older feed
-// over the newer one (2026-10-16). It refuses when a channel's newest served item is newer than the
-// new feed's newest of that channel, or the channel is gone. The newer release wins: an older
-// served item the new feed lacks only because its draft ran before that item was deployed (v0.19.0's
-// draft before v0.18.0's deploy, 2026-10-16) is reported and left out, since Sparkle offers each
-// copy the newest item it may install; an item older than every item of its channel in the new
-// feed went with the channel's -keep newest and is not reported.
+// over the newer one. It refuses when a channel's newest served item is newer than the new feed's
+// newest of that channel, or the channel is gone. The newer release wins: an older served item the
+// new feed lacks only because its draft ran before that item was deployed (v0.19.0's draft before
+// v0.18.0's deploy) is reported and left out, since Sparkle offers each copy the newest item it may
+// install; an item older than every item of its channel in the new feed went with the channel's
+// -keep newest and is not reported.
 //
 // The Windows app's feed (D-111) is the same format at another URL, read by WinSparkle: add with
 // -os windows-x64 (sparkle:os on the enclosure) and -installer-args (sparkle:installerArguments,

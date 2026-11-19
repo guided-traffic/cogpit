@@ -9,10 +9,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Reconcile with Source (D-33, owner 2026-10-14): the source the flux CLI's `--with-source`
-// reconciles before an object, as flux2's cmd/flux reconcile_kustomization.go,
-// reconcile_helmrelease.go, reconcile_source_chart.go and reconcile_source_helm.go read it
-// (verified 2026-10-14 against flux2's main branch):
+// Reconcile with Source (D-33, owner): the source the flux CLI's `--with-source` reconciles before
+// an object, as flux2's cmd/flux reconcile_kustomization.go, reconcile_helmrelease.go,
+// reconcile_source_chart.go and reconcile_source_helm.go read it (verified against flux2's main
+// branch):
 //
 //   - a Kustomization: spec.sourceRef, a GitRepository, OCIRepository or Bucket, in the
 //     Kustomization's namespace unless the reference names one;

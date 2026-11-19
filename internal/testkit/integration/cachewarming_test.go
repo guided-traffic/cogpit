@@ -16,9 +16,9 @@ import (
 
 // An API server that answers the first watch of a resource 429 "storage is (re)initializing", as
 // every API server does while it builds its cache of the resource (a custom resource's at the first
-// request for it; the owner's staging cluster, 2026-10-26): the view shows the objects after
-// client-go's retry, Connection Diagnostics has a grey "cache warming" line, and nothing counts as a
-// problem (D-135, the owner's option a).
+// request for it; the owner's staging cluster): the view shows the objects after client-go's retry,
+// Connection Diagnostics has a grey "cache warming" line, and nothing counts as a problem (D-135,
+// the owner's option a).
 func TestCacheWarmingIsNoProblem(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

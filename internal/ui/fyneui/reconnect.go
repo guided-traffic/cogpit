@@ -9,9 +9,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// Reconnect in the window (D-81, the owner's F29 of 2026-10-17: "ein Button in der
-// Clusterübersicht, für einen Reconnect"): cluster.reconnect ends a connected cluster's connection
-// and connects it anew from its kubeconfig file as it is now, its tabs kept. The window offers it
+// Reconnect in the window (D-81, the owner's F29: "ein Button in der Clusterübersicht, für einen
+// Reconnect"): cluster.reconnect ends a connected cluster's connection and connects it anew from
+// its kubeconfig file as it is now, its tabs kept. The window offers it
 //
 //   - as a ↻ button on every connected cluster's row in the navigator's section, the list of all
 //     clusters (navigator_sections.go), and above the cluster Overview's charts (clusteroverview.go):
@@ -24,7 +24,7 @@ import (
 //
 // While it runs the cluster's dots blink as at a connect (clustermarks.go) and its items say
 // "Reconnecting…", greyed. Lens has no Reconnect of its own (its cluster menu connects and
-// disconnects, captured 2026-10-12): Cogpit's own.
+// disconnects, captured): Cogpit's own.
 
 const (
 	reconnectLabel   = "Reconnect"

@@ -264,11 +264,11 @@ func TestConfigMapDataNeverOverwritesUnasked(t *testing.T) {
 	}
 }
 
-// TestConfigMapDataRebases (the owner's answer of 2026-10-15): another client changes a key the
-// user did not edit. A review given the edited keys' values at the base version rebases the values
-// onto the newer version: the diff and the dry run against it, the newer version to save with,
-// the other client's change kept. A change of an edited key is the conflict as before; so is a
-// review without from. A change that reaches the server while the review runs ends rebased too.
+// TestConfigMapDataRebases (the owner's answer): another client changes a key the user did not
+// edit. A review given the edited keys' values at the base version rebases the values onto the
+// newer version: the diff and the dry run against it, the newer version to save with, the other
+// client's change kept. A change of an edited key is the conflict as before; so is a review without
+// from. A change that reaches the server while the review runs ends rebased too.
 func TestConfigMapDataRebases(t *testing.T) {
 	h, srv := configMapHarness(t, engine.Options{})
 	gui := engine.OriginGUI

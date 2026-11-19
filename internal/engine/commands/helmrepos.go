@@ -9,10 +9,10 @@ import (
 
 // Helm chart repositories (G11, D-29, architecture §8): the repositories Helm's own
 // repositories.yaml lists. They are added and removed with the helm CLI only (helm repo add, helm
-// repo remove; owner, 2026-10-13): Cogpit writes nothing into Helm's file or folders, so there is
-// no command that adds or removes one. The list reads them (name, URL without a user or password,
-// whether credentials are present, never a credential), and an update downloads their indexes into
-// Cogpit's own cache: both run for every origin and change no cluster.
+// repo remove; owner): Cogpit writes nothing into Helm's file or folders, so there is no command
+// that adds or removes one. The list reads them (name, URL without a user or password, whether
+// credentials are present, never a credential), and an update downloads their indexes into Cogpit's
+// own cache: both run for every origin and change no cluster.
 
 type repoUpdateParams struct {
 	Names []string `json:"names,omitempty" jsonschema:"the repositories to update, by their names in Helm's repositories file; empty: every repository Cogpit uses"`

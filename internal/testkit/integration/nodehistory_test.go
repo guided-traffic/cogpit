@@ -75,11 +75,11 @@ func (p *kpsProm) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}})
 }
 
-// TestNodeHistoryOnKubePrometheusStack is F1's path through the engine (owner, 2026-10-14
-// evening: "no past data" for nodes): a node's drawer and the cluster Overview get the past hour
-// from node-exporter, found by the node's InternalIP from the cache, on a Prometheus that has no
-// root cgroup, and the Metrics Server's live values after it; the drawer says where the history
-// comes from (HistorySource), as does the Overview (UsageHistory).
+// TestNodeHistoryOnKubePrometheusStack is F1's path through the engine (owner: "no past data" for
+// nodes): a node's drawer and the cluster Overview get the past hour from node-exporter, found by
+// the node's InternalIP from the cache, on a Prometheus that has no root cgroup, and the Metrics
+// Server's live values after it; the drawer says where the history comes from (HistorySource), as
+// does the Overview (UsageHistory).
 func TestNodeHistoryOnKubePrometheusStack(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()

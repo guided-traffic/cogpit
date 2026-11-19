@@ -59,7 +59,7 @@ type Candidate struct {
 	// Ports are the spellings of the target's port the service proxy is asked with, best first:
 	// its number, then its name (portForms). Target.Port is the first. An RBAC rule that grants
 	// services/proxy by resourceNames matches the proxy's name "<service>:<port>" as written, and
-	// the roles written for Lens name the number (the owner's acme-mgmt, 2026-10-18: only
+	// the roles written for Lens name the number (the owner's acme-mgmt: only
 	// "prometheus-operated:9090" was allowed, "…:http-web" refused); empty for an override, which
 	// is asked as set.
 	Ports []string
@@ -87,19 +87,18 @@ type Candidate struct {
 //	           hand-written install)
 //	score  40  prometheus in any other namespace
 //
-// Detection finds what the cluster runs: Cogpit installs no Prometheus of its own (D-61, owner
-// 2026-10-16), so no install ranks first for being Cogpit's. A Prometheus by one of its own names
-// ranks before Thanos and VictoriaMetrics (D-71, the lead's decision of the night run
-// 2026-10-16/17): it holds the cluster's own series, where a Querier or a VictoriaMetrics may hold
-// several clusters' and Cogpit's queries do not narrow by a cluster label; the user names one in
-// Cluster Settings › Prometheus to read it instead. Ties go to the namespaces named in
-// preferredNamespaces, then by name. A name that is not one of these is never tried: probing every
-// Service of a cluster would send a request each.
+// Detection finds what the cluster runs: Cogpit installs no Prometheus of its own (D-61, owner), so
+// no install ranks first for being Cogpit's. A Prometheus by one of its own names ranks before
+// Thanos and VictoriaMetrics (D-71, the lead's decision of the night run): it holds the cluster's
+// own series, where a Querier or a VictoriaMetrics may hold several clusters' and Cogpit's queries
+// do not narrow by a cluster label; the user names one in Cluster Settings › Prometheus to read it
+// instead. Ties go to the namespaces named in preferredNamespaces, then by name. A name that is not
+// one of these is never tried: probing every Service of a cluster would send a request each.
 var promNames = []promName{
 	// The chart names its resources <release>-kube-prometheus-stack, cut to 26 characters (or the
 	// release alone when it contains the chart's name): "kube-prometheus-stack-prometheus",
 	// "monitoring-kube-prometheus-prometheus", and for a release of up to five characters
-	// "kps-kube-prometheus-stack-prometheus" (2026-10-12, found reading the chart for the kind check).
+	// "kps-kube-prometheus-stack-prometheus" (found reading the chart for the kind check).
 	{re: regexp.MustCompile(`^(.+-)?kube-prometheus(-stack)?-prometheus$`), score: 100},
 	{re: regexp.MustCompile(`^prometheus-k8s$`), score: 95},
 	{re: regexp.MustCompile(`^prometheus-operated$`), score: 90},

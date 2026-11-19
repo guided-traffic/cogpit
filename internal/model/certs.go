@@ -21,13 +21,12 @@ import (
 	"unicode/utf8"
 )
 
-// The certificates a Secret holds, decoded (D-30, owner 2026-10-13). A certificate is public
-// material: its fields reach the drawer and agents, while the PEM text, the value it came from and
-// any private key never do. Only PEM blocks of type CERTIFICATE are decoded; the parser hands
-// pem.Decode nothing but such a block, so a PRIVATE KEY block next to it is never decoded, let
-// alone parsed. A value without one is read as DER certificates when it is shaped like one
-// (owner, 2026-10-13). The one place a private key is parsed is keymatch.go, to compare it with
-// a certificate. Pure: no I/O.
+// The certificates a Secret holds, decoded (D-30, owner). A certificate is public material: its
+// fields reach the drawer and agents, while the PEM text, the value it came from and any private
+// key never do. Only PEM blocks of type CERTIFICATE are decoded; the parser hands pem.Decode
+// nothing but such a block, so a PRIVATE KEY block next to it is never decoded, let alone parsed. A
+// value without one is read as DER certificates when it is shaped like one (owner). The one place a
+// private key is parsed is keymatch.go, to compare it with a certificate. Pure: no I/O.
 
 // Bounds on what is decoded (Cogpit's defaults, not the owner's).
 const (

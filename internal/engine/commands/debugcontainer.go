@@ -13,13 +13,13 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The debug container (the owner, 2026-10-19 evening; D-102; engine/debugcontainer.go): pod.debug
-// adds an ephemeral container to a running pod, as kubectl debug -it --target does, and opens the
-// pod's Attach tab on it. It is destructive for every origin (the owner): an ephemeral container
-// cannot be removed or changed and lives as long as the pod, and with a target it sees that
-// container's processes and, through them, its files, mounted Secrets included, the node shell's
-// class (D-37). The window asks in a dialog of its own that is the confirmation (debugdialog.go);
-// agents and the CLI get the engine's confirmation with the same rows.
+// The debug container (the owner; D-102; engine/debugcontainer.go): pod.debug adds an ephemeral
+// container to a running pod, as kubectl debug -it --target does, and opens the pod's Attach tab on
+// it. It is destructive for every origin (the owner): an ephemeral container cannot be removed or
+// changed and lives as long as the pod, and with a target it sees that container's processes and,
+// through them, its files, mounted Secrets included, the node shell's class (D-37). The window asks
+// in a dialog of its own that is the confirmation (debugdialog.go); agents and the CLI get the
+// engine's confirmation with the same rows.
 
 // debugParams are pod.debug's parameters.
 type debugParams struct {

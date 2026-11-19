@@ -34,11 +34,11 @@ const (
 	maxSliceDevices = 128
 )
 
-// resourceSlices has the columns of Lens's documentation (read 2026-10-13, not captured): Name,
-// Driver, Pool, Node, Devices (how many the slice publishes), Allocated (how many of those are
-// allocated to a claim), Age; its drawer shows Driver, Pool and Node, then each device with its
-// attributes, capacity and taints. Allocated is read through the ClaimsByPool index over the cached
-// claims. Inferred: the Node column of a slice that is not one node's (All nodes, Node selector, Per
+// resourceSlices has the columns of Lens's documentation (read, not captured): Name, Driver, Pool,
+// Node, Devices (how many the slice publishes), Allocated (how many of those are allocated to a
+// claim), Age; its drawer shows Driver, Pool and Node, then each device with its attributes,
+// capacity and taints. Allocated is read through the ClaimsByPool index over the cached claims.
+// Inferred: the Node column of a slice that is not one node's (All nodes, Node selector, Per
 // device), Allocated as "-" while the claims are not listed, no status token, the drawer's form.
 var resourceSlices = &model.KindProfile{
 	Key:      keyResourceSlices,

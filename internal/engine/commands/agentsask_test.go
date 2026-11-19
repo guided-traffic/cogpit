@@ -15,11 +15,11 @@ import (
 )
 
 // A role binding an agent asks for waits for the user on every path that writes one, also where
-// the user allowed agent writes for the context (H-27, owner 2026-10-14): object.create of a text
-// that holds a binding (among other documents, or in a v1 List), and object.apply of an Edit tab
-// on a binding (from yaml or from the tab's text). Declined, nothing is written. The GUI's own
-// write of the same text runs without a dialog, as before, and a text without a binding still
-// runs unasked for the agent. (roleBinding.create: TestCreateDialogsAgentsNeedAcceptance.)
+// the user allowed agent writes for the context (H-27, owner): object.create of a text that holds a
+// binding (among other documents, or in a v1 List), and object.apply of an Edit tab on a binding
+// (from yaml or from the tab's text). Declined, nothing is written. The GUI's own write of the same
+// text runs without a dialog, as before, and a text without a binding still runs unasked for the
+// agent. (roleBinding.create: TestCreateDialogsAgentsNeedAcceptance.)
 func TestAgentRoleBindingsAlwaysAsk(t *testing.T) {
 	var asked []engine.ConfirmRequest
 	answer := false
@@ -165,8 +165,8 @@ func TestTextHoldsRBAC(t *testing.T) {
 }
 
 // An agent's cluster.setPrometheus always waits for the user, also where agent writes are allowed,
-// the question naming the service (A16, owner 2026-10-14 evening; H-26); declined, nothing is
-// set. The window's own setting is not asked.
+// the question naming the service (A16, owner; H-26); declined, nothing is set. The window's own
+// setting is not asked.
 func TestAgentSetPrometheusAsks(t *testing.T) {
 	var asked []engine.ConfirmRequest
 	h := newHarness(t, seed(), engine.Options{Confirmer: engine.ConfirmFunc(func(_ context.Context, req engine.ConfirmRequest) (bool, error) {

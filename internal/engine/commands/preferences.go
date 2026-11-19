@@ -184,8 +184,8 @@ func registerPreferences(g *registrar) {
 			"integrations for new clusters (integrationDefaults) apply at once to every cluster without a choice of its own." +
 			prefsWritesOnly + " Returns the preferences.",
 		Enabled: func(s *engine.Session, _ preferencesSetParams) error { _, err := s.Preferences(); return err },
-		// An agent's proxy always waits for the user (A20, owner 2026-10-14 evening; the follow-up's
-		// Preferences proxy belongs to no context, so no allowance could skip it: a night decision).
+		// An agent's proxy always waits for the user (A20, owner; the follow-up's Preferences proxy
+		// belongs to no context, so no allowance could skip it: a night decision).
 		AgentsAsk: func(_ *engine.Session, p preferencesSetParams) bool { return setsProxy(p.HTTPProxy) },
 		Effects: func(_ *engine.Session, p preferencesSetParams) []engine.Effect {
 			if !setsProxy(p.HTTPProxy) {

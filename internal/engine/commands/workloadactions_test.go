@@ -128,9 +128,9 @@ func newWorkloadHarness(t testing.TB, src *testkit.MemorySource, w engine.Action
 }
 
 // TestRestartDaemonSetsAndStatefulSets: Restart of a Daemon Set and a Stateful Set sends
-// kubectl's restart for its kind, after a confirmation for every origin (owner, 2026-10-11: it
-// replaces every pod), even when agent writes are allowed; a declined one writes nothing; the
-// confirmation says when the OnDelete strategy delays the replacement.
+// kubectl's restart for its kind, after a confirmation for every origin (owner: it replaces every
+// pod), even when agent writes are allowed; a declined one writes nothing; the confirmation says
+// when the OnDelete strategy delays the replacement.
 func TestRestartDaemonSetsAndStatefulSets(t *testing.T) {
 	audit := &syncBuffer{}
 	h := newWorkloadHarness(t, nil, nil, engine.Options{Audit: audit})

@@ -17,14 +17,14 @@ import (
 )
 
 // Argo CD's Dashboard (resource-parity › Paid Lens Desktop views › Argo CD, G23): a page built from
-// the cache. Lens's documentation (read 2026-10-13, not captured) describes "a health strip with
-// counts for Applications, Synced, Healthy, Out of sync, Degraded, Missing, and Progressing", "a
-// card per resource kind", a "Needs attention" panel and a "Recent activity" timeline, with Sync
-// and Refresh of several Applications on the Applications card. Cogpit's page: the strip and the
-// kinds' cards in its model (ArgoCDDashboardModel), Needs attention as the page's table (the
-// Applications not Healthy or not Synced, with their message: sortable, searchable, selectable,
-// a row opens the Application's drawer), the recent activity from the Applications' operation
-// states and histories. The layout is Cogpit's own (inferred).
+// the cache. Lens's documentation (read, not captured) describes "a health strip with counts for
+// Applications, Synced, Healthy, Out of sync, Degraded, Missing, and Progressing", "a card per
+// resource kind", a "Needs attention" panel and a "Recent activity" timeline, with Sync and Refresh
+// of several Applications on the Applications card. Cogpit's page: the strip and the kinds' cards
+// in its model (ArgoCDDashboardModel), Needs attention as the page's table (the Applications not
+// Healthy or not Synced, with their message: sortable, searchable, selectable, a row opens the
+// Application's drawer), the recent activity from the Applications' operation states and histories.
+// The layout is Cogpit's own (inferred).
 
 // ArgoCDDashboard is the page key of the Argo CD Dashboard (Argo CD › Dashboard in the navigator).
 const ArgoCDDashboard = "argocd/dashboard"
@@ -328,7 +328,7 @@ func (w *argoDashWorker) build(p viewParams) (*ArgoCDDashboardModel, *TableSnaps
 			snap.Error, m.Error = why, why
 		}
 		// While the definitions are still being listed, nothing is known yet: not synced (an agent's
-		// read right after connecting saw served false and synced true, 2026-10-16).
+		// read right after connecting saw served false and synced true).
 		if !w.backend.CustomKindsSettled() {
 			snap.Synced, m.Synced = false, false
 		}

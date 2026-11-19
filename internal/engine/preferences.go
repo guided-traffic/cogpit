@@ -133,9 +133,9 @@ type Preferences struct {
 	KubectlPath   string `json:"kubectlPath,omitempty"`
 	// KubectlEnforce: a terminal's shell (zsh, bash, fish) also gets a function named kubectl that
 	// runs the kubectl Cogpit chose, so that a folder the user's profile puts first, or an alias,
-	// does not win (A27, owner 2026-10-14 evening; terminal.LocalOptions.EnforceKubectl); off: the
-	// hand-over that puts it first on PATH after the profile ran (the default). Only the user sets
-	// it (ErrKubectlGUIOnly; the lead's night decision on the round's follow-up 4).
+	// does not win (A27, owner; terminal.LocalOptions.EnforceKubectl); off: the hand-over that puts
+	// it first on PATH after the profile ran (the default). Only the user sets it
+	// (ErrKubectlGUIOnly; the lead's night decision on the round's follow-up 4).
 	KubectlEnforce bool `json:"kubectlEnforce,omitempty"`
 	// LoadChartIcons: the Charts view and a chart's drawer fetch the icon a repository's index
 	// names, from whatever host serves it (D-46, helmicons.go); off: none is fetched and Cogpit's
@@ -155,30 +155,29 @@ type Preferences struct {
 	// IntegrationsOff are the integrations off by default for new clusters (integrations.go, D-76):
 	// what the window's question looks for at once when the user checks the integrations (Check
 	// all, D-82), and what applies to a cluster without a choice in a session that does not ask
-	// (the CLI's) and on the demo cluster. None, the default: every integration is on (the owner,
-	// 2026-10-17). Only the user changes it, in the window (ErrIntegrationsGUIOnly, H-126, H-133).
+	// (the CLI's) and on the demo cluster. None, the default: every integration is on (the owner).
+	// Only the user changes it, in the window (ErrIntegrationsGUIOnly, H-126, H-133).
 	IntegrationsOff IntegrationSet `json:"integrationsOff,omitempty"`
 	// DebugImage is the image Debug (pod.debug, debugcontainer.go, D-102) offers for a pod's
 	// ephemeral container; empty: DefaultDebugImage, nicolaka/netshoot pinned by digest. App-wide,
-	// unlike the node shell's image, which is a cluster's (the owner, 2026-10-19). Only the user
-	// sets it; agents and the CLI may only reset it (ErrDebugImageGUIOnly).
+	// unlike the node shell's image, which is a cluster's (the owner). Only the user sets it;
+	// agents and the CLI may only reset it (ErrDebugImageGUIOnly).
 	DebugImage string `json:"debugImage,omitempty"`
 	// MixedEnvironments: the tab bar shows the open tabs of every cluster side by side; off, the
 	// default, only the shown cluster's, the one the status bar and the navigator name (the owner,
-	// 2026-10-20, GW11: "mixed environments", at the foot of the navigator's All Clusters; TabsShown).
-	// Agents and the CLI may set it either way: it changes only which tabs the bar shows.
+	// GW11: "mixed environments", at the foot of the navigator's All Clusters; TabsShown). Agents
+	// and the CLI may set it either way: it changes only which tabs the bar shows.
 	MixedEnvironments bool `json:"mixedEnvironments,omitempty"`
 	// ReduceMotion: the window switches at once where it would slide, between All Clusters and a
 	// cluster's tree and from one cluster's tree to another's; off, the default, it slides (the
-	// owner, 2026-10-20: "weniger Bewegung", for those who do not like the animations;
+	// owner: "weniger Bewegung", for those who do not like the animations;
 	// fyneui/navigator_slide.go). Agents and the CLI may set it either way: it changes only how the
 	// window moves.
 	ReduceMotion bool `json:"reduceMotion,omitempty"`
 	// HideOutdatedObjects: the navigator leaves out the kinds Kubernetes has a successor for
 	// (OutdatedKinds); its search still finds them, and so do the palette, the View menu, links,
-	// open tabs and ui.openView. On by default (the owner, 2026-11-03: "Hide outdated objects",
-	// default true). Agents and the CLI may set it either way: it changes only what the navigator
-	// lists.
+	// open tabs and ui.openView. On by default (the owner: "Hide outdated objects", default true).
+	// Agents and the CLI may set it either way: it changes only what the navigator lists.
 	HideOutdatedObjects bool `json:"hideOutdatedObjects"`
 	// BackReferences: a drawer ends with Referenced By, the objects of other kinds that point at
 	// its object by a label selector or by name (kinds.BackRefSection, D-152); off, the default,
@@ -188,9 +187,9 @@ type Preferences struct {
 	BackReferences bool `json:"backReferences,omitempty"`
 	// LightStripMainsOnly: the light strip under the tabs animates only while the computer runs on
 	// its power adapter and on battery shows its colour standing still; off, the default, it
-	// animates on battery too (the owner, 2026-10-24, LS15 and LS16: "nur bei Netzbetrieb", once for
-	// the app; an animation repaints the window and costs CPU; fyneui/preferences_power.go). Agents
-	// and the CLI may set it either way: it changes only how the window moves.
+	// animates on battery too (the owner, LS15 and LS16: "nur bei Netzbetrieb", once for the app;
+	// an animation repaints the window and costs CPU; fyneui/preferences_power.go). Agents and the
+	// CLI may set it either way: it changes only how the window moves.
 	LightStripMainsOnly bool `json:"lightStripMainsOnly,omitempty"`
 	// ProgramFolders are the folders, absolute paths, Cogpit looks in for the programs a
 	// kubeconfig's credential plugin runs, kubectl's plugins and a terminal's programs, after PATH's
@@ -198,10 +197,10 @@ type Preferences struct {
 	// user adds one (ErrProgramFoldersGUIOnly); agents and the CLI may remove one.
 	ProgramFolders []string `json:"programFolders,omitempty"`
 	// RevisionsDiff is the way a Helm release's Revisions tab reads a comparison: which revision is
-	// the diff's old side (−) and which its new side (+) (helmrevisions.go, D-131; the owner,
-	// 2026-10-25: the user configures his favourite way). Empty, the default: from the revision
-	// compared to the one shown (RevisionsComparedToShown). Agents and the CLI may set it either
-	// way: it changes only how the window shows a comparison.
+	// the diff's old side (−) and which its new side (+) (helmrevisions.go, D-131; the owner: the
+	// user configures his favourite way). Empty, the default: from the revision compared to the one
+	// shown (RevisionsComparedToShown). Agents and the CLI may set it either way: it changes only
+	// how the window shows a comparison.
 	RevisionsDiff string `json:"revisionsDiff,omitempty"`
 	// ZoomLevel is the window's zoom (zoom.go, D-134): VS Code's zoom level, a factor of 1.2 to its
 	// power, MinZoomLevel to MaxZoomLevel; 0, the default, is 100%. Agents and the CLI may set it
@@ -214,11 +213,11 @@ type Preferences struct {
 }
 
 // DefaultPreferences are the preferences of a first start: the theme follows the computer's
-// (Sync with computer; the owner's A94 of 2026-10-14 evening, dark before; a stored choice stays),
-// the computer's time zone, the default row height, a table's free width to its cut columns
-// (D-145) but those of labels and selectors (D-153), 13-point text, line numbers on, two-space tabs, the user's own shell, kubectl downloads
-// offered, chart icons loaded (D-46), updates checked automatically on the stable channel (D-4),
-// outdated kinds left out of the navigator.
+// (Sync with computer; the owner's A94, dark before; a stored choice stays), the computer's time
+// zone, the default row height, a table's free width to its cut columns (D-145) but those of labels
+// and selectors (D-153), 13-point text, line numbers on, two-space tabs, the user's own shell,
+// kubectl downloads offered, chart icons loaded (D-46), updates checked automatically on the stable
+// channel (D-4), outdated kinds left out of the navigator.
 func DefaultPreferences() Preferences {
 	return Preferences{Theme: ThemeSystem, TableSpreadWidth: true, TableSpreadExceptLabels: true,
 		TableSpreadExceptSelectors: true, EditorFontSize: DefaultFontSize,
@@ -709,13 +708,12 @@ var PreferencesSections = []string{SectionApp, SectionProxy, SectionKubernetes, 
 // ClusterSettingsSections are the Cluster settings page's built sections, in Lens's captured
 // order (General, Proxy, Terminal, Namespaces, Metrics, ..., Node Shell) without Lens's Cost and
 // Lens Metrics (Cogpit installs nothing into a cluster for its own features: it reads the metrics
-// stack the cluster runs, D-61, owner 2026-10-16), then Cogpit's own Agents (allowance.go; its
-// place inferred: last, Lens has no such section). Below them, under a divider, Cogpit's own
-// integrations (D-76; the owner's WF22, D-87): Integrations, every integration's switch and state
-// with Ask again, then one section per integration, named as the integration is
-// (IntegrationSection), with its switch, its state and its details (Prometheus's address and query
-// format, Alertmanager's address). Metrics keeps what concerns the metrics themselves and names the
-// two integrations it reads.
+// stack the cluster runs, D-61, owner), then Cogpit's own Agents (allowance.go; its place inferred:
+// last, Lens has no such section). Below them, under a divider, Cogpit's own integrations (D-76;
+// the owner's WF22, D-87): Integrations, every integration's switch and state with Ask again, then
+// one section per integration, named as the integration is (IntegrationSection), with its switch,
+// its state and its details (Prometheus's address and query format, Alertmanager's address).
+// Metrics keeps what concerns the metrics themselves and names the two integrations it reads.
 var ClusterSettingsSections = append([]string{SectionGeneral, SectionProxy, SectionTerminal, SectionNamespaces,
 	SectionMetrics, SectionNodeShell, SectionNodeConditions, SectionAgents, SectionIntegrations}, integrationSections()...)
 

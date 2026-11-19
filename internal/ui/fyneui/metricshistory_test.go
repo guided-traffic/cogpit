@@ -10,10 +10,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// F1 (owner, 2026-10-14 evening): a node's chart had no past and said nothing about it. Its
-// history now comes from node-exporter where the cluster's Prometheus has it (A43), and where that
-// Prometheus has no CPU or memory series of the object at all, the drawer and the cluster Overview
-// say so under the source line instead of leaving a chart that silently starts late.
+// F1 (owner): a node's chart had no past and said nothing about it. Its history now comes from
+// node-exporter where the cluster's Prometheus has it (A43), and where that Prometheus has no CPU
+// or memory series of the object at all, the drawer and the cluster Overview say so under the
+// source line instead of leaving a chart that silently starts late.
 
 // nodeHistoryFake is a node's drawer with Prometheus behind it: an hour of node-exporter's
 // history, or (source "none") only the five minutes Cogpit measured since the drawer opened.

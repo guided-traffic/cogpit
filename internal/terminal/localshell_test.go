@@ -178,7 +178,7 @@ func TestStartLocalCloseKillsShellIgnoringHangup(t *testing.T) {
 
 // Without a shell in the options or in $SHELL, the local terminal starts the first of zsh, bash
 // and sh that exists, not a zsh the system may lack (CI's runner pods export no SHELL and have no
-// zsh, 2026-10-13).
+// zsh).
 func TestDefaultShellIsOneThatExists(t *testing.T) {
 	for _, tc := range []struct {
 		exist []string

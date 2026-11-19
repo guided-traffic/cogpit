@@ -194,7 +194,7 @@ type Connection struct {
 	Demo  bool            `json:"demo,omitempty"`  // the synthetic demo cluster
 	// TLSUnchecked is set while the connection does not check the API server's certificate
 	// (insecure-skip-tls-verify in its kubeconfig), from the connection's own configuration: the
-	// status bar says "TLS not checked" beside the context (A29, owner 2026-10-14 evening; H-37).
+	// status bar says "TLS not checked" beside the context (A29, owner; H-37).
 	TLSUnchecked bool `json:"tlsUnchecked,omitempty"`
 	// Since is when the connection was interrupted, or the login expired; zero otherwise
 	// (connwatch.go, D-58). The views show the cache's state as of then.
@@ -228,7 +228,7 @@ type Connection struct {
 	// Upgraded is set while the API server answers with another minor version than the one the
 	// connection was made for: its kinds and API versions are the connect's until a reconnect
 	// (cluster.reconnect) makes a connection for the new one (connwatch_version.go; the owner's
-	// "Option A" of 2026-10-26). A patch release changes no API and sets nothing.
+	// "Option A"). A patch release changes no API and sets nothing.
 	Upgraded *ServerUpgrade `json:"upgraded,omitempty"`
 }
 
@@ -335,9 +335,9 @@ type DockTab struct {
 }
 
 // HelmUpgradeTab is what a Helm Upgrade tab shows beside its values editor (Lens's "Helm Upgrade:
-// <name>" tab, captured 2026-10-12): the release's chart, the version the upgrade installs and the
-// versions its picker offers. The tab's Ref is the release (kind helmreleases); its values are the
-// tab's editor text (editor.get, editor.setText), which agents read withheld (model.Withheld; the
+// <name>" tab, captured): the release's chart, the version the upgrade installs and the versions
+// its picker offers. The tab's Ref is the release (kind helmreleases); its values are the tab's
+// editor text (editor.get, editor.setText), which agents read withheld (model.Withheld; the
 // built-in agent over a private connection as the window shows it, H-94). helm.release.upgradeTab with a repository or a version changes the choice (helmupgrade.go).
 type HelmUpgradeTab struct {
 	Chart string `json:"chart"`

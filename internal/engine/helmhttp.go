@@ -15,18 +15,18 @@ import (
 	"github.com/guided-traffic/cogpit/internal/helm"
 )
 
-// A Helm repository's user and password over plain http (credentials H-40, D-29; owner
-// 2026-10-14): a repository of Helm's file whose URL is http:// and that has basic auth downloads
-// nothing until the user allowed, once, that its credentials cross the network unencrypted. Then
-// it is used as helm uses it, the background refresh included. The allowance is kept like a
-// kubeconfig credential plugin's (kubeconfigs_approvals.go): in a file of Cogpit's own,
-// owner-only, bound to the repository's name, its URL and its user name
-// (helm.Repository.HTTPBinding); a changed URL or user name asks again, a changed password does
-// not. Only the user's own action in Cogpit's window gives it (helm.repo.allowHTTPCredentials is
-// GUI-only, D-2): an agent never allows the requests it would make, and it reads why a repository
-// is not downloaded in helm.repo.list. A repository without credentials over http needs no
-// allowance (only trust-boundaries H-41 applies to it). The helm package refuses such a download
-// by itself (helm.ErrCredentialsOverHTTP); the engine hands it a copy the user allowed.
+// A Helm repository's user and password over plain http (credentials H-40, D-29; owner): a
+// repository of Helm's file whose URL is http:// and that has basic auth downloads nothing until
+// the user allowed, once, that its credentials cross the network unencrypted. Then it is used as
+// helm uses it, the background refresh included. The allowance is kept like a kubeconfig credential
+// plugin's (kubeconfigs_approvals.go): in a file of Cogpit's own, owner-only, bound to the
+// repository's name, its URL and its user name (helm.Repository.HTTPBinding); a changed URL or user
+// name asks again, a changed password does not. Only the user's own action in Cogpit's window gives
+// it (helm.repo.allowHTTPCredentials is GUI-only, D-2): an agent never allows the requests it would
+// make, and it reads why a repository is not downloaded in helm.repo.list. A repository without
+// credentials over http needs no allowance (only trust-boundaries H-41 applies to it). The helm
+// package refuses such a download by itself (helm.ErrCredentialsOverHTTP); the engine hands it a
+// copy the user allowed.
 
 // HelmHTTPApprovalsFile holds the allowances, under Cogpit's configuration directory.
 const HelmHTTPApprovalsFile = "helm-http-approvals.json"

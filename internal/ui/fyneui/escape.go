@@ -7,13 +7,13 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// Escape closes the innermost thing open, and only that (the owner's alpha walk of 2026-10-22,
-// AW2, AW3, AW4 and AW19; D-116). Before, the window's Escape knew the palette, the notifications,
-// a settings page and the drawer only, so over a dialog it closed the drawer behind it (Rollback's
-// confirmation, AW3) or did nothing (Connection Updates, AW19); and Fyne hands a key to the widget
-// that has the keyboard, the window's handler hearing it only while nothing has, so a field that
-// took the keyboard by a click kept every Escape (a dropdown after its list closed, AW2; a search,
-// AW4). The order, outermost last:
+// Escape closes the innermost thing open, and only that (the owner's alpha walk, AW2, AW3, AW4 and
+// AW19; D-116). Before, the window's Escape knew the palette, the notifications, a settings page
+// and the drawer only, so over a dialog it closed the drawer behind it (Rollback's confirmation,
+// AW3) or did nothing (Connection Updates, AW19); and Fyne hands a key to the widget that has the
+// keyboard, the window's handler hearing it only while nothing has, so a field that took the
+// keyboard by a click kept every Escape (a dropdown after its list closed, AW2; a search, AW4). The
+// order, outermost last:
 //
 //  1. what has the keyboard, where it closes something of its own: an open dropdown's list (its
 //     field gives the keyboard up, so that the next Escape goes on), a find bar, a search (cleared

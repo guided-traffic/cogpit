@@ -17,14 +17,14 @@ import (
 )
 
 // The title bar's notifications (ui-parity › Appearance, "Notifications in the title bar"; a bell
-// in Lens's title bar, captured 2026-10-11; what it lists and how is not captured, so the panel is
-// Cogpit's, inferred): a bell at the top bar's right end with a badge of the unread count, in the
-// colour of the most severe unread level, and a panel below it listing the session's toasts newest
-// first. The list is engine state (engine/notifications.go): the window reads it with
-// notifications.list, opening the panel marks what it shows read (notifications.markRead), "Clear
-// all" empties it (notifications.clear), and closing a toast by its × marks that one read, so the
-// badge counts what went by unseen. Whether the panel is open is the window's, as the context
-// picker's was: agents read the list itself (Cogpit's default, 2026-10-13).
+// in Lens's title bar, captured; what it lists and how is not captured, so the panel is Cogpit's,
+// inferred): a bell at the top bar's right end with a badge of the unread count, in the colour of
+// the most severe unread level, and a panel below it listing the session's toasts newest first. The
+// list is engine state (engine/notifications.go): the window reads it with notifications.list,
+// opening the panel marks what it shows read (notifications.markRead), "Clear all" empties it
+// (notifications.clear), and closing a toast by its × marks that one read, so the badge counts what
+// went by unseen. Whether the panel is open is the window's, as the context picker's was: agents
+// read the list itself (Cogpit's default).
 
 // iconBell is the bell, drawn for Cogpit: a dome on a rim, and the clapper below it.
 var iconBell = theme.NewThemedResource(fyne.NewStaticResource("cogpit-bell.svg", []byte(

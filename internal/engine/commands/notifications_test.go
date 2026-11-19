@@ -80,10 +80,10 @@ func TestNotificationCommands(t *testing.T) {
 }
 
 // A Helm action's error the toast quotes reaches agents through the notification list as text
-// since A19 (owner, 2026-10-14 evening), without the action's inline values; the window reads it
-// whole (H-31). What a chart's lookup read and the filter does not know (a ConfigMap's data, a
-// Secret the cache does not hold) reaches the agent: the residual risk H-31 names. The command's
-// own error stays withheld from the agent.
+// since A19 (owner), without the action's inline values; the window reads it whole (H-31). What a
+// chart's lookup read and the filter does not know (a ConfigMap's data, a Secret the cache does not
+// hold) reaches the agent: the residual risk H-31 names. The command's own error stays withheld
+// from the agent.
 func TestHelmErrorToastReachesAgentsFiltered(t *testing.T) {
 	h, fi := installHarness(t)
 	h.answer = true

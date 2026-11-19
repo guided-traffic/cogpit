@@ -663,10 +663,9 @@ func (a *Agent) recordSent(st *turnState, body []byte, msgs []message) {
 	a.notify(c, true)
 }
 
-// timingOf is an answer's TTFT and OTPS (the owner's request of 2026-10-25): the time from the
-// request sent to its first part, and its output tokens over the time from its first part to its
-// last; the endpoint's completion tokens, else an estimate from the parts' bytes. Nil when no part
-// came.
+// timingOf is an answer's TTFT and OTPS (the owner's request): the time from the request sent to
+// its first part, and its output tokens over the time from its first part to its last; the
+// endpoint's completion tokens, else an estimate from the parts' bytes. Nil when no part came.
 func timingOf(resp response, sent time.Time) *engine.ChatTiming {
 	if resp.First.IsZero() {
 		return nil

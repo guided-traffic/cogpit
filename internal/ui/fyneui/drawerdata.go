@@ -9,11 +9,11 @@ import (
 )
 
 // Data sections with each key on a line of its own and its value below it at the details' full
-// width (the owner's F3, decided 2026-10-15, after Lens's ConfigMap drawer, captured 2026-10-15):
-// a key such as "agent-not-ready-taint-key" no longer runs under its value in the 128 pt name
-// column. A Config Map's Data puts its values in editors (configmapdata.go); a Secret's Data keeps
-// its masked values with Show, into an editor where the user may save them (secretdata.go), and a
-// Config Map's Binary Data its sizes.
+// width (the owner's F3, decided, after Lens's ConfigMap drawer, captured): a key such as
+// "agent-not-ready-taint-key" no longer runs under its value in the 128 pt name column. A Config
+// Map's Data puts its values in editors (configmapdata.go); a Secret's Data keeps its masked values
+// with Show, into an editor where the user may save them (secretdata.go), and a Config Map's Binary
+// Data its sizes.
 
 func init() {
 	drawerSections["configmaps\x00Binary Data"] = keyedSection

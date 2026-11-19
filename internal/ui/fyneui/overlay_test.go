@@ -8,8 +8,7 @@ import (
 )
 
 // The dismissable overlay (the command palette's since the context picker went, D-57) closes when
-// the user clicks outside it on Cogpit, and on Escape; a click on its own panel keeps it (owner,
-// 2026-10-12).
+// the user clicks outside it on Cogpit, and on Escape; a click on its own panel keeps it (owner).
 func TestOverlayClosesOnAClickOutside(t *testing.T) {
 	sh, w, q, _, _ := paletteShell(t, ThemeDark)
 	openPalette(t, sh, q)

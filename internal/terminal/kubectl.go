@@ -22,8 +22,8 @@ import (
 // Cogpit's .zshenv first, which gives zsh the user's own ZDOTDIR back, reads the user's .zshenv,
 // and registers a hook that puts <dir>/bin first again before the first prompt, after every
 // profile ran, and then removes itself. Every other file zsh reads is the user's, from the user's
-// ZDOTDIR, as without Cogpit. For bash (A26, owner 2026-10-14 evening) Cogpit starts bash with
-// --init-file <dir>/bash/rc instead of as a login shell: the rc reads the files a login bash reads
+// ZDOTDIR, as without Cogpit. For bash (A26, owner) Cogpit starts bash with --init-file
+// <dir>/bash/rc instead of as a login shell: the rc reads the files a login bash reads
 // (/etc/profile, then the first of ~/.bash_profile, ~/.bash_login and ~/.profile), then puts
 // <dir>/bin first; bash then is no login shell for `shopt login_shell` and reads no ~/.bash_logout
 // (the way VS Code's terminal starts bash, inferred to be the common pattern). For fish, Cogpit

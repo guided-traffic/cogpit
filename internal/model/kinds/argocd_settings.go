@@ -12,11 +12,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Argo CD's settings: Settings › Repositories and Settings › Clusters (Lens's documentation, read
-// 2026-10-13: Repositories Name, Type, URL, Project, Age; Clusters Name, Server, Age). Argo CD keeps
-// both as Secrets labelled argocd.argoproj.io/secret-type (repository and repo-creds; cluster), so
-// they are virtual kinds over the cached Secrets, as Helm's releases are, and they come with Argo
-// CD's Application definition (the engine offers them while the cluster serves it).
+// Argo CD's settings: Settings › Repositories and Settings › Clusters (Lens's documentation, read:
+// Repositories Name, Type, URL, Project, Age; Clusters Name, Server, Age). Argo CD keeps both as
+// Secrets labelled argocd.argoproj.io/secret-type (repository and repo-creds; cluster), so they are
+// virtual kinds over the cached Secrets, as Helm's releases are, and they come with Argo CD's
+// Application definition (the engine offers them while the cluster serves it).
 //
 // Those Secrets hold credentials: passwords, SSH and TLS keys, GitHub App keys, bearer tokens, a
 // cluster's whole client configuration. D-35 (a night decision for the owner to confirm): the

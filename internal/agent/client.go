@@ -44,8 +44,8 @@ const (
 )
 
 // DefaultBaseURL is the base URL a new connection of the kind starts with, from each server's
-// documentation (verified 2026-10-14, docs/developer/decisions.md › D-10): LM Studio serves
-// /v1 on port 1234, LiteLLM's proxy listens on 4000, Open WebUI's docs use port 3000.
+// documentation (verified, docs/developer/decisions.md › D-10): LM Studio serves /v1 on port 1234,
+// LiteLLM's proxy listens on 4000, Open WebUI's docs use port 3000.
 func DefaultBaseURL(kind engine.ChatConnectionKind) string {
 	switch kind {
 	case engine.ChatLMStudio:
@@ -186,8 +186,8 @@ func (u *usage) prompt() int {
 
 // HTTPError is an answer of the endpoint with an error status. Message is at most a short excerpt
 // of the server's own message, with the API key removed; 401 and 403 carry none. Method and URL
-// are the request's, which the error names first (the owner, 2026-10-26: an error that does not
-// say which endpoint was called how leaves nothing to look for).
+// are the request's, which the error names first (the owner: an error that does not say which
+// endpoint was called how leaves nothing to look for).
 type HTTPError struct {
 	Status  int
 	Message string
@@ -253,7 +253,7 @@ func serverMessage(body []byte, key string) string {
 	} else {
 		msg = string(body)
 		if strings.HasPrefix(strings.TrimSpace(msg), "<") {
-			msg = htmlTag.ReplaceAllString(msg, " ") // a proxy's error page: its text, not its tags (2026-10-25)
+			msg = htmlTag.ReplaceAllString(msg, " ") // a proxy's error page: its text, not its tags
 		}
 	}
 	return cleanMessage(msg, key)

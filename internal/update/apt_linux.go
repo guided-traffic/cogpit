@@ -39,7 +39,7 @@ import (
 //     reads Restart, and CheckForUpdates restarts Cogpit into it: a detached shell waits for this
 //     process to end and starts /usr/bin/cogpit, and the process quits as SIGTERM makes it (the
 //     window closes, the caller's cleanup runs). Installing never restarts by itself: the user's
-//     second click does (the lead's choice, 2026-10-20).
+//     second click does (the lead's choice).
 //
 // What an update the user started came to (installed, already the newest, cancelled, failed) goes
 // to OnUpdateMessage's listeners, the window's notifications.

@@ -18,7 +18,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine/commands"
 )
 
-// liveModels are the models the live test prefers, in order (the owner's, 2026-10-14).
+// liveModels are the models the live test prefers, in order (the owner's).
 var liveModels = []string{"qwen/qwen3.8-27b", "qwen/qwen3.6-27b"}
 
 // TestLiveEndpoint runs the connection test and one chat turn against a real OpenAI-compatible

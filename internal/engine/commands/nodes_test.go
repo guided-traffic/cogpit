@@ -389,9 +389,9 @@ func TestFailedDrainKeepsItsEntry(t *testing.T) {
 }
 
 // TestFailedDrainSaysWhatItLeft: the error and the toast of a drain that did not finish say what
-// it left of the node. On a real cluster (2026-10-16) the default drain refused a node at once for
-// its pods with emptyDir data, and Cogpit said "cordoned and partly drained" though no pod had been
-// evicted; now that reads "this drain evicted no pod", and a drain that evicted some counts them.
+// it left of the node. On a real cluster the default drain refused a node at once for its pods with
+// emptyDir data, and Cogpit said "cordoned and partly drained" though no pod had been evicted; now
+// that reads "this drain evicted no pod", and a drain that evicted some counts them.
 func TestFailedDrainSaysWhatItLeft(t *testing.T) {
 	for _, tc := range []struct {
 		name  string

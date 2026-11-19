@@ -11,8 +11,8 @@ import (
 )
 
 // The search field's toggles (ui-parity › Tables, G5): match case ("Aa") and regular expression
-// (".*"), captured from Lens Desktop (2026-10-11) without their rules. Cogpit's reading, inferred
-// (Cogpit's defaults, not the owner's decision, 2026-10-13):
+// (".*"), captured from Lens Desktop without their rules. Cogpit's reading, inferred (Cogpit's
+// defaults, not the owner's decision):
 //   - both off: every whitespace-separated term must occur in one of the row's cells, ignoring
 //     case, as the search always did;
 //   - match case: the same terms, their case kept;

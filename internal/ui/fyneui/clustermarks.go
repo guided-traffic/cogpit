@@ -8,15 +8,15 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// Several clusters connected in the window (D-69 stage 2, built 2026-10-16): the engine keeps
-// several clusters connected and the window shows one (UIState.Context; every connected one in
-// UIState.Connections). This file holds what every place that shows a cluster shares: the marks
-// of its dot and the switch between connected clusters.
+// Several clusters connected in the window (D-69 stage 2): the engine keeps several clusters
+// connected and the window shows one (UIState.Context; every connected one in UIState.Connections).
+// This file holds what every place that shows a cluster shares: the marks of its dot and the switch
+// between connected clusters.
 //
-// The marks (D-69 item 5, the owner's decision of 2026-10-16): the dot's shape says live or
-// resting, its colour the state, on every dot of a cluster (its hotbar tile, its navigator section
-// row and the tree's root, its welcome-page row and the status bar's for the shown one; the top
-// bar names no cluster, D-54):
+// The marks (D-69 item 5, the owner's decision): the dot's shape says live or resting, its colour
+// the state, on every dot of a cluster (its hotbar tile, its navigator section row and the tree's
+// root, its welcome-page row and the status bar's for the shown one; the top bar names no cluster,
+// D-54):
 //
 //	filled green            live: the shown cluster, or a connected one whose views are warm
 //	filled green, blinking  (re)connecting, a background cluster's reconnect too (conndot.go, F13)

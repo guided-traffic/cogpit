@@ -10,15 +10,15 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// A Config Map's values edited in the drawer (the owner's F3, 2026-10-15; engine/configmapdata.go):
+// A Config Map's values edited in the drawer (the owner's F3; engine/configmapdata.go):
 // configMap.readData reads them whole from the cache, configMap.reviewData diffs and dry-runs a
 // change, configMap.saveData writes it with the resourceVersion it is based on as precondition,
 // through the same writer, dry run and conflict rule as the Edit tab's object.apply. Keys are added
-// (add) and removed (remove) in the same write (the owner's audit decision of 2026-10-16,
-// engine/datakeys.go). The save is mutating: an agent's waits for the user's acceptance unless the
-// user allowed agent writes for the context (D-2), and the confirmation shows the diff it writes. A
-// save that removes a key is destructive: it changes what workloads read and loses the value, so
-// the user confirms it whoever asks, the drawer's review being that confirmation in the window.
+// (add) and removed (remove) in the same write (the owner's audit decision, engine/datakeys.go).
+// The save is mutating: an agent's waits for the user's acceptance unless the user allowed agent
+// writes for the context (D-2), and the confirmation shows the diff it writes. A save that removes
+// a key is destructive: it changes what workloads read and loses the value, so the user confirms it
+// whoever asks, the drawer's review being that confirmation in the window.
 
 // configMapDataVerbs are the verbs of saving values: an update of the Config Map, read from the
 // cache. The review's dry run is an update too, which the server checks as one.

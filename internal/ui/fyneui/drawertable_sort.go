@@ -11,12 +11,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Sorting a drawer table by its column titles (owner, 2026-10-13: a node's Pods sort by Name,
-// Namespace, CPU, Memory and Status). A sortable table (model.SortableCellTable) draws its titles
-// as the lists' headers do (bold, muted, the arrow of the sorted column in the accent colour:
-// tableview.go's headerCell), and a click on one dispatches ui.sortDrawerTable: the order is the
-// engine's (UIState.DrawerSort), which comes back sorted in the drawer's model with
-// DetailTable.Sort for the arrow. As in the lists, a click on the sorted column reverses it.
+// Sorting a drawer table by its column titles (owner: a node's Pods sort by Name, Namespace, CPU,
+// Memory and Status). A sortable table (model.SortableCellTable) draws its titles as the lists'
+// headers do (bold, muted, the arrow of the sorted column in the accent colour: tableview.go's
+// headerCell), and a click on one dispatches ui.sortDrawerTable: the order is the engine's
+// (UIState.DrawerSort), which comes back sorted in the drawer's model with DetailTable.Sort for the
+// arrow. As in the lists, a click on the sorted column reverses it.
 
 // drawerSortParams are ui.sortDrawerTable's parameters.
 type drawerSortParams struct {

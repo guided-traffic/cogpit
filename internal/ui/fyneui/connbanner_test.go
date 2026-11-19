@@ -29,11 +29,12 @@ func interrupt(f *fakeEngine, state engine.ConnectionState, now time.Time) {
 	})
 }
 
-// TestConnectionBannerFollowsTheState is S3 as the owner amended it (F13, 2026-10-16): interrupted,
-// the status bar's dot is the Running green (it blinks, conndot_test.go) and no word stands beside it
-// in either bar (the top bar has no dot, D-54), the banner over the view says what is interrupted, since when and the next
-// attempt, and Reconnect dispatches cluster.reconnect (D-81); an expired login turns the dot red and
-// offers Log in again (cluster.login); connected again, the banner goes.
+// TestConnectionBannerFollowsTheState is S3 as the owner amended it (F13): interrupted, the status
+// bar's dot is the Running green (it blinks, conndot_test.go) and no word stands beside it in
+// either bar (the top bar has no dot, D-54), the banner over the view says what is interrupted,
+// since when and the next attempt, and Reconnect dispatches cluster.reconnect (D-81); an expired
+// login turns the dot red and offers Log in again (cluster.login); connected again, the banner
+// goes.
 func TestConnectionBannerFollowsTheState(t *testing.T) {
 	f := connectedFake(t, 20)
 	sh, _, q := newTestShell(t, f, Options{})
@@ -166,7 +167,7 @@ func blinkScene(t *testing.T, mode ThemeMode, state engine.ConnectionState, befo
 	f.ui.Context = "prod-eu [config]"
 	f.ui.Connection.Demo = false
 	// The cluster's Pods tab, as a cluster that was connected has: without a tab the window shows
-	// the welcome page while the connection is not up (the renders did from 2026-10-21 to 2026-10-24).
+	// the welcome page while the connection is not up.
 	f.ui.Tabs = []engine.ViewTab{{ID: "tab-1", Context: f.ui.Context, View: "pods", Title: "Pods - prod-eu"}}
 	f.ui.ActiveTab = "tab-1"
 	sh, w, q := newTestShell(t, f, Options{Theme: mode})
@@ -201,10 +202,10 @@ func upgrade(f *fakeEngine) {
 	})
 }
 
-// TestConnectionBannerSaysTheClusterWasUpgraded (the owner's "Option A" of 2026-10-26): a connected
-// cluster whose API server runs another minor than the connect's shows the strip in the accent
-// colour with both versions and Reconnect (cluster.reconnect); its lines are selectable; a
-// reconnect under way greys the button; the strip goes with the mark.
+// TestConnectionBannerSaysTheClusterWasUpgraded (the owner's "Option A"): a connected cluster whose
+// API server runs another minor than the connect's shows the strip in the accent colour with both
+// versions and Reconnect (cluster.reconnect); its lines are selectable; a reconnect under way greys
+// the button; the strip goes with the mark.
 func TestConnectionBannerSaysTheClusterWasUpgraded(t *testing.T) {
 	f := connectedFake(t, 20)
 	sh, _, q := newTestShell(t, f, Options{})

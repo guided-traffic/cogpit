@@ -176,8 +176,8 @@ const jsonNull = "null"
 
 // chatSchema is the command's parameter schema as the endpoints take it: with a "properties"
 // object even for a command without parameters. LM Studio refuses a tool whose parameters lack
-// one (HTTP 400, "path": [n, "function", "parameters", "properties"], found by the live test of
-// 2026-10-14); MCP clients take the registry's schema as it is.
+// one (HTTP 400, "path": [n, "function", "parameters", "properties"], found by the live test); MCP
+// clients take the registry's schema as it is.
 func chatSchema(c *engine.Command) (json.RawMessage, error) {
 	schema, err := c.ToolSchema()
 	if err != nil {

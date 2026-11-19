@@ -302,11 +302,10 @@ func (lt *logTab) checkController() {
 	}()
 }
 
-// saveDialog asks where to save the lines the tab shows (A84, the owner's decision of 2026-10-14
-// evening), as they show: of the pods and containers its selectors show, its filter applied while
-// Filter is on, every line it holds otherwise, names and timestamps as toggled; and writes them
-// there. Fyne's dialog: saveLines' fallback where the system has no save panel
-// (filepicker_choosers.go).
+// saveDialog asks where to save the lines the tab shows (A84, the owner's decision), as they show:
+// of the pods and containers its selectors show, its filter applied while Filter is on, every line
+// it holds otherwise, names and timestamps as toggled; and writes them there. Fyne's dialog:
+// saveLines' fallback where the system has no save panel (filepicker_choosers.go).
 func (lt *logTab) saveDialog() {
 	if lt.view == nil {
 		return
@@ -356,7 +355,7 @@ func (lt *logTab) fileName() string {
 }
 
 // logFileName is the file name a download proposes, as a table's CSV is named (D-85, the lead's
-// option of the walk of 2026-10-19: "<pod>_<container>.log" beside "<view>-<cluster>.csv"):
+// option of the walk: "<pod>_<container>.log" beside "<view>-<cluster>.csv"):
 // "<what>-<cluster>.log", what the tab's title names ("web-0_app", "Deployment_checkout-api") and the
 // cluster by the name the window shows, every run of characters but letters, digits, dots, dashes
 // and underscores one underscore.

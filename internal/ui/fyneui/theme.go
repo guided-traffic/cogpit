@@ -28,7 +28,7 @@ const (
 	colorRowHover    fyne.ThemeColorName = "cogpit.rowHover"
 	colorRowSelected fyne.ThemeColorName = "cogpit.rowSelected"
 	// colorContainerRunning is a running container's square in a pod's Containers cell: the
-	// Running green Cogpit had before the Solarized theme, which the owner wants there (2026-10-12).
+	// Running green Cogpit had before the Solarized theme, which the owner wants there.
 	colorContainerRunning fyne.ThemeColorName = "cogpit.containerRunning"
 	colorRowSelectedText  fyne.ThemeColorName = "cogpit.rowSelectedText" // text on a selected row
 	colorDrawer           fyne.ThemeColorName = "cogpit.drawer"
@@ -60,7 +60,7 @@ const (
 	colorSlotDim    fyne.ThemeColorName = "cogpit.slotDim"    // an empty token
 	// colorHairline is the edge of a well, a list's frame, a card or a tooltip: what the input
 	// border drew before fields got an outline of their own that reads on every surface (the
-	// owner's AW1 of 2026-10-22: theme.ColorNameInputBorder is a field's outline since).
+	// owner's AW1: theme.ColorNameInputBorder is a field's outline).
 	colorHairline fyne.ThemeColorName = "cogpit.hairline"
 	// colorLightStrip is the light strip's frosted glass under the tabs (lightstrip.go, D-122): the
 	// stage mixed as the owner's lab mixes it at his glass density of 32 % (stripGlassOf).
@@ -183,7 +183,7 @@ var darkPalette = palette{
 		colorSidebar:          hex(0x0b0f16),
 		colorRowHover:         hex(0x141b26),
 		colorRowSelected:      hex(0x183252), // the glow blue, deep: the selected object
-		colorContainerRunning: hex(0x3dd68c), // the Running green (owner, 2026-10-12)
+		colorContainerRunning: hex(0x3dd68c), // the Running green (owner)
 		colorRowSelectedText:  hex(0xf2f7ff),
 		colorDrawer:           hex(0x10161f), // in front of the stage, a step lighter
 		colorDrawerHeader:     hex(0x151d29),
@@ -259,7 +259,7 @@ var lightPalette = palette{
 		colorSidebar:          hex(0xf1f3f7),
 		colorRowHover:         hex(0xf0f4fa),
 		colorRowSelected:      hex(0xd6e6ff),
-		colorContainerRunning: hex(0x128a4f), // the Running green, darkened to read on a selected row (owner, 2026-10-16)
+		colorContainerRunning: hex(0x128a4f), // the Running green, darkened to read on a selected row (owner)
 		colorRowSelectedText:  hex(0x0b1a33),
 		colorDrawer:           hex(0xf7f8fa),
 		colorDrawerHeader:     hex(0xeef1f6),
@@ -448,8 +448,7 @@ var iconChevronDown = fyne.NewStaticResource("cogpit-chevron-down.svg", []byte(
 		`<path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>`))
 
 // iconChevronUp is iconChevronDown turned over: the find bar's previous match beside its next one
-// (the owner's VW2 of 2026-10-23: next and previous in one icon family; Fyne's MoveUp is an arrow
-// with a stem).
+// (the owner's VW2: next and previous in one icon family; Fyne's MoveUp is an arrow with a stem).
 var iconChevronUp = fyne.NewStaticResource("cogpit-chevron-up.svg", []byte(
 	`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">`+
 		`<path d="M7.41 15.41 12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>`))
@@ -507,8 +506,7 @@ func (t *cogTheme) Size(n fyne.ThemeSizeName) float32 {
 		// The tile with the room on either side the 38-point tile had in 64 (LS19): 10.5 points.
 		return 76
 	case sizeHotbarTile:
-		// The owner's LS19 of 2026-10-24: "Auch die Icons der Hotbar dürfen ruhig 50px x 50px"
-		// (38 before).
+		// The owner's LS19: "Auch die Icons der Hotbar dürfen ruhig 50px x 50px" (38 before).
 		return 50
 	case sizeNavBadge:
 		return 28
@@ -519,11 +517,11 @@ func (t *cogTheme) Size(n fyne.ThemeSizeName) float32 {
 	case sizeBarHeight:
 		return 40
 	case sizeStatusHeight:
-		// VS Code's status bar as the owner sees it beside Cogpit (2026-10-14: 26 was too flat).
+		// VS Code's status bar as the owner sees it beside Cogpit (26 was too flat).
 		return 30
 	case sizeStatusText:
-		// The text size of the views, as VS Code's status bar reads (owner, 2026-10-12: the
-		// caption size, 11, was too small).
+		// The text size of the views, as VS Code's status bar reads (owner: the caption size, 11,
+		// was too small).
 		return 13
 	case sizeCellPadding:
 		return 10

@@ -8,9 +8,9 @@ import (
 )
 
 // The drawer's Copy (object.copyName) sits right after the object's name in the header, not among
-// the actions at the header's right end (the owner's F4, 2026-10-15). The command and its MCP tool
-// are unchanged; only where the window draws it moved. Always visible, as before (the lead's
-// default: the lists' copy icon shows on hover, the drawer's name has room for one icon).
+// the actions at the header's right end (the owner's F4). The command and its MCP tool are
+// unchanged; only where the window draws it moved. Always visible, as before (the lead's default:
+// the lists' copy icon shows on hover, the drawer's name has room for one icon).
 
 // copyNameID is the command the name's copy icon runs.
 const copyNameID = "object.copyName"

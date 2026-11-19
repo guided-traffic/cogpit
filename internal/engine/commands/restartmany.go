@@ -11,10 +11,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Restart of a selection of workloads (A74, owner 2026-10-14 evening): the Deployments, Daemon
-// Sets and Stateful Sets of a table's selection restarted as kubectl rollout restart does, one
-// confirmation for every origin naming them all (destructive, as one Restart is), then each in
-// turn, bound to the UID the user confirmed. Scale stays on one object.
+// Restart of a selection of workloads (A74, owner): the Deployments, Daemon Sets and Stateful Sets
+// of a table's selection restarted as kubectl rollout restart does, one confirmation for every
+// origin naming them all (destructive, as one Restart is), then each in turn, bound to the UID the
+// user confirmed. Scale stays on one object.
 
 // labelRestart is Restart's label, one workload's and a selection's.
 const labelRestart = "Restart"

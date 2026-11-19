@@ -10,9 +10,9 @@ import (
 )
 
 // TitleProperties is the title of the drawer's first section. Lens merges an object's metadata
-// and its kind's state into one Properties section (capture, 2026-10-11); a kind profile whose
-// Detail returns a first section with this title has its items appended to the generic metadata
-// items (see [MergeProperties]).
+// and its kind's state into one Properties section (capture); a kind profile whose Detail returns a
+// first section with this title has its items appended to the generic metadata items (see
+// [MergeProperties]).
 const TitleProperties = "Properties"
 
 // DetailSection is one titled block of the detail drawer: name/value items, or a table.
@@ -191,7 +191,7 @@ func relativeTime(typ ColumnType) bool { return typ == ColumnAge || typ == Colum
 //
 // Value is always the plain text, lines separated by "\n" for lists, so that agents and plain
 // renderers need nothing else. The other fields say how the drawer shows it, as Lens does
-// (capture, 2026-10-11):
+// (capture):
 //
 //   - Status colours the value (a status pill).
 //   - Link is the object the value names (a node, a controller, a service account); the drawer
@@ -224,7 +224,7 @@ type DetailItem struct {
 	Aside       string `json:"aside,omitempty"`
 	AsideStatus Status `json:"asideStatus,omitempty"`
 	// Pill draws the value as a neutral grey pill, carrying no status colour (a Helm release's
-	// Status in Lens's drawer, captured 2026-10-12).
+	// Status in Lens's drawer, captured).
 	Pill bool `json:"pill,omitempty"`
 	// Wrap breaks a plain value onto lines within the value's width where it is cut off
 	// otherwise: a release's description, which holds Helm's error message.
@@ -319,9 +319,9 @@ type RefFunc func(apiVersion, kind, namespace, name string) *ObjectRef
 
 // PropertiesSection returns the generic part of the drawer's first section, the metadata every
 // kind shows: Created, Name, Namespace (a link), Labels (folded chips), Annotations (folded) and
-// Controlled By (a link for built-in owner kinds). Lens shows no UID (capture, 2026-10-11).
-// Created is the age against now, then the time as a mark ([MarkTime]) that the engine writes in
-// the user's zone and format (D-31): "5m ago (10.09.2026 17:41:01)".
+// Controlled By (a link for built-in owner kinds). Lens shows no UID (capture). Created is the age
+// against now, then the time as a mark ([MarkTime]) that the engine writes in the user's zone and
+// format (D-31): "5m ago (10.09.2026 17:41:01)".
 func PropertiesSection(obj *unstructured.Unstructured, now time.Time) DetailSection {
 	return PropertiesSectionLinked(obj, now, RefTo)
 }

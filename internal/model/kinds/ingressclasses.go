@@ -19,12 +19,12 @@ const (
 	keyIngressClasses = "ingressclasses"
 )
 
-// ingressClasses has the columns captured from Lens on 2026-10-11: Name, a star column, an empty
-// Namespace column (the kind is cluster-scoped, but Lens shows the column), Controller and the
-// parameters' API Group, Scope and Kind; no Age. That the star marks the default class is
-// inferred. Fyne's bundled fonts have no star glyph (U+2605 is in none of them; U+2B50 only in the
-// colour emoji font, which ignores theme colours), so the column is titled Default and reads
-// "Yes". Ingress classes have no state, so no status token.
+// ingressClasses has the columns captured from Lens: Name, a star column, an empty Namespace column
+// (the kind is cluster-scoped, but Lens shows the column), Controller and the parameters' API
+// Group, Scope and Kind; no Age. That the star marks the default class is inferred. Fyne's bundled
+// fonts have no star glyph (U+2605 is in none of them; U+2B50 only in the colour emoji font, which
+// ignores theme colours), so the column is titled Default and reads "Yes". Ingress classes have no
+// state, so no status token.
 var ingressClasses = &model.KindProfile{
 	Key:      keyIngressClasses,
 	Group:    groupNetworking,

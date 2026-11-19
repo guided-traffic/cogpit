@@ -49,8 +49,7 @@ func (r *statusRecorder) refusal(err error) error {
 
 // IsPermanentForwardError reports whether err, returned by DialPortForward, is one that waiting
 // does not cure, so that a forward fails at once and frees its local port instead of retrying
-// (D-20, owner 2026-10-12). The list is what the API server answers to the portforward
-// subresource:
+// (D-20, owner). The list is what the API server answers to the portforward subresource:
 //
 //   - 404 Not Found: the pod does not exist (any more), or its namespace is gone;
 //   - 403 Forbidden: the user may not create pods/portforward there (RBAC does not change by waiting);

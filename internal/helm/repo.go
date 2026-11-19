@@ -69,10 +69,9 @@ const (
 var ErrNotHTTPS = errors.New("an https repository's downloads stay on https")
 
 // ErrCredentialsOverHTTP refuses a download from a repository that would send its user and
-// password over plain http before the user allowed that for it (credentials H-40, owner
-// 2026-10-14): nothing is requested, so neither the credentials nor a request without them leave
-// Cogpit. The engine allows it per repository (Repository.AllowCredentialsOverHTTP). Match it
-// with errors.Is.
+// password over plain http before the user allowed that for it (credentials H-40, owner): nothing
+// is requested, so neither the credentials nor a request without them leave Cogpit. The engine
+// allows it per repository (Repository.AllowCredentialsOverHTTP). Match it with errors.Is.
 var ErrCredentialsOverHTTP = errors.New("the repository sends its user name and password over plain http, unencrypted; " +
 	"Cogpit sends them only once you allow it for this repository in Cogpit's window (the Charts view asks)")
 

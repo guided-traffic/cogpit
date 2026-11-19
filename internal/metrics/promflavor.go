@@ -5,17 +5,16 @@ import (
 	"strings"
 )
 
-// The servers that speak the Prometheus HTTP API (G12, D-71, night run 2026-10-16/17): besides
-// Prometheus itself, Thanos's Querier and its query frontend, which answer for the Prometheus
-// servers and the object storage behind them, and VictoriaMetrics, single-node or the cluster's
-// vmselect, which serves the API under /select/<tenant>/prometheus. Cogpit asks each the same
-// queries through the service proxy (promql.go); what differs is the name the source line, the
-// status line and the settings show, and for vmselect the path. Each is found by its Service's name
-// as Prometheus is (promdetect.go), from the charts' and the operators' documented defaults
-// (clean-room, D-12), and probed with the same buildinfo request: Thanos and VictoriaMetrics answer
-// it as Prometheus does (Thanos 0.40's Querier and query frontend verified on a real cluster,
-// VictoriaMetrics single-node on kind; VictoriaMetrics' vmselect inferred from its documentation
-// and checked against a fake).
+// The servers that speak the Prometheus HTTP API (G12, D-71, night run): besides Prometheus itself,
+// Thanos's Querier and its query frontend, which answer for the Prometheus servers and the object
+// storage behind them, and VictoriaMetrics, single-node or the cluster's vmselect, which serves the
+// API under /select/<tenant>/prometheus. Cogpit asks each the same queries through the service
+// proxy (promql.go); what differs is the name the source line, the status line and the settings
+// show, and for vmselect the path. Each is found by its Service's name as Prometheus is
+// (promdetect.go), from the charts' and the operators' documented defaults (clean-room, D-12), and
+// probed with the same buildinfo request: Thanos and VictoriaMetrics answer it as Prometheus does
+// (Thanos 0.40's Querier and query frontend verified on a real cluster, VictoriaMetrics single-node
+// on kind; VictoriaMetrics' vmselect inferred from its documentation and checked against a fake).
 
 // Flavor is which server speaks the Prometheus HTTP API at a Target.
 type Flavor string

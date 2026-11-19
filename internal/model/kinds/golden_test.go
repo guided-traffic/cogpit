@@ -295,7 +295,7 @@ func TestBuiltinProfiles(t *testing.T) {
 			seen[c.ID] = true
 		}
 		// A cluster-scoped kind may still show Lens's empty Namespace column (Ingress Classes,
-		// captured 2026-10-11); a namespaced kind must show its namespace.
+		// captured); a namespaced kind must show its namespace.
 		if p.Namespaced && !seen["namespace"] {
 			t.Errorf("%s: namespaced but no namespace column", p.Key)
 		}
@@ -371,8 +371,8 @@ func TestStatusTexts(t *testing.T) {
 
 		{"nodes", "healthy", "conditions", "Ready", model.StatusOK, model.StatusOK},
 		{"nodes", "failing", "conditions", "NotReady DiskPressure MemoryPressure", model.StatusError, model.StatusError},
-		// A cordoned Ready node reads "SchedulingDisabled Ready" and is not a warning (capture,
-		// 2026-10-11); before, Cogpit showed "Ready SchedulingDisabled" in the warning colour.
+		// A cordoned Ready node reads "SchedulingDisabled Ready" and is not a warning (capture);
+		// before, Cogpit showed "Ready SchedulingDisabled" in the warning colour.
 		{"nodes", "cordoned", "conditions", "SchedulingDisabled Ready", model.StatusOK, model.StatusOK},
 		{"nodes", "cordoned", "roles", "worker", model.StatusNone, model.StatusOK},
 		{"nodes", "unknown", "conditions", "Unknown", model.StatusUnknown, model.StatusUnknown},

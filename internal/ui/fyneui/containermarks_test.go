@@ -13,7 +13,7 @@ import (
 
 // A pod's Containers cell draws one square per container in the container's status colour, the
 // text ("1/2") gives way to them, and the tooltip names each container and its state (owner,
-// 2026-10-12, from Lens).
+// from Lens).
 func TestContainersCellDrawsSquares(t *testing.T) {
 	f := kindsFake(t, "pods")
 	sh, _, q := newTestShell(t, f, Options{Theme: ThemeDark})
@@ -50,7 +50,7 @@ func TestContainersCellDrawsSquares(t *testing.T) {
 
 // A pod with more containers than its cell has room for shows the squares that fit and "+N" for
 // the others, coloured by their gravest state, so that a running container behind finished init
-// containers is not mistaken for none (the owner's F24 of 2026-10-17); a wider cell shows them all.
+// containers is not mistaken for none (the owner's F24); a wider cell shows them all.
 func TestContainersCellCountsWhatDoesNotFit(t *testing.T) {
 	test.NewTempApp(t).Settings().SetTheme(newTheme(ThemeDark))
 	marks := []model.CellMark{

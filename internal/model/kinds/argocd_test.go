@@ -63,8 +63,8 @@ func columnTitles(p *model.KindProfile) string {
 	return strings.Join(got, ", ")
 }
 
-// TestArgoCDColumns pins the columns of Lens's documentation ("Using Argo CD", read 2026-10-13,
-// not captured) and Cogpit's hidden ones after them.
+// TestArgoCDColumns pins the columns of Lens's documentation ("Using Argo CD", read, not captured)
+// and Cogpit's hidden ones after them.
 func TestArgoCDColumns(t *testing.T) {
 	want := map[string]string{
 		kinds.ArgoApplicationsKey:   "Name, Namespace, Sync, Health, Project, Destination, Revision, Age, (Repository), (Target Revision), (Path/Chart), (Message)",
@@ -325,7 +325,7 @@ func TestArgoSyncOperation(t *testing.T) {
 }
 
 // TestArgoV3ResourceHealthAndProject (checked against a live Argo CD 3.5 controller on a real
-// cluster, 2026-10-16): Argo CD 3 keeps the resources' health in its resource tree
+// cluster): Argo CD 3 keeps the resources' health in its resource tree
 // (status.resourceHealthSource: appTree), so the Resources table leaves out the Health column it
 // cannot fill and says where the health is; and an Application outside Argo CD's namespace links
 // to its project in the namespace the controller runs in (status.controllerNamespace).

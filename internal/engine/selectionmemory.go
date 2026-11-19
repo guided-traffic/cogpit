@@ -8,15 +8,15 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Each view keeps its checked rows (N111, the owner's decision in the audit of 2026-10-16; until
-// then a view that ui.navigate or ui.openView changed to started without checked rows). The
-// selection the window shows, ui.state lists and every action on a selection takes stays the shown
-// view's (UIState.Selected), so the selection bar's Delete never acts on rows the user does not
-// see. What changed is where a view's selection goes when the view is left: the tab that showed it
-// remembers it and gives it back when it shows that view again (ui.openView, ui.tab.open, a link,
+// Each view keeps its checked rows (N111, the owner's decision in the audit; until then a view that
+// ui.navigate or ui.openView changed to started without checked rows). The selection the window
+// shows, ui.state lists and every action on a selection takes stays the shown view's
+// (UIState.Selected), so the selection bar's Delete never acts on rows the user does not see. What
+// changed is where a view's selection goes when the view is left: the tab that showed it remembers
+// it and gives it back when it shows that view again (ui.openView, ui.tab.open, a link,
 // ui.navigate, back and forward in the tab's history).
 //
-// The lead's decisions on the owner's choice (2026-10-16):
+// The lead's decisions on the owner's choice:
 //   - per tab, as the tab bar's model has it (tabs.go: a tab keeps its own namespace filter,
 //     search, sort, selection and drawer): two tabs showing the same view keep a selection each, a
 //     new tab starts with none; and per cluster within a tab, since the one preview tab showed the

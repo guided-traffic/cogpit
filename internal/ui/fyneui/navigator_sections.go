@@ -28,13 +28,13 @@ import (
 // back. The scope is engine state (UIState.NavigatorScope, engine/navscope.go): this level shows
 // while it is the section, the tree (navigator.go) while it is a cluster.
 //
-// The section is the one list that chooses a cluster (D-57, the owner's interview of 2026-10-15
-// evening): ⌘P, the Cluster menu's and the palette's Connect to Cluster, the welcome page's button
-// and a --context that fails show it with its search focused (findcluster.go); the context picker,
-// the top bar's "Switch context" and the header's scope dropdown went. The header reads "All
-// Clusters" here, with a "+" that adds kubeconfigs (navigator_header.go).
+// The section is the one list that chooses a cluster (D-57, the owner's interview): ⌘P, the Cluster
+// menu's and the palette's Connect to Cluster, the welcome page's button and a --context that fails
+// show it with its search focused (findcluster.go); the context picker, the top bar's "Switch
+// context" and the header's scope dropdown went. The header reads "All Clusters" here, with a "+"
+// that adds kubeconfigs (navigator_header.go).
 //
-// Cogpit's defaults (inferred, not the owner's decision, 2026-10-13):
+// Cogpit's defaults (inferred, not the owner's decision):
 //   - one section, "Local Kubeconfigs" under "Kubernetes Clusters", as the level's root; the cloud
 //     sections (after the beta, G18), Teamwork (D-9) and Extensions (D-5) are not built, so the
 //     root has no ‹ and nothing above it;
@@ -44,25 +44,25 @@ import (
 //     clustermarks.go: each connected cluster's state, D-69; red after a failed connect; grey
 //     otherwise) and a ›; the shown cluster's row marked;
 //   - the row's tooltip, "<name> - <source>", and below it what the context picker's row said
-//     beside the context (the lead's night decision, 2026-10-15, for the owner to confirm; D-57):
-//     why the connect failed (the connection's error for the cluster that just failed, else that
-//     its log says why), a login program or an unchecked connection waiting for the user's
-//     approval, and a certificate the kubeconfig does not check, with the server the credential
-//     goes to; a row whose last connect failed has Show Connection Updates… in its menu, the log
-//     the picker's warning icon opened (G2);
+//     beside the context (the lead's night decision, for the owner to confirm; D-57): why the
+//     connect failed (the connection's error for the cluster that just failed, else that its log
+//     says why), a login program or an unchecked connection waiting for the user's approval, and a
+//     certificate the kubeconfig does not check, with the server the credential goes to; a row
+//     whose last connect failed has Show Connection Updates… in its menu, the log the picker's
+//     warning icon opened (G2);
 //   - under the name of a context whose user logs in with a client certificate, its time left or
-//     since when it expired (D-75, the owner's F22 of 2026-10-17; clientcert.go);
+//     since when it expired (D-75, the owner's F22; clientcert.go);
 //   - a click on a row or its ›, → or ↵ drills into the cluster (ui.setNavigatorScope): a cluster
 //     not connected is connected through the engine, its login program shown for approval first;
 //     ↑↓, Home and End move, ← goes to the cluster's heading (or the root), Escape clears the
 //     search (on ⌘P's empty search goes back to the cluster it came from, navHeader.escape) or
 //     closes the drawer, a letter starts the search, F1–F12 reach the hotbar;
-//   - a source group's heading collapses and opens its group (the owner's A63, 2026-10-14 evening):
-//     a click, ↵ or Space toggle it, ← collapses an open one (else goes to the root), → opens a
-//     collapsed one (else moves into it); a collapsed heading says how many clusters it hides. Which
-//     groups are collapsed is engine state (ui.setNavigatorGroup, NavigatorState.Collapsed), kept
-//     across restarts in workspace.json (D-41); while a search is on every group shows open, as the
-//     tree's groups do (Cogpit's default);
+//   - a source group's heading collapses and opens its group (the owner's A63): a click, ↵ or Space
+//     toggle it, ← collapses an open one (else goes to the root), → opens a collapsed one (else
+//     moves into it); a collapsed heading says how many clusters it hides. Which groups are
+//     collapsed is engine state (ui.setNavigatorGroup, NavigatorState.Collapsed), kept across
+//     restarts in workspace.json (D-41); while a search is on every group shows open, as the tree's
+//     groups do (Cogpit's default);
 //   - the keyboard's row has the accent ring while the list has the focus from the keyboard, not
 //     after a click (A53), and is engine state (A51, navigatorstate.go);
 //   - the header's search filters the clusters by name, context and source, ↵ drills into the
@@ -123,7 +123,7 @@ type navSections struct {
 	menuModel *fyne.Menu // a row's open menu, for tests
 	subOnce   sync.Once
 
-	// mixed is the foot's "Mixed environments" check (the owner, 2026-10-20, GW11): the preference
+	// mixed is the foot's "Mixed environments" check (the owner, GW11): the preference
 	// mixedEnvironments, every cluster's tabs in the tab bar; off, the default, only the shown
 	// cluster's (engine/navscope.go TabsShown). syncing is set while the UI state sets it.
 	mixed   *widget.Check
@@ -742,8 +742,8 @@ func (n *navSections) showMenu(items []*fyne.MenuItem, pos fyne.Position) {
 
 // navSectionRootRow is the section's root: "Local Kubeconfigs" with "Kubernetes Clusters" and the
 // number of clusters below it, and a "−" at its right that opens Kubeconfig Sources…, where synced
-// files and folders are removed (the owner's WF44 of 2026-10-19: the dialog was hard to find; the
-// header's "+" adds them). Its menu (right-click) adds kubeconfigs and opens the sources.
+// files and folders are removed (the owner's WF44: the dialog was hard to find; the header's "+"
+// adds them). Its menu (right-click) adds kubeconfigs and opens the sources.
 type navSectionRootRow struct {
 	widget.BaseWidget
 	n        *navSections

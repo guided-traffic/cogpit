@@ -124,7 +124,7 @@ func TestSecretDrawerShowsCertificates(t *testing.T) {
 		switch {
 		case strings.HasSuffix(p.text, "(in 20 days)") && p.fg == colorStatusWarning:
 			notAfter = true
-		case p.text == "Yes (tls.key)" && ok: // the owner's answer of 2026-10-13: tls.key checked
+		case p.text == "Yes (tls.key)" && ok: // the owner's answer: tls.key checked
 			keyMatches = true
 		case p.text == "Yes, each certificate is signed by the next" && ok:
 			chain = true

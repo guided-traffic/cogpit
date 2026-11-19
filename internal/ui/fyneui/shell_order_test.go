@@ -11,7 +11,7 @@ import (
 
 // Dispatches in order run one after the other in the order they were made: the second waits for
 // the first to finish, so a setting changed twice in quick succession ends with the later value
-// (CI, 2026-10-16: TestHideMetricsFromTheSettings saw the older write land last).
+// (CI: TestHideMetricsFromTheSettings saw the older write land last).
 func TestDispatchInOrderKeepsTheOrder(t *testing.T) {
 	f := newFakeEngine(t)
 	gate := make(chan struct{})

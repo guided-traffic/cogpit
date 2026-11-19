@@ -20,8 +20,9 @@ import (
 // the user should know before connecting (the kubeconfig's current context, the demo, the source,
 // a login program or an unchecked connection waiting for the user's approval, a certificate the
 // kubeconfig does not check, the client certificate's time left: D-75, welcome.go), a subtitle,
-// and a warning icon after a failed connect that opens the connect's log. The context picker had the same rows until it went (D-57, 2026-10-15); the
-// navigator's section lists every cluster in rows of its own (navigator_sections.go).
+// and a warning icon after a failed connect that opens the connect's log. The context picker had
+// the same rows until it went (D-57); the navigator's section lists every cluster in rows of its
+// own (navigator_sections.go).
 
 // demoLabel is how the welcome page and the section's tooltip name the synthetic demo cluster.
 const demoLabel = "Demo cluster (synthetic, 10,000 pods)"
@@ -124,8 +125,8 @@ func newClusterRow(c engine.ContextInfo, title, sub string, onTap, onWarn func()
 }
 
 // insecureNote is the warning line of a context whose kubeconfig switches the check of the
-// server's certificate off (Cogpit's own text and default, 2026-10-13; Lens documents nothing for
-// it). The connect log says the same at length (engine/tlswarning.go).
+// server's certificate off (Cogpit's own text and default; Lens documents nothing for it). The
+// connect log says the same at length (engine/tlswarning.go).
 func insecureNote(c engine.ContextInfo) string {
 	server := "its server"
 	if c.Server != "" {

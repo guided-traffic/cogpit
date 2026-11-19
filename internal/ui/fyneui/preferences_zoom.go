@@ -9,8 +9,8 @@ import (
 )
 
 // Preferences › App › Zoom (D-134, engine.Preferences.ZoomLevel): the window's zoom, the same value
-// the status bar's magnifiers and VS Code's keys step (the owner's answer of 2026-10-26: one value
-// that stays, which Preferences shows and changes too). Offered as the levels' percentages.
+// the status bar's magnifiers and VS Code's keys step (the owner's answer: one value that stays,
+// which Preferences shows and changes too). Offered as the levels' percentages.
 
 const zoomTitle = "Zoom"
 

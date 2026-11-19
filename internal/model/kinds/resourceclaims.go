@@ -10,8 +10,8 @@ import (
 
 // Dynamic resource allocation (Device Resources, resource.k8s.io/v1, Kubernetes 1.34 and later):
 // what claims and their templates request, read the same way for both. Lens's documentation
-// (read 2026-10-13, not captured) lists the views' columns; the texts, colours and drawers here
-// are inferred unless a comment says otherwise.
+// (read, not captured) lists the views' columns; the texts, colours and drawers here are inferred
+// unless a comment says otherwise.
 
 // Kind keys and API group of the Device Resources views.
 const (
@@ -114,10 +114,10 @@ func draRequestsTable(reqs []draRequest) *model.DetailTable {
 	return t
 }
 
-// resourceClaims has the columns of Lens's documentation (read 2026-10-13, not captured): Name, a
-// warning icon titled Status, Namespace, State, Device Classes, Age. As documented: State reads
-// "Pending", "Allocated" or "Allocated (reserved: N)" with N the claim's consumers, and the icon
-// shows when a driver reports an unhealthy device, its tooltip "Device <device> (<driver>) reports
+// resourceClaims has the columns of Lens's documentation (read, not captured): Name, a warning icon
+// titled Status, Namespace, State, Device Classes, Age. As documented: State reads "Pending",
+// "Allocated" or "Allocated (reserved: N)" with N the claim's consumers, and the icon shows when a
+// driver reports an unhealthy device, its tooltip "Device <device> (<driver>) reports
 // <condition>=<status>" and the driver's message. Inferred: which conditions count as unhealthy
 // (draDeviceProblem), the colours, the hidden Devices and Reserved For columns, and the drawer.
 var resourceClaims = &model.KindProfile{

@@ -9,14 +9,14 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The status filter of every view (D-34, owner 2026-10-14; ui-parity › Tables, beyond-lens ›
-// Everyday use): a tab's own selection of the states its view's rows carry (model.States: a Pod's
-// Status "Running", a Flux object's "Not Ready", an Argo CD Application's "Health: Degraded", a
-// kind without a state column its rows' status tokens), applied to the view's snapshot like the
-// search, so that the window's table, view.rows, select all and the CSV export show the same rows.
-// Lens's views have no such filter: it is Cogpit's addition.
+// The status filter of every view (D-34, owner; ui-parity › Tables, beyond-lens › Everyday use): a
+// tab's own selection of the states its view's rows carry (model.States: a Pod's Status "Running",
+// a Flux object's "Not Ready", an Argo CD Application's "Health: Degraded", a kind without a state
+// column its rows' status tokens), applied to the view's snapshot like the search, so that the
+// window's table, view.rows, select all and the CSV export show the same rows. Lens's views have no
+// such filter: it is Cogpit's addition.
 //
-// Cogpit's defaults (not the owner's decision, 2026-10-14):
+// Cogpit's defaults (not the owner's decision):
 //   - the filter belongs to the view it was set for, as the search text does: opening another
 //     view in the tab clears it (the states mean nothing there), and ui.openView with states opens
 //     a view filtered (the dashboards' state links);

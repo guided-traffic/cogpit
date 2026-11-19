@@ -2,10 +2,10 @@ package logo
 
 import "math"
 
-// The "gauge" version (2026-10-11), the MVP's app icon: a cog around a cockpit gauge, drawn
-// full-bleed into 1024×1024 pixels, which fyne package masked to its rounded square. Kept as it
-// was drawn then (hack/icon at a8658f6), in its own pixel grid; gaugeLayers lays that square onto
-// the plate, which stands for fyne package's mask.
+// The "gauge" version, the MVP's app icon: a cog around a cockpit gauge, drawn full-bleed into
+// 1024×1024 pixels, which fyne package masked to its rounded square. Kept as it was drawn then
+// (hack/icon at a8658f6), in its own pixel grid; gaugeLayers lays that square onto the plate, which
+// stands for fyne package's mask.
 const (
 	gSize   = 1024.0
 	gCentre = gSize / 2

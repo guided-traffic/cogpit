@@ -9,9 +9,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// TestWelcomeRestoreBoxIsThePreference is the owner's WF1 (walk 2026-10-17): the welcome page has a
-// checkbox for "Restore the last session"; ticking it turns the preference on (the Preferences show
-// it), and the preference turned off elsewhere unticks it.
+// TestWelcomeRestoreBoxIsThePreference is the owner's WF1: the welcome page has a checkbox for
+// "Restore the last session"; ticking it turns the preference on (the Preferences show it), and the
+// preference turned off elsewhere unticks it.
 func TestWelcomeRestoreBoxIsThePreference(t *testing.T) {
 	s := welcomeEngine(t)
 	sh, _, q := newEngineShell(t, s, Options{})

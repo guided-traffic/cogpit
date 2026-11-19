@@ -19,8 +19,8 @@ const (
 	// DefaultTimeout bounds the wait for a release's hooks (helm --timeout 5m0s).
 	DefaultTimeout = 5 * time.Minute
 	// MaxHistory is how many revisions a rollback or an upgrade keeps (helm --history-max 10;
-	// Lens keeps ten, captured 2026-10-12: 12 revisions before a rollback, 10 after): the SDK
-	// deletes the oldest release Secrets beyond it.
+	// Lens keeps ten, captured: 12 revisions before a rollback, 10 after): the SDK deletes the
+	// oldest release Secrets beyond it.
 	MaxHistory = 10
 )
 

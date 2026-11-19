@@ -16,13 +16,13 @@ import (
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
 )
 
-// The login a connection was made with, as its kubeconfig file held it (D-81, the owner's F28 of
-// 2026-10-17). A connection keeps the credentials it read at its connect: a client certificate or a
-// token in the kubeconfig (client-certificate-data, client-key-data, token) is copied into the
-// connection's TLS and transport configuration once, and nothing reads the file again. client-go
-// re-reads only a certificate and key that are both files (every 5 minutes) and a token file (every
-// minute). So a certificate renewed in the file reached the connection only through a new connect,
-// and Log in again, which renewed the login on the same connection, could not use it.
+// The login a connection was made with, as its kubeconfig file held it (D-81, the owner's F28). A
+// connection keeps the credentials it read at its connect: a client certificate or a token in the
+// kubeconfig (client-certificate-data, client-key-data, token) is copied into the connection's TLS
+// and transport configuration once, and nothing reads the file again. client-go re-reads only a
+// certificate and key that are both files (every 5 minutes) and a token file (every minute). So a
+// certificate renewed in the file reached the connection only through a new connect, and Log in
+// again, which renewed the login on the same connection, could not use it.
 //
 // Connect therefore notes a fingerprint of the context's login as the file holds it: the user
 // entry's credentials, the cluster entry it is sent to, and the size and modification time of the

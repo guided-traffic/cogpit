@@ -98,7 +98,7 @@ func (sh *shell) aboutContent(info buildinfo.Info) fyne.CanvasObject {
 		newSpace(theme.SizeNamePadding), // room above the dialog's Close
 	)
 	// The logo's own glow is the only light: a panel of the horizon in the dialog read as a box in a
-	// box, with its grid cut at the edge and the links standing on it (the review of 2026-10-21).
+	// box, with its grid cut at the edge and the links standing on it.
 	return sized(sizeAboutWidth, "", container.NewVBox(objs...))
 }
 

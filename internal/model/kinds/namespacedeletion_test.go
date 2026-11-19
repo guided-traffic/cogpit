@@ -10,8 +10,8 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
-// stuckNamespace is a namespace as the namespace controller left walk-fin on kind v1.36.1
-// (2026-10-19): a ConfigMap and a Secret with finalizers, the messages verbatim.
+// stuckNamespace is a namespace as the namespace controller left walk-fin on kind v1.36.1: a
+// ConfigMap and a Secret with finalizers, the messages verbatim.
 func stuckNamespace(conds ...map[string]any) *unstructured.Unstructured {
 	list := make([]any, len(conds))
 	for i, c := range conds {

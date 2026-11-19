@@ -17,12 +17,12 @@ import (
 
 // Argo CD's Sync and Refresh (resource-parity › Paid Lens Desktop views › Argo CD, G23): on one
 // Application (the row menu, the drawer, the palette) and on a selection of them (the selection's
-// menu, the dashboard), through the Kubernetes API only (cluster/argocd.go). Lens's documentation
-// (read 2026-10-13): Sync opens a "Sync app(s)" dialog with a "Prune resources not in Git" toggle,
-// Refresh a "Refresh app(s)" dialog with Normal or Hard, both work on several Applications with one
-// notification for the batch. Danger (the brief's, the lead's): Refresh and Sync are mutating,
-// Sync with prune destructive (it deletes resources), so its confirmation names every Application,
-// its namespace and the context and says what prune deletes, for every origin.
+// menu, the dashboard), through the Kubernetes API only (cluster/argocd.go). Lens's documentation:
+// Sync opens a "Sync app(s)" dialog with a "Prune resources not in Git" toggle, Refresh a "Refresh
+// app(s)" dialog with Normal or Hard, both work on several Applications with one notification for
+// the batch. Danger (the brief's, the lead's): Refresh and Sync are mutating, Sync with prune
+// destructive (it deletes resources), so its confirmation names every Application, its namespace
+// and the context and says what prune deletes, for every origin.
 
 // argoPatchVerbs are the verbs of Sync and Refresh: a merge patch on the Application.
 var argoPatchVerbs = []engine.Verb{{Verb: "patch", Group: kinds.ArgoCDGroup, Resource: "applications"}}

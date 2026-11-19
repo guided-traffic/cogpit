@@ -6,9 +6,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// roles has the columns captured from Lens on 2026-10-11: Name, the warning icon, Namespace, Age.
-// The warning rule is inferred: a role without rules grants nothing. A role has no state, so a row
-// without a warning has no status token.
+// roles has the columns captured from Lens: Name, the warning icon, Namespace, Age. The warning
+// rule is inferred: a role without rules grants nothing. A role has no state, so a row without a
+// warning has no status token.
 var roles = &model.KindProfile{
 	Key:        keyRoles,
 	Group:      groupRBAC,

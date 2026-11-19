@@ -49,8 +49,8 @@ func TestDrawerTableLinks(t *testing.T) {
 
 // TestDrawerLinksFollowTheKinds: a drawer shown before the cluster's kinds are read offers every
 // link (nothing says a kind has no view yet); once they are read, a cell naming a kind without a
-// view is plain text. The test of the links above failed once on Windows (CI, 2026-10-23), where
-// the drawer was built before the kinds came.
+// view is plain text. The test of the links above failed once on Windows, where the drawer was
+// built before the kinds came.
 func TestDrawerLinksFollowTheKinds(t *testing.T) {
 	f := connectedFake(t, 3)
 	ref := f.tables["pods"].Rows[0].Ref

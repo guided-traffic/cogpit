@@ -15,10 +15,10 @@ const titleResourceClaims = "Resource Claims"
 const titleContainers = "Containers"
 
 // podResourceClaimsSection is the pod drawer's Resource Claims section, shown when the pod uses a
-// claim (Lens's documentation, read 2026-10-13: each claim, whether the pod references it directly
-// or through a template, its state, and the containers that request it). Built: each of the pod's
-// claims with the claim it resolves to (named directly, or generated from a template and recorded
-// in status.resourceClaimStatuses), a link to it and to the template, and the containers and init
+// claim (Lens's documentation, read: each claim, whether the pod references it directly or through
+// a template, its state, and the containers that request it). Built: each of the pod's claims with
+// the claim it resolves to (named directly, or generated from a template and recorded in
+// status.resourceClaimStatuses), a link to it and to the template, and the containers and init
 // containers that request it ("app" or "app (gpu)" for one request of the claim); the claim's state
 // (A105, podDetailWith), from claims only the open drawer reads. The section's
 // place, after Pod Volumes, is inferred.
@@ -98,10 +98,10 @@ func claimContainers(pod any, claim string) []string {
 	return out
 }
 
-// The claims an open drawer reads (A105, A108; owner 2026-10-14 evening): a pod's claims by name,
-// for their state in its Resource Claims section, and the claims by the devices allocated to them,
-// for the claim that holds each device of a node. Only the drawer reads them (DetailNeeds), so no
-// list keeps a watch on every claim.
+// The claims an open drawer reads (A105, A108; owner): a pod's claims by name, for their state in
+// its Resource Claims section, and the claims by the devices allocated to them, for the claim that
+// holds each device of a node. Only the drawer reads them (DetailNeeds), so no list keeps a watch
+// on every claim.
 var (
 	// ClaimsByName finds a resource claim by "<namespace>/<name>".
 	ClaimsByName = model.RelatedIndex{Kind: keyResourceClaims, Name: "byName", Keys: func(obj *unstructured.Unstructured) []string {

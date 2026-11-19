@@ -6,9 +6,9 @@ import (
 
 // Preferences › App › Restore the last session (D-69 item 8; engine/restore.go). Cogpit's own: no
 // such switch is known of Lens's preferences (inferred, not captured). Off by default (the
-// owner's decision of 2026-10-16): Cogpit then starts without tabs and without connections. On,
-// the next start restores the tabs and connects the clusters connected at quit, the one shown then
-// first; the help line says that their login programs run as on a connect.
+// owner's decision): Cogpit then starts without tabs and without connections. On, the next start
+// restores the tabs and connects the clusters connected at quit, the one shown then first; the help
+// line says that their login programs run as on a connect.
 
 const (
 	restoreSessionTitle = "Restore the last session"

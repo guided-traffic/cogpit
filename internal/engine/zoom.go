@@ -6,21 +6,20 @@ import (
 	"math"
 )
 
-// The window's zoom (D-134, the owner's request of 2026-10-26: "wie bei VSCode … ⌘- und ⌘+"): VS
-// Code's Zoom In, Zoom Out and Reset Zoom, its keys on each platform, and its step: a zoom level is
-// a factor of 1.2 to its power (VS Code's zoomLevelToZoomFactor, Electron's scale := 1.2 ^ level).
-// The level scales the whole window, text, icons, room and panels alike, as Chromium's page zoom
-// does for VS Code: Fyne's canvas scale (fyneui/zoom.go). Preferences.ZoomLevel keeps it, one value
-// for the one window, kept across starts; Reset Zoom goes back to 0, 100% (the owner's answer of
-// 2026-10-26: one value that stays, as VS Code before 1.86, whose later split into a default and a
-// zoom per window answers several windows). The commands are ui.zoom.in, ui.zoom.out and
-// ui.zoom.reset (commands/zoom.go); agents may zoom too: it changes only how large the window
-// draws.
+// The window's zoom (D-134, the owner's request: "wie bei VSCode … ⌘- und ⌘+"): VS Code's Zoom In,
+// Zoom Out and Reset Zoom, its keys on each platform, and its step: a zoom level is a factor of 1.2
+// to its power (VS Code's zoomLevelToZoomFactor, Electron's scale := 1.2 ^ level). The level scales
+// the whole window, text, icons, room and panels alike, as Chromium's page zoom does for VS Code:
+// Fyne's canvas scale (fyneui/zoom.go). Preferences.ZoomLevel keeps it, one value for the one
+// window, kept across starts; Reset Zoom goes back to 0, 100% (the owner's answer: one value that
+// stays, as VS Code before 1.86, whose later split into a default and a zoom per window answers
+// several windows). The commands are ui.zoom.in, ui.zoom.out and ui.zoom.reset (commands/zoom.go);
+// agents may zoom too: it changes only how large the window draws.
 
-// The zoom levels Cogpit offers (the lead's choice, 2026-10-26): VS Code allows −8 to 8, 23% to
-// 430%; Fyne's window grows to fit its content's minimum size at the new scale, about 593 × 249
-// points of Cogpit's, so 210% (1245 points wide) still fits a 1280-point laptop screen and 250%
-// would not fit a 13-inch MacBook Air's 1470. Down to 50%, where Cogpit's text is 6.5 points.
+// The zoom levels Cogpit offers (the lead's choice): VS Code allows −8 to 8, 23% to 430%; Fyne's
+// window grows to fit its content's minimum size at the new scale, about 593 × 249 points of
+// Cogpit's, so 210% (1245 points wide) still fits a 1280-point laptop screen and 250% would not fit
+// a 13-inch MacBook Air's 1470. Down to 50%, where Cogpit's text is 6.5 points.
 const (
 	MinZoomLevel = -4
 	MaxZoomLevel = 4
@@ -59,12 +58,12 @@ var (
 	ErrZoomFit   = errors.New("the window is too small")
 )
 
-// The window's fit (the lead's decision of 2026-10-26, from the first zoom in a real window): Fyne
-// widens a window to its content's minimum size, Cogpit's about 825 × 444 Fyne units with a cluster
-// shown, so 210% grew a window of 1440 points to 1733. VS Code's window never grows when it zooms.
-// So Zoom In stops at the largest level whose content still fits the window as it is: the window
-// tells the session that level (SetZoomCeiling) when its size or its zoom changes, and a larger
-// window, or full screen, zooms further.
+// The window's fit (the lead's decision, from the first zoom in a real window): Fyne widens a
+// window to its content's minimum size, Cogpit's about 825 × 444 Fyne units with a cluster shown,
+// so 210% grew a window of 1440 points to 1733. VS Code's window never grows when it zooms. So Zoom
+// In stops at the largest level whose content still fits the window as it is: the window tells the
+// session that level (SetZoomCeiling) when its size or its zoom changes, and a larger window, or
+// full screen, zooms further.
 
 // SetZoomCeiling keeps the largest zoom level the window's content fits the window at.
 func (s *Session) SetZoomCeiling(level int) {

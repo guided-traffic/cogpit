@@ -15,9 +15,9 @@ import (
 )
 
 // A credential plugin's run that a connection waits for, ended when the user cancels and after a
-// bound (D-73; the owner's finding of 2026-10-16 night: a connect that waited for an OIDC login in
-// the browser, which the user had not finished, could not be cancelled, had no timeout, and kept
-// Disconnect waiting behind it).
+// bound (D-73; the owner's finding: a connect that waited for an OIDC login in the browser, which
+// the user had not finished, could not be cancelled, had no timeout, and kept Disconnect waiting
+// behind it).
 //
 // client-go's exec authenticator runs the plugin with exec.Command and cmd.Run, without a context,
 // under the Authenticator's lock (k8s.io/client-go v0.37.1, plugin/pkg/client/auth/exec/exec.go:
@@ -53,8 +53,8 @@ import (
 // not hold its login, and was not cancelled, uses it; the bound ends it whoever waits.
 
 // DefaultLoginTimeout bounds one run of a credential plugin (Options.LoginTimeout; the lead's
-// decision of the night run 2026-10-16/17, D-73): long enough for a browser login with a second
-// factor, short of what a login nobody finishes would cost.
+// decision of the night run, D-73): long enough for a browser login with a second factor, short of
+// what a login nobody finishes would cost.
 const DefaultLoginTimeout = 5 * time.Minute
 
 // killGrace is how long a plugin has to end after SIGTERM before SIGKILL.

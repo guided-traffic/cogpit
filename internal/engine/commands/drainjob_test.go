@@ -20,7 +20,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// Drain as a background job (D-63, 2026-10-16). The fake writer's drain hook reports the steps
+// Drain as a background job (D-63). The fake writer's drain hook reports the steps
 // cluster.DrainNode reports against client-go's fake API server (TestDrainNodeReportsEachPod in
 // package cluster): the cordon, the list, then each pod's eviction asked for, refused for now by
 // a budget, accepted and gone.

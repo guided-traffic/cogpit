@@ -13,12 +13,12 @@ import (
 
 // Argo CD (resource-parity › Paid Lens Desktop views › Argo CD, G23, D-9): curated profiles of the
 // three kinds of Argo CD's custom resource definitions (argoproj.io/v1alpha1 Application,
-// ApplicationSet, AppProject). Lens's documentation (read 2026-10-13, "Using Argo CD"; not
-// captured) gives each list's columns: Applications Name, Namespace, Sync, Health, Project,
-// Destination, Revision, Age; Application Sets Name, Namespace, Generators, Age; Projects Name,
-// Namespace, Description, Source Repos, Age. The other columns are Cogpit's and start hidden; every
-// text, colour and the drawers are inferred from Argo CD's API, not from Lens. Argo CD's settings
-// (repositories, clusters) are Secrets, not custom resources: argocd_settings.go.
+// ApplicationSet, AppProject). Lens's documentation (read, "Using Argo CD"; not captured) gives
+// each list's columns: Applications Name, Namespace, Sync, Health, Project, Destination, Revision,
+// Age; Application Sets Name, Namespace, Generators, Age; Projects Name, Namespace, Description,
+// Source Repos, Age. The other columns are Cogpit's and start hidden; every text, colour and the
+// drawers are inferred from Argo CD's API, not from Lens. Argo CD's settings (repositories,
+// clusters) are Secrets, not custom resources: argocd_settings.go.
 
 // Kind keys of Argo CD's kinds (architecture §4.5: "<plural>.<group>").
 const (
@@ -392,8 +392,8 @@ func argoProjectLink(obj any) *model.ObjectRef {
 // projects in the namespace its controller runs in, which the controller writes into the
 // Application's status.controllerNamespace; an Application in another namespace (Argo CD's
 // "Applications in any namespace") finds its project there, not in its own namespace (checked
-// against a live Argo CD controller on a real cluster, 2026-10-16). Before the controller has
-// written it, the Application's own namespace.
+// against a live Argo CD controller on a real cluster). Before the controller has written it, the
+// Application's own namespace.
 func ArgoProjectNamespace(obj any) string {
 	if ns := model.NestedString(obj, fieldArgoStatus, "controllerNamespace"); ns != "" {
 		return ns
@@ -609,8 +609,8 @@ const ArgoResourceHealthNote = "In Argo CD's resource tree, not in the Applicati
 // Kind, Namespace, Name, Sync, Health; a name links to the object when it is of a kind Cogpit knows
 // without discovery (a built-in kind, or one of Argo CD's). The Health column is left out when no
 // resource carries a health: Argo CD 3 keeps it in its resource tree by default
-// (status.resourceHealthSource: appTree, seen on a live Argo CD 3.5 controller on a real cluster,
-// 2026-10-16), and the section says so instead of showing an empty column.
+// (status.resourceHealthSource: appTree, seen on a live Argo CD 3.5 controller on a real cluster),
+// and the section says so instead of showing an empty column.
 func argoResourcesSection(obj any) (model.DetailSection, bool) {
 	list := model.NestedSlice(obj, fieldArgoStatus, "resources")
 	if len(list) == 0 {

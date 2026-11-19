@@ -9,14 +9,14 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The marker of a terminal tab agents may read (H-83, owner 2026-10-14; engine/agentread.go): while
-// the tab's "Agents may read" switch is on, its tab carries an eye after the title in the warning
-// colour, and at each agent's read (engine.EventDockRead) the tab flashes, tinted in that colour,
-// for agentReadFlash. When the switch turned itself off, after 15 minutes without a read or one
-// hour after it went on (A3), the strip says which beside the switch while that tab is the active
-// one, until the user turns it on again. The switch, its end and that it turned off are the
-// engine's state (DockTab.AgentRead, AgentReadUntil, AgentReadExpired, AgentReadCapped); the flash
-// is only this window's reaction to the event.
+// The marker of a terminal tab agents may read (H-83, owner; engine/agentread.go): while the tab's
+// "Agents may read" switch is on, its tab carries an eye after the title in the warning colour, and
+// at each agent's read (engine.EventDockRead) the tab flashes, tinted in that colour, for
+// agentReadFlash. When the switch turned itself off, after 15 minutes without a read or one hour
+// after it went on (A3), the strip says which beside the switch while that tab is the active one,
+// until the user turns it on again. The switch, its end and that it turned off are the engine's
+// state (DockTab.AgentRead, AgentReadUntil, AgentReadExpired, AgentReadCapped); the flash is only
+// this window's reaction to the event.
 
 // agentReadExpiredNote is the strip's line for a tab whose switch turned itself off for want of a
 // read; agentReadCappedNote for one that reached its hour (A3).

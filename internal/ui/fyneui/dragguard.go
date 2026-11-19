@@ -2,16 +2,16 @@ package fyneui
 
 import "fyne.io/fyne/v2"
 
-// A drag belongs to the object the mouse button went down on (the owner's VW20 of 2026-10-25:
-// "Drag&Drop kann an random position gestartet werden"). Fyne's GLFW driver (window.go,
-// processMouseMoved) hands a drag to the draggable under the pointer's previous position once the
-// pointer is two points away from the press, wherever the press was, and the drag's first event
-// carries the whole way from the press: a press on empty space and a move onto a hotbar tile, a tab
-// or a panel's edge gave that object the drag, and a tile jumped by the whole way, out of the
-// window. Every Draggable of Cogpit's keeps a dragGuard and ignores a drag pressed outside itself,
-// from its first event to its DragEnd: nothing moves, nothing is dropped, clicked or sent. Fyne's
-// own draggables (the dock's Split divider, a scroll bar, an entry's text, a slider) cannot keep
-// one and still behave as the driver hands them the drag.
+// A drag belongs to the object the mouse button went down on (the owner's VW20: "Drag&Drop kann an
+// random position gestartet werden"). Fyne's GLFW driver (window.go, processMouseMoved) hands a
+// drag to the draggable under the pointer's previous position once the pointer is two points away
+// from the press, wherever the press was, and the drag's first event carries the whole way from the
+// press: a press on empty space and a move onto a hotbar tile, a tab or a panel's edge gave that
+// object the drag, and a tile jumped by the whole way, out of the window. Every Draggable of
+// Cogpit's keeps a dragGuard and ignores a drag pressed outside itself, from its first event to its
+// DragEnd: nothing moves, nothing is dropped, clicked or sent. Fyne's own draggables (the dock's
+// Split divider, a scroll bar, an entry's text, a slider) cannot keep one and still behave as the
+// driver hands them the drag.
 
 // dragGuard is a Draggable's view of the drag it is given: pressed on it, or outside it.
 type dragGuard struct {

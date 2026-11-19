@@ -22,15 +22,14 @@ import (
 	"golang.org/x/image/math/f64"
 )
 
-// A cluster's icon cut from an image (the owner's VW5 of 2026-10-23, D-119): the user picks an
-// image, places it in the tile's square frame, zooms it to a section and moves it by dragging. The
-// image is kept as the icon's source (IconSource: a PNG of at most iconSourceSide pixels a side; an
-// SVG is drawn into one when it is picked), with where the icon was cut from it (IconCrop), so
-// that the dialog opens again where it was left; the icon itself (Icon) is the square cut,
-// iconSide pixels a side, which the window draws. The colour tile, with letters the user may set
-// (IconLetters, at most MaxIconLetters), is the other kind of icon; the user chooses one
-// (IconTile) and either is kept while the other shows. Every change is the user's alone, in
-// Cogpit's window (H-125).
+// A cluster's icon cut from an image (the owner's VW5, D-119): the user picks an image, places it
+// in the tile's square frame, zooms it to a section and moves it by dragging. The image is kept as
+// the icon's source (IconSource: a PNG of at most iconSourceSide pixels a side; an SVG is drawn
+// into one when it is picked), with where the icon was cut from it (IconCrop), so that the dialog
+// opens again where it was left; the icon itself (Icon) is the square cut, iconSide pixels a side,
+// which the window draws. The colour tile, with letters the user may set (IconLetters, at most
+// MaxIconLetters), is the other kind of icon; the user chooses one (IconTile) and either is kept
+// while the other shows. Every change is the user's alone, in Cogpit's window (H-125).
 
 // Bounds of the icon's source, its cut and its letters.
 const (

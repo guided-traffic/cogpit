@@ -92,7 +92,7 @@ var helmRepositoriesSpec = &fluxSpec{
 	version: "v1", fallback: []string{fluxV1beta2}, section: FluxSectionSources,
 	suspend: true, reconcile: true,
 	// Since Flux 2.1 no controller reconciles an OCI repository: it has no status, and the flux
-	// CLI reports it Ready ("Helm repository is Ready"; seen on a real cluster, 2026-10-16).
+	// CLI reports it Ready ("Helm repository is Ready"; seen on a real cluster).
 	staticOf: ociHelmRepository,
 	columns: []fluxColumn{
 		{Column: model.Column{ID: idURL, Title: titleURL, Type: model.ColumnText}, cell: fluxURLCell(fieldSpec, idURL), field: true},

@@ -14,13 +14,12 @@ import (
 // A cluster's Settings › Node Shell (G13, D-37; engine/nodeshell.go), as Lens's page holds it (its
 // capture: the image, Lens's default shown as the field's placeholder, and an optional image pull
 // secret in kube-system): the image of the privileged pod a node shell runs, by its short name with
-// the pin behind it (the owner's R30, 2026-10-20, as Preferences' debug image and the debug dialog
-// show one; imageSetting): Cogpit's default, alpine pinned by digest, as the placeholder, and the
-// image pull secret. A line under the image says
-// whether it is pinned by digest or a floating tag, as the node shell's confirmation does. Cogpit's
-// own (owner, 2026-10-14): Maximum duration, how long the pod lives at most (its
-// activeDeadlineSeconds; engine/nodeshell_duration.go), with a line under it saying it in words.
-// Only the user sets them (cluster.settings.setNodeShell refuses agents anything but the
+// the pin behind it (the owner's R30, as Preferences' debug image and the debug dialog show one;
+// imageSetting): Cogpit's default, alpine pinned by digest, as the placeholder, and the image pull
+// secret. A line under the image says whether it is pinned by digest or a floating tag, as the node
+// shell's confirmation does. Cogpit's own (owner): Maximum duration, how long the pod lives at most
+// (its activeDeadlineSeconds; engine/nodeshell_duration.go), with a line under it saying it in
+// words. Only the user sets them (cluster.settings.setNodeShell refuses agents anything but the
 // defaults). Its place after Metrics follows Lens's order without the pages Cogpit lacks (Lens
 // Metrics, Cost).
 

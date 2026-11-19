@@ -126,9 +126,9 @@ func TestDeriveGroupsReleasesNewestWins(t *testing.T) {
 	}
 }
 
-// The drawer, as Lens's (captured 2026-10-12): Properties with Chart (and its Upgrade button),
-// Updated, Namespace, Version and Status as Lens writes it; the newest revision's values and the
-// chart's notes (both private); the resources, one table per kind with links.
+// The drawer, as Lens's (captured): Properties with Chart (and its Upgrade button), Updated,
+// Namespace, Version and Status as Lens writes it; the newest revision's values and the chart's
+// notes (both private); the resources, one table per kind with links.
 func TestReleaseDetail(t *testing.T) {
 	oldClock := clock
 	clock = func() time.Time { return t0.Add(3*time.Hour + 68*time.Second) }
@@ -169,9 +169,9 @@ func TestReleaseDetail(t *testing.T) {
 		string(c.Actions[0].Params) != `{"ref":{"kind":"helmreleases","namespace":"apps","name":"web"}}` {
 		t.Errorf("chart %+v", c)
 	}
-	// Chart reads "<chart>-<version>", Namespace is plain text and Status a neutral pill (captured 2026-10-12).
-	// Updated is Lens's age and time, the time a mark the engine writes in the user's zone and
-	// format (D-31): "68s ago (01.10.2026 17:00:00)" in Germany.
+	// Chart reads "<chart>-<version>", Namespace is plain text and Status a neutral pill
+	// (captured). Updated is Lens's age and time, the time a mark the engine writes in the user's
+	// zone and format (D-31): "68s ago (01.10.2026 17:00:00)" in Germany.
 	de := model.TimeLayout{Date: "02.01.2006", Time: "15:04:05"}.In(time.FixedZone("CEST", 2*60*60))
 	if got := de.WriteMarks(props["Updated"].Value); got != "68s ago (01.10.2026 17:00:00)" {
 		t.Errorf("updated %q", got)
@@ -223,8 +223,8 @@ func TestReleaseDetail(t *testing.T) {
 }
 
 // A failed revision a rollback covered stays in the History, its status and Helm's error in the
-// error colour, as k9s's history view shows it (the owner's colleague, 2026-10-25); a failed newest
-// revision's description is in Properties too, plain as the other values.
+// error colour, as k9s's history view shows it (the owner's colleague); a failed newest revision's
+// description is in Properties too, plain as the other values.
 func TestReleaseHistoryShowsAFailedUpgrade(t *testing.T) {
 	failed := secretFor(t, testRelease{ns: "apps", name: "web", rev: 2, status: common.StatusFailed})
 	rls, err := DecodeSecret(failed)
@@ -318,7 +318,7 @@ func TestStatusText(t *testing.T) {
 }
 
 // The history of a release object, newest first, with each revision's chart, and the Rollback
-// dialog's text for one revision, as Lens's (captured 2026-10-12).
+// dialog's text for one revision, as Lens's (captured).
 func TestReleaseHistoryAndRevisionText(t *testing.T) {
 	web := byKey(NewReleaseProfile().Derive(releaseSecrets(t)))["apps/web"]
 	h := ReleaseHistory(web)

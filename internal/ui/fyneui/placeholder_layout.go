@@ -7,10 +7,10 @@ import (
 
 // placeholderLayout centres a view's placeholder (its line, the login it waits for, its buttons) at
 // the width its line asks for, at most the view's less a margin each side: a longer line shortens
-// with an ellipsis (textLine.truncate) instead of drawing beyond the view. The owner's AW18 of
-// 2026-10-22: the line "Could not connect to <cluster>: <error>" was centred at its full width, so
-// it reached over the navigator, which is drawn before the view, and a clipped "Could not" stood at
-// the navigator's right edge beside the welcome page.
+// with an ellipsis (textLine.truncate) instead of drawing beyond the view. The owner's AW18: the
+// line "Could not connect to <cluster>: <error>" was centred at its full width, so it reached over
+// the navigator, which is drawn before the view, and a clipped "Could not" stood at the navigator's
+// right edge beside the welcome page.
 type placeholderLayout struct {
 	text *textLine // the line whose full width the placeholder asks for
 }

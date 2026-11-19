@@ -29,7 +29,7 @@ const (
 	bannerLeading = 4   // between the name and the sentence
 	// bannerRise lifts the text: its boxes hold room above the name's capitals and below the
 	// sentence's descenders, so that centring the boxes left the glyphs 17 points below the logo's
-	// centre (measured on the render, 2026-10-15).
+	// centre (measured on the render).
 	bannerRise     = 17
 	bannerSentence = "A fast, native Kubernetes IDE for your desktop."
 )
@@ -48,9 +48,9 @@ func TestShowcaseBanner(t *testing.T) {
 	})
 }
 
-// The repository's social preview (owner, 2026-10-15), the picture of a link to it: the banner at
-// 1280×640 in the dark theme. GitHub takes it only by hand, under Settings › General › Social
-// preview; its API has no way to set it.
+// The repository's social preview (owner), the picture of a link to it: the banner at 1280×640 in
+// the dark theme. GitHub takes it only by hand, under Settings › General › Social preview; its API
+// has no way to set it.
 func TestShowcaseSocialPreview(t *testing.T) {
 	showcaseOnly(t)
 	a := test.NewTempApp(t)

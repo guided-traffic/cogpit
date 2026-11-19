@@ -8,8 +8,8 @@ import (
 )
 
 // A cluster shown while its login is expired or its connection interrupted, whose objects were never
-// read (the owner's finding of 2026-10-22, acme-p-pinniped): the cache's lists wait until the cluster
-// is back, so the view loads nothing and the namespace filter has no namespaces of it.
+// read (the owner's finding, acme-p-pinniped): the cache's lists wait until the cluster is back, so
+// the view loads nothing and the namespace filter has no namespaces of it.
 
 // unreadPods is the Pods view's snapshot before its first list: no rows, not synced, no error.
 func unreadPods(t *testing.T) *engine.TableSnapshot {

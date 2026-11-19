@@ -167,9 +167,9 @@ func welcomeButtons(w *welcomePage) []string {
 	return out
 }
 
-// The welcome page has no Connect to Cluster… (the owner, 2026-10-16 evening, N122): Add
-// Kubeconfigs… is its one button; the workspace's button while no cluster is connected stays
-// Connect to Cluster… (it read All Clusters…, D-57) and does what ⌘P does.
+// The welcome page has no Connect to Cluster… (the owner, N122): Add Kubeconfigs… is its one
+// button; the workspace's button while no cluster is connected stays Connect to Cluster… (it read
+// All Clusters…, D-57) and does what ⌘P does.
 func TestConnectToClusterButtons(t *testing.T) {
 	f := newFakeEngine(t)
 	f.contexts = fixtureContexts()

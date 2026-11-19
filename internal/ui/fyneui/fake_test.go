@@ -776,8 +776,8 @@ func (q *mainQueue) drain() {
 }
 
 // until drains the queue until cond holds, failing the test after fifteen seconds: five were too few
-// for a race shard on CI's shared runner under load (2026-10-20 night, TestCreateTabKeepsSecretsOffDisk
-// waiting for its tab); a condition that holds returns at once.
+// for a race shard on CI's shared runner under load (TestCreateTabKeepsSecretsOffDisk waiting for
+// its tab); a condition that holds returns at once.
 func (q *mainQueue) until(t testing.TB, what string, cond func() bool) {
 	t.Helper()
 	q.untilShows(t, what, cond, nil)

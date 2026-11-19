@@ -27,15 +27,14 @@ import (
 // each connection's name, kind, host and model, which one is the default and which are private;
 // a connection is added, edited, made the default or deleted here. The form: name, kind (which
 // prefills LM Studio's usual base URL), base URL, API key (kept in an owner-only file in Cogpit's
-// settings folder, never in the keychain (the owner, 2026-10-15): empty keeps the stored key,
-// "Remove key" removes it, and empty saves no key where none is stored), model (the endpoint's
-// list, any name may be typed), the private connection's mark with what it unlocks and the hint
-// that its conversations are not saved (H-96), whether to send all tools (for large cloud models,
-// what it costs said), the four limits of a turn and the four numbers of the model's context (its
-// window, the shares of it at and down to which old tool results leave what is sent, a tool
-// result's size; D-167), each with its default, and
-// "use as default"; Test connection checks the form's values layer by layer (TCP, HTTP and TLS,
-// authentication, tool use) and shows each layer as it ends.
+// settings folder, never in the keychain (the owner): empty keeps the stored key, "Remove key"
+// removes it, and empty saves no key where none is stored), model (the endpoint's list, any name
+// may be typed), the private connection's mark with what it unlocks and the hint that its
+// conversations are not saved (H-96), whether to send all tools (for large cloud models, what it
+// costs said), the four limits of a turn and the four numbers of the model's context (its window,
+// the shares of it at and down to which old tool results leave what is sent, a tool result's size;
+// D-167), each with its default, and "use as default"; Test connection checks the form's values
+// layer by layer (TCP, HTTP and TLS, authentication, tool use) and shows each layer as it ends.
 //
 // Only the user edits this page. Its controls call the window's ChatAgent directly; none is a
 // command, so no agent can reach them (an agent must never mark a connection private, which loosens
@@ -83,8 +82,8 @@ const (
 	// keyKept says where the agent keeps an API key (agent.KeysFile, owner-only; no keychain).
 	keyKept = "Cogpit's settings folder, readable only by you"
 	// allToolsText and allToolsHelp are the setting to send every command as a tool (the owner's
-	// decision of 2026-10-15). The numbers are agent.TestToolsetSize's: 215 tools, about 77,000
-	// tokens; the core set 23 tools, about 9,700.
+	// decision). The numbers are agent.TestToolsetSize's: 215 tools, about 77,000 tokens; the core
+	// set 23 tools, about 9,700.
 	allToolsText = "Send all tools: every Cogpit command as a tool of its own"
 	allToolsHelp = "For large cloud models: each request then carries some 215 tools, about 77,000 tokens, more than " +
 		"many local models' context holds. Off: 20 core tools and a search that finds the rest, about 9,700 tokens. " +
@@ -514,7 +513,7 @@ func (f *agentForm) escape() {
 
 // showPlainWarning shows, while the base URL is plain http to another machine, that not only the
 // key but the conversation and every secret the agent reads cross the network unencrypted (the
-// owner's decision of 2026-10-15, H-95); localhost and loopback addresses are exempt.
+// owner's decision, H-95); localhost and loopback addresses are exempt.
 func (f *agentForm) showPlainWarning() {
 	if f.plainWarn == nil {
 		return
@@ -738,9 +737,9 @@ func (f *agentForm) save() {
 const modelsFirstNote = "With the base URL and the key typed, ↻ lists the endpoint's models; any model name may be typed."
 
 // loadModels fills the model list from the form's values: the base URL, kind and CA file as typed,
-// the key typed or else the stored one (the owner's request of 2026-10-25: a colleague's list
-// stayed empty after he typed his credentials, read from the saved connection only, and its button
-// was off until the connection was saved).
+// the key typed or else the stored one (the owner's request: a colleague's list stayed empty after
+// he typed his credentials, read from the saved connection only, and its button was off until the
+// connection was saved).
 func (f *agentForm) loadModels() {
 	c, err := f.endpoint()
 	if err != nil {
@@ -911,14 +910,13 @@ func (f *agentForm) showSteps(steps []engine.ChatTestStep) {
 
 // agentTestRow is one layer of the connection test. Its detail is selectable, and a failed layer
 // that sent a request shows that request and its answer below it (Exchange, curl -v's form), in a
-// selectable block with a copy icon (the owner, 2026-10-26: "WELCHER ENDPUNKT WURDE WIE
-// AUFGERUFEN???").
+// selectable block with a copy icon (the owner: "WELCHER ENDPUNKT WURDE WIE AUFGERUFEN???").
 type agentTestRow struct {
 	sh        *shell
 	root      fyne.CanvasObject
 	icon      *widget.Icon
 	label     *textLine
-	detail    *selParagraph   // wrapped, never cut: a certificate's issuer and end, the auth's two answers (2026-10-25)
+	detail    *selParagraph   // wrapped, never cut: a certificate's issuer and end, the auth's two answers
 	detailBox *fyne.Container // holds detail, made anew when its text or colour changes (a selParagraph wraps once)
 	detailW   float32
 	exchange  *fyne.Container // a failed layer's request and answer

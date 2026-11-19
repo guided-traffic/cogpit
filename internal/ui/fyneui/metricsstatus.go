@@ -18,13 +18,13 @@ import (
 )
 
 // The metrics' source row under the drawer's and the Overview's charts (G12; the owner's WF24 and
-// WF25 of 2026-10-18, D-88). One compact row: Prometheus at the left, the Kubernetes Metrics Server
-// at the right, each as "<name> ● <when>": the dot in the cluster dots' colours (conndot.go: green
-// while it answers, red while it fails or may not be read, grey while it is not found, a grey ring
-// while nothing has asked it yet) and when it last answered ("30 s ago", "now"), else in a word why
-// not ("not answering", "no permission", "not found", "waiting"), or "not used" with a grey dot
-// where the charts never ask it (the Metrics Server under a volume's: it measures no volume). Where
-// it runs, what it serves now, the last good answer and the last failure (a class, never a response
+// WF25, D-88). One compact row: Prometheus at the left, the Kubernetes Metrics Server at the right,
+// each as "<name> ● <when>": the dot in the cluster dots' colours (conndot.go: green while it
+// answers, red while it fails or may not be read, grey while it is not found, a grey ring while
+// nothing has asked it yet) and when it last answered ("30 s ago", "now"), else in a word why not
+// ("not answering", "no permission", "not found", "waiting"), or "not used" with a grey dot where
+// the charts never ask it (the Metrics Server under a volume's: it measures no volume). Where it
+// runs, what it serves now, the last good answer and the last failure (a class, never a response
 // body) are in each one's tooltip. While one is not reachable its part of the row links to its section of Cluster
 // Settings (D-87): "Set its address…" for a Prometheus not found, "Settings…" otherwise; while both
 // answer the row holds nothing more; where the Prometheus runs is on its settings section. A provider the cluster's settings
@@ -355,12 +355,12 @@ func providerTip(ps metrics.ProviderStatus, now time.Time, tf model.TimeFormat) 
 	return strings.Join(tip, "\n")
 }
 
-// sourceRowLayout lays the row's parts out in the row's middle (the owner, 2026-10-18, on WF24:
-// "nicht ganz außen rechts und links, sondern mittig zentriert, rechts und links"): one centred;
-// two side by side, the first ending a gap's half left of the centre and the second starting a
-// gap's half right of it, or the pair centred as one when the wider of them does not fit its half;
-// one under the other, each centred, when they do not fit side by side in the room the row has
-// (avail, the drawer's width; else the size it is given).
+// sourceRowLayout lays the row's parts out in the row's middle (the owner, on WF24: "nicht ganz
+// außen rechts und links, sondern mittig zentriert, rechts und links"): one centred; two side by
+// side, the first ending a gap's half left of the centre and the second starting a gap's half right
+// of it, or the pair centred as one when the wider of them does not fit its half; one under the
+// other, each centred, when they do not fit side by side in the room the row has (avail, the
+// drawer's width; else the size it is given).
 type sourceRowLayout struct {
 	avail func() float32
 }

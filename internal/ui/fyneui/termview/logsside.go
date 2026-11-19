@@ -10,9 +10,9 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// Scrolling sideways (the owner's finding of 2026-10-31: "Im Dock-Tab "Logs" eines Pods kann man
-// bei langen Log-Zeilen und deaktiviertem "Warp" nicht nach rechts scrollen um sie vollständig
-// erfassen zu können."). The lead's details (D-143):
+// Scrolling sideways (the owner's finding: "Im Dock-Tab "Logs" eines Pods kann man bei langen
+// Log-Zeilen und deaktiviertem "Warp" nicht nach rechts scrollen um sie vollständig erfassen zu
+// können."). The lead's details (D-143):
 //   - while the lines do not wrap, the rows scroll sideways together: a sideways swipe or wheel over
 //     the lines (⇧ and the wheel where the system makes that one), and a scroll bar along the
 //     bottom, Fyne's own, as wide as the widest line; the head row stays where it is;

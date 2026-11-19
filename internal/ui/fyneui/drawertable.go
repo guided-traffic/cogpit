@@ -103,11 +103,11 @@ func tableCellAt(t *model.DetailTable, row []model.Cell, r, i int) (model.Cell, 
 
 // underTable renders a LastUnder table: its other columns as a table of cells, and under each row
 // the last column's text on a plate across the table, as a Config Map's value lies under its key
-// (the owner, 2026-10-25: "so wie die Values in der ConfigMap, nicht als code-Block"): the input
-// background, the text in the plain font wrapped onto lines within it (wrapHard), a failed state's
-// in its colour; each line's copy icon copies the whole text. The last column has no title: the
-// text under a row says what it is ("Upgrade complete"). rowLink, when set, makes each row's first
-// cell a link that runs what it returns for the row (a release's revision opens its Revisions tab).
+// (the owner: "so wie die Values in der ConfigMap, nicht als code-Block"): the input background,
+// the text in the plain font wrapped onto lines within it (wrapHard), a failed state's in its
+// colour; each line's copy icon copies the whole text. The last column has no title: the text under
+// a row says what it is ("Upgrade complete"). rowLink, when set, makes each row's first cell a link
+// that runs what it returns for the row (a release's revision opens its Revisions tab).
 func (d *drawer) underTable(ref model.ObjectRef, t *model.DetailTable, colType func(int) model.ColumnType, rowLink func(row int) func()) fyne.CanvasObject {
 	n := len(t.Columns) - 1
 	th := d.sh.app.Settings().Theme()

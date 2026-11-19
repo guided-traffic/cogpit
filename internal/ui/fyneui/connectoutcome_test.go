@@ -11,11 +11,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The owner's AW15 and AW16 (alpha walk, 2026-10-22): his own Cancel Connecting and a connect that
-// goes on in the background once he showed another cluster each raised an error toast in the Go
-// error's form. A connect that did not fail raises no toast, on every way the window answers a
-// command (a dispatch without its own answer, a hotbar tile's and the start's --context); a connect
-// that failed still says why.
+// The owner's AW15 and AW16 (alpha walk): his own Cancel Connecting and a connect that goes on in
+// the background once he showed another cluster each raised an error toast in the Go error's form.
+// A connect that did not fail raises no toast, on every way the window answers a command (a
+// dispatch without its own answer, a hotbar tile's and the start's --context); a connect that
+// failed still says why.
 func TestConnectOutcomesThatAreNoFailureRaiseNoToast(t *testing.T) {
 	f := connectedFake(t, 3)
 	sh, _, q := newTestShell(t, f, Options{})

@@ -212,12 +212,12 @@ func shellEntry(ctxName, name, uid, id string) NodeShellEntry {
 		Created: time.Date(2026, 10, 14, 8, 0, 0, 0, time.UTC)}
 }
 
-// The pods an earlier run left (H-71, owner 2026-10-14): on the connect to their context Cogpit
-// deletes its own, Running or Failed, by UID; a pod of the name with another UID, or recorded
-// without a UID and carrying another id, is not Cogpit's and stays; a pod that is gone clears its
-// entry; a forbidden delete keeps the entry and says so; another context's entries and another
-// live Cogpit process's are untouched. The deletes are in the audit log; the notification names
-// the pods deleted, and a warning those kept.
+// The pods an earlier run left (H-71, owner): on the connect to their context Cogpit deletes its
+// own, Running or Failed, by UID; a pod of the name with another UID, or recorded without a UID and
+// carrying another id, is not Cogpit's and stays; a pod that is gone clears its entry; a forbidden
+// delete keeps the entry and says so; another context's entries and another live Cogpit process's
+// are untouched. The deletes are in the audit log; the notification names the pods deleted, and a
+// warning those kept.
 func TestNodeShellSweepDeletesOwnPodsOnly(t *testing.T) {
 	dir := t.TempDir()
 	j := NewFileNodeShellJournal(dir)

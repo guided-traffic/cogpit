@@ -10,9 +10,8 @@ import (
 )
 
 // A connect cancelled by Disconnect (the user's Cancel Connecting, or an agent's cluster_disconnect)
-// and one superseded before it began are no failures (the owner's AW15 of 2026-10-22): an agent
-// reads them as cancelled, the cancel's text telling it not to connect again on its own, never as
-// "failed".
+// and one superseded before it began are no failures (the owner's AW15): an agent reads them as
+// cancelled, the cancel's text telling it not to connect again on its own, never as "failed".
 func TestConnectOutcomesAreNoFailures(t *testing.T) {
 	reg := engine.NewRegistry()
 	if err := engine.Register(reg, engine.Spec[struct{}]{

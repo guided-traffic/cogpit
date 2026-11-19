@@ -23,8 +23,8 @@ import (
 // Alertmanager requires. Under them, what the matchers mute now, as the engine matches them
 // (alerts.silenceMatches), the critical ones in the error colour. The form is the window's own
 // confirmation of the silence: the GUI's alerts.silence asks nothing more; an agent's always asks
-// (the owner, 2026-11-17). A refusal keeps the form open and says, in it, which request failed and
-// what the Alertmanager or the API server answered.
+// (the owner). A refusal keeps the form open and says, in it, which request failed and what the
+// Alertmanager or the API server answered.
 
 // silenceDurations are the lengths the form offers; any other is typed (engine.ParseSilenceDuration).
 var silenceDurations = []string{"1h", "2h", "4h", "8h", "1d", "3d", "1w"}

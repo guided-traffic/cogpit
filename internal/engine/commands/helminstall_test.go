@@ -289,7 +289,7 @@ func TestHelmInstallAgents(t *testing.T) {
 	}
 
 	// Agent writes allowed for the context: an agent's install still waits for the user, whatever
-	// the chart holds (A2, owner 2026-10-14 evening); declined, nothing is installed.
+	// the chart holds (A2, owner); declined, nothing is installed.
 	h.s.SetAgentWrites("test", true)
 	h.answer = false
 	n, installs := len(h.confirmations()), len(fi.recordedInstalls())
@@ -402,7 +402,7 @@ func TestHelmInstallCrashJournal(t *testing.T) {
 
 // An agent's install that fails in the SDK gets the failure without its text: a chart's templates
 // can quote what lookup read (values reach lookup through tpl), a Secret's data included. The user
-// reads the error in the window's toast (review 2026-10-13).
+// reads the error in the window's toast.
 func TestHelmInstallErrorStaysInTheWindow(t *testing.T) {
 	h, fi := installHarness(t)
 	h.answer = true

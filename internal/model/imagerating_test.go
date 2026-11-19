@@ -8,8 +8,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// trivyReport is a VulnerabilityReport shaped as Trivy Operator 0.35.0 writes it (kind,
-// 2026-10-17): synthetic names, the vulnerabilities left out.
+// trivyReport is a VulnerabilityReport shaped as Trivy Operator 0.35.0 writes it (kind): synthetic
+// names, the vulnerabilities left out.
 func trivyReport(kind, workload, container string, summary map[string]any) *unstructured.Unstructured {
 	return &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "aquasecurity.github.io/v1alpha1", "kind": "VulnerabilityReport",
@@ -34,8 +34,8 @@ func trivyReport(kind, workload, container string, summary map[string]any) *unst
 	}}
 }
 
-// TestImageGrades checks the owner's rules (2026-10-22) on the counts Trivy 0.69.3 found in real
-// images the same day (the Image Rating Lab's sample) and at each threshold.
+// TestImageGrades checks the owner's rules on the counts Trivy 0.69.3 found in real images (the
+// Image Rating Lab's sample) and at each threshold.
 func TestImageGrades(t *testing.T) {
 	cases := []struct {
 		name string

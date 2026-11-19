@@ -207,8 +207,8 @@ func TestValidateRefuses(t *testing.T) {
 }
 
 // githubReleased are the days the Kubernetes project published each minor's .0 release on GitHub
-// (`gh api repos/kubernetes/kubernetes/releases/tags/v1.<n>.0 --jq .published_at`, read
-// 2026-10-18, UTC), for the minors whose release day the table does not hold.
+// (`gh api repos/kubernetes/kubernetes/releases/tags/v1.<n>.0 --jq .published_at`, read, UTC), for
+// the minors whose release day the table does not hold.
 var githubReleased = map[string]string{
 	"1.19": "2020-08-26", "1.20": "2020-12-08", "1.21": "2021-04-08", "1.22": "2021-08-04", "1.23": "2021-12-07",
 	"1.24": "2022-05-03", "1.25": "2022-08-23", "1.26": "2022-12-09", "1.27": "2023-04-11", "1.28": "2023-08-15",

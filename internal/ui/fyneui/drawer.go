@@ -26,10 +26,10 @@ const (
 	chipsLineMaxText = 64 // the most characters of chip text on one line
 )
 
-// drawer is the detail drawer, after Lens's (capture, 2026-10-11): the object's kind and name in
-// the title bar with its actions as icons (the registry's actions for the kind, as in the row
-// menu), then the Properties section, the kind's own sections and the events. Cogpit's YAML view
-// is a second tab. It refreshes when the engine reports the object changed.
+// drawer is the detail drawer, after Lens's (capture): the object's kind and name in the title bar
+// with its actions as icons (the registry's actions for the kind, as in the row menu), then the
+// Properties section, the kind's own sections and the events. Cogpit's YAML view is a second tab.
+// It refreshes when the engine reports the object changed.
 type drawer struct {
 	sh    *shell
 	width float32 // the drawer's width the details were built for (contentWidth)
@@ -255,8 +255,8 @@ func (d *drawer) showLoading(ref model.ObjectRef) {
 // (drawerChanged refreshes the workspace after showLoading), and the pod's detail, read from the
 // cache, often comes before the next frame: with icons as wide as the last pod's and a status as
 // tall, no frame saw a change, and the header kept the loading layout, the icons drawn from the
-// close button on past the drawer's edge and the status under the tabs (the owner's finding of
-// 2026-10-22). The header holds a few widgets; a refresh of it costs little.
+// close button on past the drawer's edge and the status under the tabs (the owner's finding). The
+// header holds a few widgets; a refresh of it costs little.
 func (d *drawer) layoutHeader() {
 	if s := d.frame.Size(); s.Width <= 0 || s.Height <= 0 {
 		return // not laid out yet: its first layout places everything
@@ -266,8 +266,8 @@ func (d *drawer) layoutHeader() {
 }
 
 // setPlain switches between the drawer with Details and YAML tabs and Lens's flat release drawer
-// (captured 2026-10-12): the title "Release: <name>" on one line, no tabs, no status pill beside the
-// icons (the Status property is a pill of its own).
+// (captured): the title "Release: <name>" on one line, no tabs, no status pill beside the icons
+// (the Status property is a pill of its own).
 func (d *drawer) setPlain(plain bool) {
 	if plain == d.plain {
 		return
@@ -522,7 +522,7 @@ func (d *drawer) buildDetails(m *engine.DetailModel) []fyne.CanvasObject {
 // itemName is an item's name in the details' name column (kvLayout): one line, or, for a name
 // wider than the column ("Pod Management Policy", "Volume Claim Templates" of a Stateful Set),
 // wrapped onto lines within it, so that it never runs into its value: at its spaces, a word without
-// them after - . _ / and, failing those, by characters (wrapName; the owner's F3, 2026-10-15:
+// them after - . _ / and, failing those, by characters (wrapName; the owner's F3:
 // "agent-not-ready-taint-key" ran under its value). A name that fits is drawn as before.
 func (d *drawer) itemName(it model.DetailItem) fyne.CanvasObject {
 	text := it.Name
@@ -658,9 +658,9 @@ func (d *drawer) itemValue(ref model.ObjectRef, sec model.DetailSection, it mode
 	}
 	switch {
 	case len(objs) > 1:
-		// The owner's decision (A71, 2026-10-14 evening): the buttons (a port's Forward…) right
-		// after the value, and the copy icon over the value's end on hover,
-		// as in the lists (A69): the value keeps no room for it and its text is not shortened.
+		// The owner's decision (A71): the buttons (a port's Forward…) right after the value, and
+		// the copy icon over the value's end on hover, as in the lists (A69): the value keeps no
+		// room for it and its text is not shortened.
 		for _, h := range d.copyHooks[hooks:] {
 			h.over = true
 		}
@@ -1049,7 +1049,7 @@ func capWidths(w []float32, avail float32) {
 }
 
 // buildEvents renders the object's events, newest first, at the end of the drawer as Lens does;
-// "No events found" when there are none (capture, 2026-10-11).
+// "No events found" when there are none (capture).
 func (d *drawer) buildEvents(events []engine.EventItem) []fyne.CanvasObject {
 	if len(events) == 0 {
 		return []fyne.CanvasObject{newTextLine("No events found", colorMuted, theme.SizeNameText, fyne.TextStyle{})}

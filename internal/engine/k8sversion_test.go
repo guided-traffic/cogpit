@@ -42,8 +42,8 @@ type testClock struct {
 func (c *testClock) Now() time.Time  { c.mu.Lock(); defer c.mu.Unlock(); return c.now }
 func (c *testClock) set(t time.Time) { c.mu.Lock(); c.now = t; c.mu.Unlock() }
 
-// testReleases is the release table of the tests: upstream's of 2026-10-18 from 1.31 on, so that
-// a refresh of the table built in moves no expectation.
+// testReleases is the release table of the tests: a copy of upstream's from 1.31 on, so that a
+// refresh of the table built in moves no expectation.
 func testReleases() *k8seol.Table {
 	return &k8seol.Table{Source: "test", Fetched: "2026-10-18", Minors: []k8seol.Minor{
 		{Minor: "1.31", EndOfLife: "2025-11-11", FinalPatch: "1.31.14"},
@@ -69,10 +69,10 @@ func kubeletNode(name, version string) map[string]any {
 	return map[string]any{"status": map[string]any{"nodeInfo": map[string]any{"kubeletVersion": version}}}
 }
 
-// The shown cluster's version in the UI state, assessed against the table built in: on
-// 2026-10-18 1.34 is in its maintenance mode, nine days before its end of life (2026-10-27);
-// gone while the cluster is not live; ui_state's copy assessed as of the read, past the end of
-// life once the clock passed it.
+// The shown cluster's version in the UI state, assessed against the table built in: at the test's
+// clock 1.34 is in its maintenance mode, nine days before its end of life; gone while the cluster
+// is not live; ui_state's copy assessed as of the read, past the end of life once the clock passed
+// it.
 func TestClusterVersionInUIState(t *testing.T) {
 	clk := &testClock{now: time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)}
 	s := versionSession(t, testkit.NewMemorySource(), "v1.34.2", clk)
@@ -102,12 +102,12 @@ func TestClusterVersionInUIState(t *testing.T) {
 	}
 }
 
-// The Nodes list's Version column (the owner, 2026-11-04): a kubelet outside the skew policy in the
-// error colour, one past its end of life or of another release than the API server's (a patch's
-// too) in the warning colour, each with its tooltip, which agents read as the row's tips; the
-// API server's release keeps its text and gets the tooltip only. The Signals column's "!" after
-// the state: error outside the policy, warning past the end of life or a minor behind, none for a
-// patch. The drawer marks its Kubelet version and adds Upstream support and Version skew.
+// The Nodes list's Version column (the owner): a kubelet outside the skew policy in the error
+// colour, one past its end of life or of another release than the API server's (a patch's too) in
+// the warning colour, each with its tooltip, which agents read as the row's tips; the API server's
+// release keeps its text and gets the tooltip only. The Signals column's "!" after the state: error
+// outside the policy, warning past the end of life or a minor behind, none for a patch. The drawer
+// marks its Kubelet version and adds Upstream support and Version skew.
 func TestNodesVersionCheck(t *testing.T) {
 	clk := &testClock{now: time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)}
 	src := testkit.NewMemorySource()

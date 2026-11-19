@@ -221,7 +221,7 @@ func TestLightStripGrainIsTheLabsTexture(t *testing.T) {
 }
 
 // grainDigest is the start of the grain texture's SHA-256, the same as the lab's NOISE data run in
-// Node (2026-10-24): the port draws the lab's specks byte for byte. It changes only with the texture.
+// Node: the port draws the lab's specks byte for byte. It changes only with the texture.
 const grainDigest = "e2d798af478a3160"
 
 // The frosted glass is the lab's: the stage mixed by the owner's density, kept in the palettes.

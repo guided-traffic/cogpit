@@ -11,8 +11,8 @@ import (
 // installChat wires the built-in agent (internal/agent, D-10) into the session, which the window's
 // chat column reaches through Session.Chat: its LLM connections, conversations and API keys in
 // Cogpit's configuration directory (agent.ConnectionsFile, agent.ConversationsFile,
-// agent.KeysFile, each owner-only; no keychain, the owner's decision of 2026-10-15). Without the
-// directory they last for the run.
+// agent.KeysFile, each owner-only; no keychain, the owner's decision). Without the directory they
+// last for the run.
 func installChat(s *engine.Session, logger *slog.Logger) {
 	dir := ""
 	if dirs, err := app.UserDirs(); err == nil {

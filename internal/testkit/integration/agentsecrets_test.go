@@ -15,10 +15,10 @@ import (
 )
 
 // TestBudgetAgentReadTakesTheSecrets measures, on the real client-go stack against the fake API
-// server, what the owner's option b for H-82 costs (2026-10-14): the window's read of a pod costs
-// no Secrets request; an agent's first read takes the Secrets (one streaming watch) and reads the
-// value of a Secret that a pod's annotation repeats as its placeholder; a second agent read within
-// the warm period costs no request.
+// server, what the owner's option b for H-82 costs: the window's read of a pod costs no Secrets
+// request; an agent's first read takes the Secrets (one streaming watch) and reads the value of a
+// Secret that a pod's annotation repeats as its placeholder; a second agent read within the warm
+// period costs no request.
 func TestBudgetAgentReadTakesTheSecrets(t *testing.T) {
 	const pass = "agent-budget-pass-4711"
 	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: "budget-token",

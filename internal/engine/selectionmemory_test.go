@@ -29,9 +29,9 @@ func wantSelected(t *testing.T, what string, u UIState, want ...string) {
 	}
 }
 
-// Each view keeps its checked rows (N111, the owner's decision in the audit of 2026-10-16): the
-// view left takes them along, the view shown has its own; a view shown again in the tab, by
-// opening it or by the tab's history, gets them back. ui.state lists the shown view's only.
+// Each view keeps its checked rows (N111, the owner's decision in the audit): the view left takes
+// them along, the view shown has its own; a view shown again in the tab, by opening it or by the
+// tab's history, gets them back. ui.state lists the shown view's only.
 func TestSelectionRememberedPerView(t *testing.T) {
 	s := tabSession(t)
 	pod := model.ObjectRef{Context: "test", Kind: "pods", Namespace: "shop", Name: "web-0"}

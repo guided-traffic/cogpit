@@ -9,13 +9,13 @@ import (
 	"github.com/guided-traffic/cogpit/internal/cluster"
 )
 
-// A background cluster's login, held (D-69 item 4; the owner, 2026-10-16: by default a background
-// cluster's login is renewed as the shown cluster's is, configurable). The cluster setting "Renew
-// the login while the cluster is not shown" (ClusterSettings.HoldBackgroundLogin, its negation, so
-// that the default is a zero value) is on by default. Off, a connected cluster that the window does
-// not show holds its credential plugin (cluster.Conn.HoldLogin): a login that expires by its time,
-// or that the API server rejects, is not renewed, so no browser login pops up while the user works
-// with another cluster. The cluster's watch then lapses (stateLapsed):
+// A background cluster's login, held (D-69 item 4; the owner: by default a background cluster's
+// login is renewed as the shown cluster's is, configurable). The cluster setting "Renew the login
+// while the cluster is not shown" (ClusterSettings.HoldBackgroundLogin, its negation, so that the
+// default is a zero value) is on by default. Off, a connected cluster that the window does not show
+// holds its credential plugin (cluster.Conn.HoldLogin): a login that expires by its time, or that
+// the API server rejects, is not renewed, so no browser login pops up while the user works with
+// another cluster. The cluster's watch then lapses (stateLapsed):
 //
 //   - the UI state shows the connection Connected with ConnectedCluster.LoginLapsed and the reason
 //     lapsedReason: grey, not red (the owner: red says the user must act, and whether a renewal

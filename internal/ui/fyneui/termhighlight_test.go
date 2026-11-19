@@ -14,12 +14,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/ui/fyneui/termview"
 )
 
-// The owner's GW7 (gate walk of 2026-10-20): zsh highlights pasted text until Enter, and Cogpit's
-// terminal drew the highlight as broken blocks, every other character without it. zsh highlights a
-// paste with reverse video (SGR 7); with oh-my-zsh and zsh-syntax-highlighting it sends SGR 7 again
-// before every character, which the terminal widget took as a toggle (third_party/fyne-terminal,
+// The owner's GW7 (gate walk): zsh highlights pasted text until Enter, and Cogpit's terminal drew
+// the highlight as broken blocks, every other character without it. zsh highlights a paste with
+// reverse video (SGR 7); with oh-my-zsh and zsh-syntax-highlighting it sends SGR 7 again before
+// every character, which the terminal widget took as a toggle (third_party/fyne-terminal,
 // TestReverseVideo). The render shows such a paste of three lines, as zsh 5.9 sent it in a
-// pseudo-terminal on 2026-10-20 (the prompt shortened), above a command run before it.
+// pseudo-terminal (the prompt shortened), above a command run before it.
 
 // highlightedPaste is what zsh sends for a line of a highlighted paste with oh-my-zsh and
 // zsh-syntax-highlighting: SGR 7 before every character, SGR 27 after the last.

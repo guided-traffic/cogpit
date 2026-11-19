@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-// The alert board's cards (the owner, 2026-10-27: first the severity, "danach eine kurze Beschreibung
-// des Problems und dann schon eine schnell zu erfassende Liste der konkreten Instanzen", and "vermeiden
+// The alert board's cards (the owner: first the severity, "danach eine kurze Beschreibung des
+// Problems und dann schon eine schnell zu erfassende Liste der konkreten Instanzen", and "vermeiden
 // den gleichen Text oder Description zweimal auszugeben"): a card is one alertname of one severity,
 // its text once and its alerts as the rows of a table of what tells them apart. finishCard picks the
 // columns (what differs between the alerts; with one alert, the object and what its text names),

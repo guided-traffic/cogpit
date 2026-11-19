@@ -15,9 +15,9 @@ import (
 // The silences of the shown cluster's Alertmanager (D-166): the silences page lists them, the
 // board's cards and rows draft one, alerts.silence creates it and alerts.expireSilence ends it, in
 // the Alertmanager whose alerts the board shows, through the API server's service proxy with the
-// user's identity. An agent's silence and expire always wait for the user's acceptance (the owner,
-// 2026-11-17): a silence mutes the on-call's notifications, which the context's allowance of agent
-// writes does not cover.
+// user's identity. An agent's silence and expire always wait for the user's acceptance (the owner):
+// a silence mutes the on-call's notifications, which the context's allowance of agent writes does
+// not cover.
 
 // amProxy is the Alertmanager's service proxy, and the verbs the alert commands use on it: reading
 // the alerts and silences, creating a silence, expiring one.

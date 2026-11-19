@@ -25,10 +25,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// A Secret's values edited in the drawer, the window's only (the owner's audit answer of
-// 2026-10-15, D-59): the window reveals a value whole, reviews a masked diff and a dry run, and
-// saves with the version the values are based on; agents and the CLI reach no path that writes a
-// value; no value reaches an error, a toast, the audit log, the log or a result's diff.
+// A Secret's values edited in the drawer, the window's only (the owner's audit answer, D-59): the
+// window reveals a value whole, reviews a masked diff and a dry run, and saves with the version the
+// values are based on; agents and the CLI reach no path that writes a value; no value reaches an
+// error, a toast, the audit log, the log or a result's diff.
 
 // The values of the drawer's Secret and the values typed into it, in every form they could leak in.
 const (

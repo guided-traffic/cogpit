@@ -14,8 +14,8 @@ import (
 // The command palette (G13, ⌘⇧P; ui-parity › Command palette): a searchable list of what the
 // window's menus offer in the current UI state. Registry.Palette builds it from the registry's
 // metadata, so a command appears in it without palette code; which commands, and with which
-// parameters (decided 2026-10-13, Cogpit's reading, Lens's palette is not captured beyond its
-// "Switch to" and hotbar entries):
+// parameters (decided, Cogpit's reading, Lens's palette is not captured beyond its "Switch to" and
+// hotbar entries):
 //
 //  1. Object actions. The palette's object is the drawer's, else the one selected object
 //     (PaletteObject). Its kind's actions are offered as the drawer's toolbar lists them

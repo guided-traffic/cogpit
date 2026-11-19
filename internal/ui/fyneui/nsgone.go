@@ -12,11 +12,11 @@ import (
 )
 
 // A namespace filter that names a namespace that is gone or going (the owner's gate walk,
-// 2026-10-20, GW9): his Pods view was filtered to cogpit-gate when it was deleted, and showed "0 of
-// 218 items" and "No pods match the filter." under a button that still read "cogpit-gate". The
-// owner's choice, deliberately minimal ("Das wäre recht simpel und führt jetzt nicht zu weiteren
-// Button und Logik"): a namespace still selected but deleted is marked red in the filter's list,
-// like a crashing pod, and unticked it leaves the selection and the list; no notice, no button, no
+// GW9): his Pods view was filtered to cogpit-gate when it was deleted, and showed "0 of 218 items"
+// and "No pods match the filter." under a button that still read "cogpit-gate". The owner's choice,
+// deliberately minimal ("Das wäre recht simpel und führt jetzt nicht zu weiteren Button und
+// Logik"): a namespace still selected but deleted is marked red in the filter's list, like a
+// crashing pod, and unticked it leaves the selection and the list; no notice, no button, no
 // automatic removal. The lead's details, open to revision (D-106):
 //   - a Terminating namespace is marked the same, selected or not: nothing can be created there
 //     either;

@@ -65,7 +65,7 @@ func TestNodeShellImageRules(t *testing.T) {
 
 // TestNodeShellMaxDuration: the maximum duration as typed (90m, 2h, 1h30m), in whole minutes from 5
 // minutes to 24 hours, empty the default; how the field and a sentence write it; a kept value out
-// of the bounds read from a file is the default (owner, 2026-10-14, D-37).
+// of the bounds read from a file is the default (owner, D-37).
 func TestNodeShellMaxDuration(t *testing.T) {
 	for text, want := range map[string]int{"": 0, " ": 0, "5m": 5, "90m": 90, "2h": 120, "1h30m": 90, " 4h ": 240, "24h": 1440, "300s": 5} {
 		got, err := ParseNodeShellDeadline(text)

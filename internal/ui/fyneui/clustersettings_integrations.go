@@ -11,23 +11,23 @@ import (
 
 // A cluster's Settings › Integrations (D-76; engine/integrations.go): each integration of the
 // cluster switched on or off, and at once whether Cogpit found it automatically or it needs a
-// manual configuration (the owner's requirement of 2026-10-17, I1): one row per integration,
-// its switch with its label, a status line in the status colours ("Found automatically:
+// manual configuration (the owner's requirement, I1): one row per integration, its switch with its
+// label, a status line in the status colours ("Found automatically:
 // monitoring/kube-prometheus-alertmanager:9093", "Needs manual configuration: none found by name",
 // "Not in this cluster: …", "No permission: …", "Checking…", "Off", "Not connected"), the line of
 // what it adds, and a link to the integration's own section (D-87: "Details…", or "Set its
 // address…" while Prometheus or Alertmanager needs one). Lens has no such section: the wording and
-// the rows are Cogpit's (the lead's decisions, 2026-10-17). A switch dispatches cluster.settings.set's
+// the rows are Cogpit's (the lead's decisions). A switch dispatches cluster.settings.set's
 // integrations at once and makes the choice the cluster's own; the status follows
 // EventIntegrations and EventMetrics. The window's question about a new cluster's integrations
 // (integrationsask.go) shows the same rows, without the links.
 //
-// Since the owner's WF22 of 2026-10-18 (D-87) the section is the heading of the integrations in
-// the page's list, under a divider below Agents, and each integration has a section of its own
-// below it (clustersettings_integration.go) with its switch, its state and its details: Prometheus's
-// address and query format (before on Metrics), Alertmanager's address (before under its row here).
-// This section keeps what concerns them all: the note while the cluster has no choice, Ask again,
-// and the rows to switch them at a glance.
+// Since the owner's WF22 (D-87) the section is the heading of the integrations in the page's list,
+// under a divider below Agents, and each integration has a section of its own below it
+// (clustersettings_integration.go) with its switch, its state and its details: Prometheus's address
+// and query format (before on Metrics), Alertmanager's address (before under its row here). This
+// section keeps what concerns them all: the note while the cluster has no choice, Ask again, and
+// the rows to switch them at a glance.
 
 const (
 	integrationsSetting = "integrations"

@@ -131,9 +131,9 @@ func TestReleaseDrawerContent(t *testing.T) {
 	}
 }
 
-// The drawer's look as Lens's (captured 2026-10-12): the title on one line, no Details and YAML
-// tabs, Chart as "<chart>-<version>", Namespace as plain text, Status as a neutral grey pill, the
-// checkbox unchecked at first (the editor holds every value), Save a bar under the editor.
+// The drawer's look as Lens's (captured): the title on one line, no Details and YAML tabs, Chart as
+// "<chart>-<version>", Namespace as plain text, Status as a neutral grey pill, the checkbox
+// unchecked at first (the editor holds every value), Save a bar under the editor.
 func TestReleaseDrawerLooksLikeLens(t *testing.T) {
 	sh, w, _, _, _ := releaseDrawerShell(t, ThemeDark)
 	settle(w)
@@ -317,8 +317,8 @@ func TestRollbackDialogConfirms(t *testing.T) {
 	}
 }
 
-// Rollback with the current revision selected, as the dialog opens (captured 2026-10-12: enabled):
-// the rollback is dispatched for the current revision and the dialog's answer confirms it.
+// Rollback with the current revision selected, as the dialog opens (captured: enabled): the
+// rollback is dispatched for the current revision and the dialog's answer confirms it.
 func TestRollbackDialogCurrentRevision(t *testing.T) {
 	sh, _, q, f, _ := releaseDrawerShell(t, ThemeDark)
 	var mu sync.Mutex
@@ -413,7 +413,7 @@ func TestHelmUpgradeTabSaves(t *testing.T) {
 		}
 		return u != nil && !u.busy && strings.Contains(u.pane.view.Text(), "replicaCount")
 	})
-	// The version is text, the picker a separate element with its placeholder (captured 2026-10-12).
+	// The version is text, the picker a separate element with its placeholder (captured).
 	if u.versionText.text != "version: 4.12.1 (no repository)" || u.version.Selected != "" || u.version.PlaceHolder != "Select…" ||
 		len(u.version.Options) != 1 || u.version.Options[0] != "4.12.1" {
 		t.Errorf("version text %q, picker %q %q %v", u.versionText.text, u.version.Selected, u.version.PlaceHolder, u.version.Options)
@@ -551,7 +551,7 @@ func failedReleaseDrawerShell(t *testing.T, mode ThemeMode) (*shell, fyne.Window
 // The History at the drawer's end: every revision newest first, the failed one in the error
 // colour, its description (Helm's error) on a plate under its row across the drawer, wrapped onto
 // lines instead of cut, each line's copy icon copying the whole message (the owner's colleague,
-// 2026-10-25, after k9s's history; the owner placed it and the plate the same day).
+// after k9s's history; the owner placed it and the plate the same day).
 func TestReleaseHistoryShowsTheDescriptionUnderItsRow(t *testing.T) {
 	sh, _ := failedReleaseDrawerShell(t, ThemeDark)
 	d := sh.drawer

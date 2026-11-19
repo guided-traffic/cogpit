@@ -259,10 +259,10 @@ func dialogDigest(w fyne.Window) string {
 	return ""
 }
 
-// TestDebugDialogShortNamePinBehind (the owner's R30, 2026-10-20: the short name, the pin behind
-// it): the field shows nicolaka/netshoot:v0.16 and the Digest row the default's digest; left so,
-// Debug adds the pinned image; a changed name shows as a floating tag, and the short name typed back
-// brings the pin back.
+// TestDebugDialogShortNamePinBehind (the owner's R30: the short name, the pin behind it): the field
+// shows nicolaka/netshoot:v0.16 and the Digest row the default's digest; left so, Debug adds the
+// pinned image; a changed name shows as a floating tag, and the short name typed back brings the
+// pin back.
 func TestDebugDialogShortNamePinBehind(t *testing.T) {
 	sh, w, q, _, writer, _ := debugShell(t, ThemeDark)
 	openDebug(t, sh, w, q)

@@ -12,8 +12,8 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit/fakellm"
 )
 
-// F9 (the owner's decision of 2026-10-15): a user's message edited and sent again, everything
-// after it dropped from the window, the model's history and the kept file; the audit log keeps it.
+// F9 (the owner's decision): a user's message edited and sent again, everything after it dropped
+// from the window, the model's history and the kept file; the audit log keeps it.
 
 // TestResendCutsTheConversation: resending the second message drops it, its write and its answer
 // from the items, from what the model is sent next (nothing tells the model about them) and from

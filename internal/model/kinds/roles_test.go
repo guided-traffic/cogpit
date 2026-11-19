@@ -19,8 +19,7 @@ func TestRoleTexts(t *testing.T) {
 	})
 }
 
-// TestRoleColumns pins the columns captured from Lens on 2026-10-11: Name, the warning icon,
-// Namespace, Age.
+// TestRoleColumns pins the columns captured from Lens: Name, the warning icon, Namespace, Age.
 func TestRoleColumns(t *testing.T) {
 	assertColumnOrder(t, "roles", []model.Column{
 		{ID: "name", Title: "Name"},

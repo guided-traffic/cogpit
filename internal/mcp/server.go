@@ -174,7 +174,7 @@ func (s *Server) Start(ctx context.Context) error {
 	srv, tools := s.newMCPServer()
 	sdkHandler := sdk.NewStreamableHTTPHandler(func(*http.Request) *sdk.Server { return srv }, &sdk.StreamableHTTPOptions{
 		// Stateless: every POST is its own session. Clients of both protocol generations work
-		// (the 2026-07-28 protocol runs only stateless over HTTP), no session table grows, and a
+		// (the "2026-07-28" protocol runs only stateless over HTTP), no session table grows, and a
 		// call's lifetime is the lifetime of the HTTP request that carries it, which callContext
 		// relies on to end a pending confirmation when the client goes away.
 		Stateless:                    true,

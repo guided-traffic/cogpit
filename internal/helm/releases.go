@@ -32,8 +32,8 @@ const (
 	releaseObjectKind = "HelmRelease"
 )
 
-// Titles of the release drawer's sections, as Lens titles them (captured 2026-10-12): the values,
-// the chart's notes, and the release's resources, one section per kind under the group heading.
+// Titles of the release drawer's sections, as Lens titles them (captured): the values, the chart's
+// notes, and the release's resources, one section per kind under the group heading.
 const (
 	TitleValues    = "Values"
 	TitleNotes     = "Notes"
@@ -139,9 +139,9 @@ func nonEmpty(s string) []string {
 	return []string{s}
 }
 
-// StatusText is a release status as Lens writes it: capitalized, "Deployed" (captured 2026-10-12);
-// the other states capitalized the same way, "Pending-upgrade", "Superseded" (inferred). The
-// release object, helm.pendingOperations and resources_find keep Helm's own spelling.
+// StatusText is a release status as Lens writes it: capitalized, "Deployed" (captured); the other
+// states capitalized the same way, "Pending-upgrade", "Superseded" (inferred). The release object,
+// helm.pendingOperations and resources_find keep Helm's own spelling.
 func StatusText(status string) string {
 	if status == "" {
 		return ""

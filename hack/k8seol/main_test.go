@@ -14,8 +14,8 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/k8seol"
 )
 
-// Trimmed copies of upstream's two files as they read on 2026-10-18 (their fields as
-// schedule-builder writes them, a patch list shortened).
+// Trimmed copies of upstream's two files (their fields as schedule-builder writes
+// them, a patch list shortened).
 const testSchedule = `---
 schedules:
 - endOfLifeDate: "2027-10-28"

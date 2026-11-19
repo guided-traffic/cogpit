@@ -78,7 +78,7 @@ func TestFluxSourceOf(t *testing.T) {
 		t.Error("FluxSourceStatic: an OCI Helm repository only")
 	}
 	// The dashboard's count: a status-less OCI repository is ready, a plain one unknown, and an OCI
-	// repository is not static for another kind (seen on a real cluster, 2026-10-16).
+	// repository is not static for another kind (seen on a real cluster).
 	if got := kinds.FluxStateOf(helmRepos, oci); got != kinds.FluxReady {
 		t.Errorf("FluxStateOf an OCI Helm repository without a status: %v, want ready", got)
 	}

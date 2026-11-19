@@ -56,8 +56,8 @@ func (b *Backend) releaseScopes(p *model.KindProfile) []cache.Scope {
 // cluster's cache, joined (cache.Join). Each scope is one watch, or none while its kind's full
 // watch covers it. Each is read as its kind is (accessiblens_plan.go): in all namespaces, or, for
 // a user who may not list Secrets (ConfigMaps) there, in each namespace the plan reads, covered
-// by that namespace's full watch while it runs (2026-10-13; before, the releases were read in all
-// namespaces whatever the user's access, and a namespace-limited user saw no release).
+// by that namespace's full watch while it runs, so that a namespace-limited user sees the
+// releases of the namespaces they may read.
 func (b *Backend) acquireReleases(p *model.KindProfile) *cache.Handle {
 	scopes := b.releaseScopes(p)
 	parts := make([]*cache.Handle, len(scopes))

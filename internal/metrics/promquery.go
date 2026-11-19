@@ -6,9 +6,9 @@ import (
 )
 
 // How Cogpit asks a cluster's Prometheus, as the user sets it per cluster (Cluster Settings ›
-// Metrics; G12, 2026-10-16). Lens's provider row offers three such settings beside the service
-// address (captured): a "Prometheus" dropdown of query formats, presets of how the series are named
-// per installation type; a checkbox that filters empty containers out of the queries (on); and a
+// Metrics; G12). Lens's provider row offers three such settings beside the service address
+// (captured): a "Prometheus" dropdown of query formats, presets of how the series are named per
+// installation type; a checkbox that filters empty containers out of the queries (on); and a
 // checkbox for HTTPS requests to the service (off). Cogpit's presets are its own (D-12): what an
 // installation changes for Cogpit's queries is where a node's series come from, so a preset names
 // the installation and fixes that source; Lens's list of providers (Helm 14.x, Lens, StackLight,

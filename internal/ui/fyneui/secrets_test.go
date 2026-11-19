@@ -18,9 +18,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
-// The Secrets view and drawer as the engine serves them since the full watch (D-13 revised,
-// 2026-10-12): rows with their Keys and Type, a drawer whose Data lists the keys masked with Show
-// beside each, and secret.reveal answering the GUI with one value. Every name and value is made up.
+// The Secrets view and drawer as the engine serves them since the full watch (D-13 revised): rows
+// with their Keys and Type, a drawer whose Data lists the keys masked with Show beside each, and
+// secret.reveal answering the GUI with one value. Every name and value is made up.
 
 // fixtureSecretValues are the values of checkout-db, the Secret the drawer shows.
 var fixtureSecretValues = map[string]string{
@@ -239,7 +239,7 @@ func renderSecrets(t *testing.T, mode ThemeMode, name string) {
 func TestRenderSecretsDark(t *testing.T) { renderSecrets(t, ThemeDark, "secrets_dark.png") }
 
 // TestRenderSecretsListDark renders the Secrets list without the drawer: the Keys and Type columns
-// the full watch fills (D-13 revised, 2026-10-12).
+// the full watch fills (D-13 revised).
 func TestRenderSecretsListDark(t *testing.T) {
 	f, _ := secretsFake(t)
 	f.ui.Selected, f.ui.Drawer = nil, nil

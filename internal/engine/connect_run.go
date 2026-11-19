@@ -12,10 +12,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
 )
 
-// A connect run (D-69; D-97, the owner's WF39 and WF40 of 2026-10-19). Every connect of a context
-// that is not connected runs on its own, apart from what the window shows: the window's connect
-// (Connect: a click on a cluster, cluster.connect) starts one, or joins the one under way for that
-// context, shows the cluster as connecting and waits for it; the restore of the last session
+// A connect run (D-69; D-97, the owner's WF39 and WF40). Every connect of a context that is not
+// connected runs on its own, apart from what the window shows: the window's connect (Connect: a
+// click on a cluster, cluster.connect) starts one, or joins the one under way for that context,
+// shows the cluster as connecting and waits for it; the restore of the last session
 // (ConnectBackground) starts one nobody waits for. When a run ends while the window's connect that
 // waits for it is still the latest, that connect shows its cluster, or its error, and the window
 // stays on it.
@@ -247,8 +247,8 @@ var ErrConnectSuperseded = errConnectSuperseded
 // connect a cluster: cluster.connect, hotbar.openCluster, ui.tab.select, ui.setNavigatorScope), says
 // that the connect did not fail: it goes on in the background (ErrConnectInBackground), it was
 // cancelled (ErrConnectCancelled), or a newer connect superseded it before it began
-// (ErrConnectSuperseded). The window raises no toast for any of them (the owner's AW15 and AW16 of
-// 2026-10-22): the cluster's dot and its connection log say what happened.
+// (ErrConnectSuperseded). The window raises no toast for any of them (the owner's AW15 and AW16):
+// the cluster's dot and its connection log say what happened.
 func ConnectNotFailed(err error) bool {
 	return errors.Is(err, errConnectInBackground) || errors.Is(err, errConnectCancelled) || errors.Is(err, errConnectSuperseded)
 }
@@ -325,12 +325,12 @@ func (s *Session) awaitRun(cctx context.Context, r *connectRun, seq uint64) erro
 }
 
 // leftRun is awaitRun's error when the window's connect waiting for r is no longer the latest once
-// r ended, which is no failure (the owner's AW15 and AW16 of 2026-10-22: it raised an error toast,
-// "superseded by a newer connect" among them): the session closed (ErrClosed); Disconnect cancelled
-// r or, once r had ended, the window's wait cctx (ErrConnectCancelled: the cluster it connected
-// closes behind it); or another connect or show came, and r ended in the background
-// (ErrConnectInBackground). A run that ended as the window's (watched) before another connect
-// replaced it says how it ended as a run nobody waited for says it (tellRunEnd).
+// r ended, which is no failure (the owner's AW15 and AW16: it raised an error toast, "superseded by
+// a newer connect" among them): the session closed (ErrClosed); Disconnect cancelled r or, once r
+// had ended, the window's wait cctx (ErrConnectCancelled: the cluster it connected closes behind
+// it); or another connect or show came, and r ended in the background (ErrConnectInBackground). A
+// run that ended as the window's (watched) before another connect replaced it says how it ended as
+// a run nobody waited for says it (tellRunEnd).
 func (s *Session) leftRun(cctx context.Context, r *connectRun, err error, e *pooled, watched bool) error {
 	st := s.state
 	st.mu.Lock()

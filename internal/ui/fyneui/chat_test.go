@@ -791,8 +791,8 @@ func TestRenderChatRunning(t *testing.T) {
 	}
 }
 
-// TestChatTimingText (the owner's request of 2026-10-25): an answer shows its TTFT and OTPS beside
-// its copy icon, ≈ where the tokens are estimated, only TTFT where the speed cannot be told.
+// TestChatTimingText (the owner's request): an answer shows its TTFT and OTPS beside its copy icon,
+// ≈ where the tokens are estimated, only TTFT where the speed cannot be told.
 func TestChatTimingText(t *testing.T) {
 	for _, c := range []struct {
 		t    *engine.ChatTiming

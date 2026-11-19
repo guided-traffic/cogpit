@@ -20,7 +20,7 @@ import (
 // it may not read itself, and could pick the model's next tool call. The chat's own tool calls go
 // through Session.Dispatch with origin OriginBuiltInAgent, so D-2's confirmations, the audit log
 // and the agents' read rules apply to them as to any agent; Invocation.ReadsLikeUser loosens the
-// read rules for a private connection (decided by the owner, 2026-10-14 late evening).
+// read rules for a private connection (decided by the owner).
 //
 // Whether the chat column is shown is UI state (UIState.Chat, chat.toggle, ⌘I), so agents see it
 // as they see the palette.
@@ -30,7 +30,7 @@ import (
 type ChatAgent interface {
 	// Connections returns the configured LLM connections, the default one first. A connection
 	// never carries its API key: the key lives in an owner-only file of its own in Cogpit's
-	// configuration directory, apart from the connections (no keychain: the owner, 2026-10-15).
+	// configuration directory, apart from the connections (no keychain: the owner).
 	Connections() ([]ChatConnection, error)
 	// SaveConnection adds a connection (empty ID) or changes one. apiKey nil leaves the stored key
 	// as it is; a pointer to "" removes it; any other value replaces the stored one. Returns the
@@ -44,8 +44,8 @@ type ChatAgent interface {
 	// Models lists the models the connection's endpoint offers (its /models), sorted.
 	Models(ctx context.Context, connectionID string) ([]string, error)
 	// ModelsOf lists the models of a connection that may be unsaved (the settings form's values),
-	// apiKey as in TestConnection: nil means the stored key of c.ID (the owner's request of
-	// 2026-10-25: the list from the credentials just typed).
+	// apiKey as in TestConnection: nil means the stored key of c.ID (the owner's request: the list
+	// from the credentials just typed).
 	ModelsOf(ctx context.Context, c ChatConnection, apiKey *string) ([]string, error)
 	// TestConnection checks a connection layer by layer (ChatTestLayers), each on its own, and
 	// never sends cluster data. c may be unsaved (the settings form's values); apiKey as in
@@ -73,13 +73,12 @@ type ChatAgent interface {
 	// a turn of the conversation is running or the conversation's context is not the connected
 	// one.
 	Send(conversationID string, msg ChatUserMessage) error
-	// Resend edits the user's message at item and sends it again (F9, the owner's choice of
-	// 2026-10-15, ChatGPT's form): that message and everything after it leave the conversation,
-	// the history the model is sent and the kept conversations file (the audit log keeps
-	// everything), msg takes its place and a turn starts as with Send, with the window's state of
-	// now. The model is told nothing of what was cut. A failed or stopped turn is retried this way.
-	// It fails as Send does, and when item is not a user's message; a Resend that fails leaves the
-	// conversation as it was.
+	// Resend edits the user's message at item and sends it again (F9, the owner's choice, ChatGPT's
+	// form): that message and everything after it leave the conversation, the history the model is
+	// sent and the kept conversations file (the audit log keeps everything), msg takes its place
+	// and a turn starts as with Send, with the window's state of now. The model is told nothing of
+	// what was cut. A failed or stopped turn is retried this way. It fails as Send does, and when
+	// item is not a user's message; a Resend that fails leaves the conversation as it was.
 	Resend(conversationID string, item int, msg ChatUserMessage) error
 	// Stop is the kill switch: it cancels the conversation's running turn, the model's stream and
 	// a running tool call, and returns once nothing the turn started keeps running.
@@ -117,10 +116,10 @@ type ChatConnection struct {
 	// rules. Only the user sets it, in the window.
 	Private bool `json:"private,omitempty"`
 	// AllTools sends every command the chat may run as a tool of its own with each request, for
-	// large cloud models (the owner's decision of 2026-10-15): about four times the core set's
-	// tokens and more, which fill a local model's context. Off (the default): the core tools and
-	// two meta-tools that find and run the rest. The rules are the same either way (D-2, the
-	// confirmations, the Secret filter); only the user sets it, in the window.
+	// large cloud models (the owner's decision): about four times the core set's tokens and more,
+	// which fill a local model's context. Off (the default): the core tools and two meta-tools that
+	// find and run the rest. The rules are the same either way (D-2, the confirmations, the Secret
+	// filter); only the user sets it, in the window.
 	AllTools bool `json:"allTools,omitempty"`
 	// ChooseLarge has the model choose, in a request of its own, which entries of a large tool
 	// result the conversation reads (D-172): a result still above MaxToolResultKiB whose largest
@@ -128,10 +127,10 @@ type ChatConnection struct {
 	// Only the user sets it, in the window.
 	ChooseLarge bool `json:"chooseLarge,omitempty"`
 	// CAFile names a PEM file of CA certificates for an https base URL whose server has a private
-	// CA (the owner's decision of 2026-10-15): for this connection they replace the system's roots,
-	// as a kubeconfig's certificate-authority does for kubectl (N141, the owner's decision in the
-	// audit of 2026-10-16), read whenever a request is sent. An absolute path, not secret; empty:
-	// the system's roots (on macOS its trust store).
+	// CA (the owner's decision): for this connection they replace the system's roots, as a
+	// kubeconfig's certificate-authority does for kubectl (N141, the owner's decision in the
+	// audit), read whenever a request is sent. An absolute path, not secret; empty: the system's
+	// roots (on macOS its trust store).
 	CAFile string `json:"caFile,omitempty"`
 	// HasKey reports whether an API key for the connection is stored. A connection saved with a
 	// key that is not stored (one an older Cogpit kept in the macOS keychain) reports false.
@@ -140,8 +139,8 @@ type ChatConnection struct {
 	Limits  ChatLimits `json:"limits"`
 }
 
-// ChatLimits bound one turn (D-10; the owner's numbers of 2026-10-14 late evening). Zero fields
-// take DefaultChatLimits' values.
+// ChatLimits bound one turn (D-10; the owner's numbers). Zero fields take DefaultChatLimits'
+// values.
 type ChatLimits struct {
 	// RepeatStop stops the turn at this many identical tool calls (the same tool with the same
 	// canonical arguments) in one turn: a local model looping on one request.
@@ -268,10 +267,9 @@ func (l ChatLimits) Validate() error {
 // ChatTestLayer is one step of the connection test, in this order.
 type ChatTestLayer string
 
-// The connection test's layers (owner, 2026-10-14 late evening; DNS since the owner's VW8,
-// 2026-10-23; HTTP's scheme and certificate, Auth asked without and with the key, and Models since
-// his request of 2026-10-25: "Solche Infos brauche ich um die Verbindung schnell, einfach und sicher
-// einschätzen zu können").
+// The connection test's layers (owner; DNS since the owner's VW8; HTTP's scheme and certificate,
+// Auth asked without and with the key, and Models since his request: "Solche Infos brauche ich um
+// die Verbindung schnell, einfach und sicher einschätzen zu können").
 const (
 	ChatTestDNS    ChatTestLayer = "dns"    // the host name resolves (its addresses listed); an IP address or localhost at once
 	ChatTestTCP    ChatTestLayer = "tcp"    // one of those addresses answers on the port
@@ -307,21 +305,21 @@ type ChatTestStep struct {
 	Duration time.Duration `json:"duration,omitempty"`
 	// Models are the Models layer's: the endpoint's models, for the settings form's list.
 	Models []string `json:"models,omitempty"`
-	// Exchange is a failed layer's last request and its answer in curl -v's form (the owner,
-	// 2026-10-26: which endpoint was called how): where the connection went, the request line,
-	// header fields and body, the answer's status line, header fields and the start of its body;
-	// the API key never in it. Empty for a layer that sent no request.
+	// Exchange is a failed layer's last request and its answer in curl -v's form (the owner: which
+	// endpoint was called how): where the connection went, the request line, header fields and
+	// body, the answer's status line, header fields and the start of its body; the API key never in
+	// it. Empty for a layer that sent no request.
 	Exchange string `json:"exchange,omitempty"`
 }
 
 // ChatPlainHTTPWarning is what the window and the connection test say about a connection over plain
-// http to another machine (the owner's decision of 2026-10-15, H-95).
+// http to another machine (the owner's decision, H-95).
 const ChatPlainHTTPWarning = "Plain http to another machine: not only the API key but the whole conversation, and every " +
 	"Secret or other secret the agent reads, travel unencrypted over the network."
 
 // ChatPlainHTTPRemote reports whether a connection's base URL is plain http to another machine: the
 // http scheme and a host other than localhost or a loopback address (127.0.0.0/8, ::1), which the
-// owner exempted (2026-10-15). Not a URL, or https: false.
+// owner exempted. Not a URL, or https: false.
 func ChatPlainHTTPRemote(baseURL string) bool {
 	u, err := url.Parse(strings.TrimSpace(baseURL))
 	if err != nil || !strings.EqualFold(u.Scheme, "http") || u.Host == "" {
@@ -347,8 +345,8 @@ type ChatConversationInfo struct {
 	Running      bool      `json:"running,omitempty"` // a turn is running
 	// Private reports that a turn of the conversation ran over a connection the user marked
 	// private: the conversation lives in memory only, is never kept and is gone when Cogpit quits
-	// (H-96, the owner's decision of 2026-10-15). It stays set when the conversation switches to
-	// another connection, because its history holds what that turn read.
+	// (H-96, the owner's decision). It stays set when the conversation switches to another
+	// connection, because its history holds what that turn read.
 	Private bool `json:"private,omitempty"`
 }
 
@@ -385,8 +383,8 @@ type ChatItem struct {
 	Sent *ChatSent `json:"sent,omitempty"`
 	// NoteLevel is a note's level (LevelInfo, LevelWarning, LevelError).
 	NoteLevel string `json:"noteLevel,omitempty"`
-	// Timing is an answer's speed, set when it ended (the owner's request of 2026-10-25: TTFT and
-	// OTPS under every answer).
+	// Timing is an answer's speed, set when it ended (the owner's request: TTFT and OTPS under
+	// every answer).
 	Timing *ChatTiming `json:"timing,omitempty"`
 }
 

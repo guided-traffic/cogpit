@@ -132,8 +132,8 @@ type Spec[P any] struct {
 	Warning func(s *Session, p P) string
 	// Undoable marks a destructive command whose effect the user can reverse, nothing being lost:
 	// a grant (deleting the binding takes it back), a rollback (the release's history keeps the
-	// revision), a node shell. Its confirmation does not say "This cannot be undone." (A101, owner
-	// 2026-10-14 evening: only where something is lost).
+	// revision), a node shell. Its confirmation does not say "This cannot be undone." (A101, owner:
+	// only where something is lost).
 	Undoable bool
 	// Refuse refuses the command for the origin that dispatched it (ctx carries it: OriginOf)
 	// before anyone is asked: a command whose Run would refuse that origin anyway (an agent's

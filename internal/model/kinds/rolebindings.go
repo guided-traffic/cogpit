@@ -6,10 +6,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// roleBindings has the columns captured from Lens on 2026-10-11: Name, Namespace, Bindings (the
-// subjects' names, comma-separated), Age, and no warning icon. Without a state slot in the Signals
-// column (D-150) it reads no other kind: whether its role exists would cost watches on every Role and ClusterRole for the
-// drawer alone. A binding has no state, so no status token.
+// roleBindings has the columns captured from Lens: Name, Namespace, Bindings (the subjects' names,
+// comma-separated), Age, and no warning icon. Without a state slot in the Signals column (D-150) it
+// reads no other kind: whether its role exists would cost watches on every Role and ClusterRole for
+// the drawer alone. A binding has no state, so no status token.
 var roleBindings = &model.KindProfile{
 	Key:        "rolebindings",
 	Group:      groupRBAC,

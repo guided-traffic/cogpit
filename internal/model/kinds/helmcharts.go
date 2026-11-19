@@ -122,11 +122,10 @@ func repositoryCell(repository, origin string) model.Cell {
 	return model.PartsCell(model.StatusWarning, model.CellPart{Text: repository}, model.CellPart{Text: "(" + mark + ")", Status: model.StatusWarning})
 }
 
-// Chart origins that nothing authenticates (H-41; owner 2026-10-14 evening, A14): a repository
-// served over plain http, or over https without the server's certificate checked
-// (insecure_skip_tls_verify in Helm's file). A chart object's spec.origin, a Helm Install and Upgrade
-// tab's origin, helm.chart.preview's; empty for https with the certificate checked
-// (helm.Repository.Origin decides).
+// Chart origins that nothing authenticates (H-41; owner, A14): a repository served over plain http,
+// or over https without the server's certificate checked (insecure_skip_tls_verify in Helm's file).
+// A chart object's spec.origin, a Helm Install and Upgrade tab's origin, helm.chart.preview's;
+// empty for https with the certificate checked (helm.Repository.Origin decides).
 const (
 	HelmOriginHTTP        = "http"
 	HelmOriginInsecureTLS = "insecure-tls"
@@ -235,13 +234,13 @@ type HelmChartVersion struct {
 	Created             time.Time
 }
 
-// HelmChartName is a chart's object name, Cogpit's chart id (A36, owner 2026-10-14 evening; the
-// form the lead's decision for the owner to confirm): the repository's name with every dot
-// doubled, a dot, and the chart's name: "bitnami.nginx", and "charts..example.nginx" for the chart
-// nginx of the repository "charts.example". A chart's name starts with a letter or a digit
-// (helm.chartNamePattern), so the first dot that is not one of a doubled pair separates the two,
-// whatever dots either name holds; the id of a repository without a dot is what it was before
-// repositories with a dot were used, so no id Cogpit kept before changes.
+// HelmChartName is a chart's object name, Cogpit's chart id (A36, owner; the form the lead's
+// decision for the owner to confirm): the repository's name with every dot doubled, a dot, and the
+// chart's name: "bitnami.nginx", and "charts..example.nginx" for the chart nginx of the repository
+// "charts.example". A chart's name starts with a letter or a digit (helm.chartNamePattern), so the
+// first dot that is not one of a doubled pair separates the two, whatever dots either name holds;
+// the id of a repository without a dot is what it was before repositories with a dot were used, so
+// no id Cogpit kept before changes.
 func HelmChartName(repository, chart string) string {
 	return strings.ReplaceAll(repository, ".", "..") + "." + chart
 }

@@ -4,8 +4,8 @@ import (
 	"fyne.io/fyne/v2"
 )
 
-// Preferences › App › Light strip on battery (the owner's LS15 and LS16, 2026-10-24: "nur bei
-// Netzbetrieb ... bei Akku auf statisch zurückfällt", "Einmal für die App", beside Reduce motion;
+// Preferences › App › Light strip on battery (the owner's LS15 and LS16: "nur bei Netzbetrieb ...
+// bei Akku auf statisch zurückfällt", "Einmal für die App", beside Reduce motion;
 // engine.Preferences.LightStripMainsOnly). Off by default: the light strip moves as its cluster's
 // setting says on battery too. On, it shows its colour standing still while the computer runs on
 // its battery and moves again once the power adapter is plugged in: an animation repaints the
