@@ -1528,7 +1528,9 @@ a report names with a violation
   their objects; `object_get` carries the drawer's sections. Policy messages reach agents as data
   ([H-11](../security/agents-and-mcp.md#h-11-instructions-hidden-in-cluster-data)).
 - **Reads:** a user who may list the reports only in some namespaces gets those the cluster's
-  settings or the namespace filter name. Off: nothing is read or shown. Not read: Kyverno's
+  settings or the namespace filter name. A report kind the cluster refuses (403) is named in
+  Cluster Settings › Integrations › Kyverno and not asked for again until Refresh Access Reviews
+  or the next connect. Off: nothing is read or shown. Not read: Kyverno's
   `openreports.io` reports, other engines'.
 
 ### A volume's usage

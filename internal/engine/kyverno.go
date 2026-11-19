@@ -109,7 +109,7 @@ func followKyverno(st *state, b *Backend, now UIState) {
 	}
 	key := kyvernoReadKey(b)
 	switch {
-	case cur != nil && cur.key == key:
+	case cur != nil && cur.key == key && !cur.retake():
 		return
 	case key == "":
 		if cur != nil { // the cluster no longer serves the reports
@@ -138,8 +138,9 @@ type kyvernoSource struct {
 	s     *Session
 	b     *Backend
 	key   string
-	reads []kyvernoRead
+	reads []*kyvernoRead
 	idx   *violationIndex
+	gen   uint64 // the backend's refusals generation when it started (nsState.refusalsGen)
 
 	quit    chan struct{}
 	stopped atomic.Bool
@@ -151,18 +152,28 @@ type kyvernoRead struct {
 	plan    nsPlan
 	handle  *cache.Handle
 	unsub   func()
+	once    sync.Once   // the handle goes back once (drop, stop)
+	refused atomic.Bool // the API server refused it wholly, and its handle went back (dropRefused)
+}
+
+// drop gives the read's handle back; dropping it again is harmless.
+func (r *kyvernoRead) drop() {
+	r.once.Do(func() {
+		r.unsub()
+		r.handle.Release()
+	})
 }
 
 // startKyverno acquires the report kinds' trimmed scopes as their plans say and fills the index.
 func startKyverno(s *Session, b *Backend, key string) *kyvernoSource {
-	k := &kyvernoSource{s: s, b: b, key: key, quit: make(chan struct{})}
+	k := &kyvernoSource{s: s, b: b, key: key, gen: b.ns.refusalsGen(), quit: make(chan struct{})}
 	k.idx = newViolationIndex(b.overlays.changed)
 	for _, kk := range kyvernoReportKinds {
 		p, ok := b.Profile(kk)
 		if !ok {
 			continue
 		}
-		r := kyvernoRead{profile: p, plan: b.namespacePlan(p)}
+		r := &kyvernoRead{profile: p, plan: b.namespacePlan(p)}
 		sc := b.Scope(p)
 		sc.Trim = kyvernoTrim
 		switch {
@@ -191,9 +202,32 @@ func (k *kyvernoSource) stop() {
 	}
 	close(k.quit)
 	for _, r := range k.reads {
-		r.unsub()
-		r.handle.Release()
+		r.drop()
 	}
+}
+
+// dropRefused gives back each read the API server refused wholly (403 Forbidden: the cluster
+// reports, or the reports in every namespace read): a refusal is a state the status names, not a
+// list client-go's backoff sends again for as long as the cluster is shown. cluster.refreshAccess
+// reads them again (retake). A refusal of a namespaced kind in all namespaces is followed first:
+// the cache told the backend of it (OnRefused) before the handle's error shows, so the read key
+// changes and followKyverno reads the kind namespace by namespace.
+func (k *kyvernoSource) dropRefused() {
+	for _, r := range k.reads {
+		if !r.plan.pending && !r.refused.Load() && refusedAll(r.handle) {
+			r.refused.Store(true)
+			r.drop()
+		}
+	}
+}
+
+// retake reports whether a read was dropped as refused and the access reviews were refreshed
+// since (cluster.refreshAccess): the integration reads again.
+func (k *kyvernoSource) retake() bool {
+	if k.gen == k.b.ns.refusalsGen() {
+		return false
+	}
+	return slices.ContainsFunc(k.reads, func(r *kyvernoRead) bool { return r.refused.Load() })
 }
 
 // settle tells the settings page and agents when what the integration knows changes (its reads
@@ -204,6 +238,7 @@ func (k *kyvernoSource) settle() {
 	t := time.NewTicker(250 * time.Millisecond)
 	defer t.Stop()
 	for {
+		k.dropRefused()
 		state, detail := k.status()
 		if now := string(state) + "|" + detail; now != last {
 			last = now
@@ -267,7 +302,7 @@ func (k *kyvernoSource) status() (IntegrationState, string) {
 		switch {
 		case r.plan.pending:
 			listing = true
-		case refusedAll(r.handle):
+		case r.refused.Load() || refusedAll(r.handle):
 			refused = append(refused, r.profile.Key)
 		case !r.handle.HasSynced():
 			listing = true
@@ -291,7 +326,7 @@ func (k *kyvernoSource) waitSynced(ctx context.Context) {
 		if r.plan.pending {
 			continue
 		}
-		for !r.handle.HasSynced() && !cache.IsRefused(r.handle.Err()) && ctx.Err() == nil && !k.stopped.Load() {
+		for !r.refused.Load() && !r.handle.HasSynced() && !cache.IsRefused(r.handle.Err()) && ctx.Err() == nil && !k.stopped.Load() {
 			select {
 			case <-ctx.Done():
 			case <-time.After(10 * time.Millisecond):

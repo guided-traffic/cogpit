@@ -3015,6 +3015,12 @@ this and used by D-78 too: [architecture](architecture.md) §4.4 and §5.
 - Not read: the policies (the mode is not shown). `error`, `pass` and `skip` mark nothing; a
   violation enters neither the status filter nor the Overview's issues.
 - Curated profiles of both report kinds let API discovery offer them without the definitions.
+- A report kind the API server refuses wholly (403 in all namespaces, or in every namespace read)
+  is a state the integration's status names: its handle goes back, and it is read again only after
+  `cluster.refreshAccess` or the next connect, as the custom kinds and the namespaces watch do (the
+  lead's detail, open to revision). A held refused scope is listed again at every step of
+  client-go's backoff (0.8 s doubling to a cap of 30 s, plus up to as much again), for as long as
+  the cluster is shown.
 
 **Why:** the reports are Kubernetes objects Kyverno keeps current, so a watch holds them and nothing
 is polled. Every fail counts, so the mode would only label, at four more watches of large policies.
@@ -3031,8 +3037,8 @@ Kyverno; a badge for kinds without a Signals column — a new cell kind that doe
 **Code:** [`engine/kyverno.go`](../../internal/engine/kyverno.go) `followKyverno`,
 `trimPolicyReport`; [`model/kinds/policyreports.go`](../../internal/model/kinds/policyreports.go)
 `KyvernoReport`, `PolicyRef` · **Tests:** `TestKyvernoMarksViolations`,
-`TestKyvernoNamespaceLimitedUser`, `TestViolationIndex`, `TestKyvernoViolationsCommand`,
-`TestPolicyRef`, `TestKindKyverno`, `TestRealKyverno`
+`TestKyvernoNamespaceLimitedUser`, `TestBudgetKyvernoRefusedClusterReports`, `TestViolationIndex`,
+`TestKyvernoViolationsCommand`, `TestPolicyRef`, `TestKindKyverno`, `TestRealKyverno`
 
 ### What it does not cover
 

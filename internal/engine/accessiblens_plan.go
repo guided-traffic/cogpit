@@ -49,6 +49,7 @@ type nsState struct {
 	planMu  sync.RWMutex
 	mu      sync.Mutex
 	refused map[schema.GroupVersionResource]bool // listing in all namespaces refused by the server (403)
+	cleared atomic.Uint64                        // how often the refusals were cleared (refusalsGen)
 	replan  chan struct{}                        // wakes the session's replan loop (attachRefusals); nil before
 	quit    chan struct{}                        // ends that loop; closed by stop
 }
@@ -114,7 +115,12 @@ func (n *nsState) clearRefused() {
 	n.mu.Lock()
 	n.refused = nil
 	n.mu.Unlock()
+	n.cleared.Add(1)
 }
+
+// refusalsGen changes whenever the refusals are cleared (cluster.refreshAccess): a reader that
+// gave a refused read up reads it again (kyvernoSource.retake).
+func (n *nsState) refusalsGen() uint64 { return n.cleared.Load() }
 
 // nsPlan is how a kind is read: in all namespaces (the zero value), namespace by namespace, or
 // not yet (pending: the access reviews have not said whether the user may list it everywhere).
