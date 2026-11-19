@@ -21,3 +21,12 @@ operator:
   builtInTrivyServer: true
 trivy:
   storageSize: "2Gi"
+  # A scan job's memory: nginx:1.16.1's scan outgrows the chart's 500M and is OOM-killed, which
+  # leaves its image without a report.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 100M
+    limits:
+      cpu: 500m
+      memory: 1500M
