@@ -83,9 +83,11 @@ App Sandbox design guide; not verified outside the sandbox): a copied or edited 
 program nothing, and an entry someone else wrote is at worst an item Cogpit starts accessing
 without reading it.
 
-- **Bounds:** a kubeconfig bookmark goes at the next start once its path is no source (at most
-  256); of the folders (terminal, kubectl and program folders together) and of the CA files the
-  newest 16 each stay, unresolvable ones included (`TestStoreBounds`, `TestKeptSource`).
+- **Bounds:** a kubeconfig bookmark goes when the user removes its source, and at the next start
+  once its path is no source (at most 256); the access started for it lasts until Cogpit quits. Of
+  the folders (terminal, kubectl and program folders together) and of the CA files the newest 16
+  each stay, unresolvable ones included (`TestStoreBounds`, `TestKeptSource`,
+  `TestRemovedSourceDropsItsBookmark`, `TestStoreDrop`).
 - **Loss and revoking:** an unreadable file is replaced by the next pick; removing it removes the
   kept access. A pick's grant may not show in Privacy & Security ([Oakley][oakley]): revoking it
   takes `tccutil reset` and removing `bookmarks.json`.

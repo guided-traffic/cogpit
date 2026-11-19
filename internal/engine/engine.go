@@ -277,10 +277,11 @@ func New(opts Options) *Session {
 	opts.HelmRepos.attach(s)
 	opts.Preferences.attach(s)
 	opts.ClusterSettings.attach(s)
-	s.users.attach(s)        // the last known users, beside the cluster settings (whoami_store.go)
-	opts.Drafts.attach(s)    // nil-safe
-	opts.Workspace.attach(s) // nil-safe; reads the kubeconfig sources' files, never a cluster
-	s.attachLoginItem()      // offered when the binary wired one in (loginitem.go)
+	s.users.attach(s)             // the last known users, beside the cluster settings (whoami_store.go)
+	opts.Drafts.attach(s)         // nil-safe
+	opts.Workspace.attach(s)      // nil-safe; reads the kubeconfig sources' files, never a cluster
+	s.forgetUsersOfGoneContexts() // the last known users of contexts no source has (contextlink.go)
+	s.attachLoginItem()           // offered when the binary wired one in (loginitem.go)
 	return s
 }
 

@@ -1793,12 +1793,12 @@ In `<user config dir>/Cogpit`, owner-only, unless named otherwise.
 | `preferences.json` | the Preferences |
 | `kubeconfigs.json`, `exec-approvals.json` | the kubeconfig sources you added; the credential plugins you allowed. Cogpit never writes a kubeconfig |
 | `cluster-settings.json`, `cluster-icons/` | per context what Cluster Settings sets, at most 1,024 contexts; uploaded icons with their source images. Removing a cluster from Cogpit drops its settings (added again, it is asked its integrations again); a file `$KUBECONFIG` names keeps them |
-| `cluster-users.json` | per context the username the API server last confirmed, for the navigator while disconnected |
+| `cluster-users.json` | per context the username the API server last confirmed, for the navigator while disconnected. Removing a cluster from Cogpit drops its entry, and so does a start at which no kubeconfig source has the context any more; a file `$KUBECONFIG` names keeps it |
 | `metrics.json` | per context the Prometheus (namespace, service, port, path prefix, `format`, `keepEmptyContainers`, `https`) and the Alertmanager you named; never the kubeconfig |
 | `hotbar.json` | the pinned clusters, top to bottom ([D-83](decisions.md#d-83-one-hotbar-and-a-drag-that-carries-the-tile)) |
 | `workspace.json` | tabs, column layout, navigator and chat column, the clusters connected and shown: the layout comes back at every start, tabs and connections only with [Restore the last session](#preferences--app-restore-the-last-session) ([D-41](decisions.md#d-41-what-survives-a-restart)) |
 | `window.json` | the window's place ([its section](#the-windows-place-and-size)) |
-| `bookmarks.json` (macOS) | access to what you picked in the system's panels; deleting it removes that access ([file access](../security/file-access.md)) |
+| `bookmarks.json` (macOS) | access to what you picked in the system's panels; a kubeconfig source's goes when you remove the source; deleting the file removes that access ([file access](../security/file-access.md)) |
 | `drafts/` | unsaved Edit and Create tab text and Config Map drawer edits, offered again at the next connect; never a Secret's or Helm values ([D-11](decisions.md#d-11-crash-stance), [D-55](decisions.md#d-55-a-config-maps-values-edited-in-the-drawer)) |
 | `drains.json`, `helm.json`, `nodeshells.json`, `journals.lock`, `owners/` | the drains, Helm actions and node shell pods Cogpit started and has not finished or seen deleted, and which Cogpit process owns each; a node shell pod a crash left is deleted at the next connect ([H-71](../security/privilege-footprint.md#h-71-a-crash-leaves-the-node-shells-pod-until-the-next-connect)) |
 | `audit.log` | a JSON line per agent-initiated command, read newest first by Help › Audit Log and `audit_list` (its last 4 MiB) |

@@ -173,6 +173,29 @@ func (s *Store) Restore(keep func(Entry) bool) (Report, error) {
 	return rep, s.save()
 }
 
+// Drop drops the bookmarks keep refuses and writes the store when that changed it, without
+// resolving any: a removed kubeconfig source's bookmark goes with the source. It returns how many
+// went; a nil keep drops nothing.
+func (s *Store) Drop(keep func(Entry) bool) (int, error) {
+	if s == nil || keep == nil {
+		return 0, nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]Entry, 0, len(s.entries))
+	for _, e := range s.entries {
+		if keep(e) {
+			out = append(out, e)
+		}
+	}
+	dropped := len(s.entries) - len(out)
+	if dropped == 0 {
+		return 0, nil
+	}
+	s.entries = out
+	return dropped, s.save()
+}
+
 // Entries returns a copy of the kept bookmarks.
 func (s *Store) Entries() []Entry {
 	if s == nil {

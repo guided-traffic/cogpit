@@ -230,6 +230,21 @@ type KubeconfigSources struct {
 	// context's (A23, D-26). Set by the connector that owns both (ClusterConnector.sources); nil:
 	// no proxy of Cogpit's is known.
 	proxies atomic.Pointer[ClusterSettingsStore]
+
+	// removed is told of each source removed for good (OnRemove); nil: nobody.
+	removed atomic.Pointer[func(KubeconfigSource)]
+}
+
+// OnRemove tells fn of each source removed for good, after the removal and outside the sources'
+// lock, so that what the app keeps for a source outside the engine goes with it (the bookmark of
+// the file or folder picked in the system's panel, cmd/cogpit). A source of this run's
+// ($KUBECONFIG, --kubeconfig) is removed for the run only and not told. nil stops telling.
+func (k *KubeconfigSources) OnRemove(fn func(KubeconfigSource)) {
+	if fn == nil {
+		k.removed.Store(nil)
+		return
+	}
+	k.removed.Store(&fn)
 }
 
 // SourcesOption configures NewKubeconfigSources.
@@ -468,18 +483,27 @@ func uniqueID(list []KubeconfigSource, base string) string {
 // files in it, stay as they are. The approvals of the source's files are forgotten. Removing the
 // default folder is remembered, so that it does not come back.
 func (k *KubeconfigSources) Remove(id string) (KubeconfigSource, error) {
+	src, gone, err := k.remove(id)
+	if fn := k.removed.Load(); gone && fn != nil {
+		(*fn)(src)
+	}
+	return src, err
+}
+
+// remove removes a source under the lock; gone reports a stored source removed for good.
+func (k *KubeconfigSources) remove(id string) (src KubeconfigSource, gone bool, err error) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	doc, err := k.loadDoc()
 	if err != nil {
-		return KubeconfigSource{}, err
+		return KubeconfigSource{}, false, err
 	}
 	all := k.effective(doc)
 	i := slices.IndexFunc(all, func(s KubeconfigSource) bool { return s.ID == id })
 	if i < 0 {
-		return KubeconfigSource{}, fmt.Errorf("no kubeconfig source %q", id)
+		return KubeconfigSource{}, false, fmt.Errorf("no kubeconfig source %q", id)
 	}
-	src := all[i]
+	src = all[i]
 	if src.Session {
 		// Only for this run: the file is named again by the next start's $KUBECONFIG, and the user's
 		// approvals of its plugins are kept for it.
@@ -487,7 +511,7 @@ func (k *KubeconfigSources) Remove(id string) (KubeconfigSource, error) {
 			k.removedSession = map[string]bool{}
 		}
 		k.removedSession[src.Path] = true
-		return src, nil
+		return src, false, nil
 	}
 	if src.Default {
 		doc.DefaultFolderRemoved = true
@@ -495,12 +519,9 @@ func (k *KubeconfigSources) Remove(id string) (KubeconfigSource, error) {
 		doc.Sources = slices.DeleteFunc(doc.Sources, func(s KubeconfigSource) bool { return s.ID == id })
 	}
 	if err := k.saveDoc(doc); err != nil {
-		return KubeconfigSource{}, err
+		return KubeconfigSource{}, false, err
 	}
-	if err := k.forget(func(a ExecApproval) bool { return sourceHas(src, a.File) }); err != nil {
-		return src, err
-	}
-	return src, nil
+	return src, true, k.forget(func(a ExecApproval) bool { return sourceHas(src, a.File) })
 }
 
 // sourceHas reports whether file is the source's file or a file of its folder.

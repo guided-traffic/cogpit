@@ -17,6 +17,8 @@ import (
 // connected. Only the username is kept, never the groups; only a confirmed one, never the
 // kubeconfig fallback's label. The file is LastUsersFile beside the cluster settings (Cogpit's
 // configuration directory), owner-only and replaced atomically as every file Cogpit keeps there.
+// A context's entry goes when its source is removed (forgetUsersOfSource) and at a start at which
+// it is certainly gone (forgetUsersOfGoneContexts).
 
 // LastUsersFile is the last known users' file under Cogpit's configuration directory.
 const LastUsersFile = "cluster-users.json"
@@ -108,6 +110,27 @@ func (b *userBook) forget(context string) {
 	b.mu.Lock()
 	delete(b.live, context)
 	b.mu.Unlock()
+}
+
+// drop forgets the last known users of the contexts gone reports, live answers stay: a context
+// that left Cogpit keeps no trace in the file. It reports whether one went.
+func (b *userBook) drop(gone func(string) bool) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	n := len(b.last)
+	maps.DeleteFunc(b.last, func(id string, _ lastUser) bool { return gone(id) })
+	if len(b.last) == n {
+		return false
+	}
+	b.dirty = true
+	return true
+}
+
+// ids returns the contexts that have a last known user.
+func (b *userBook) ids() []string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return slices.Sorted(maps.Keys(b.last))
 }
 
 // seen records that the API server's user of a context was still logged in at now: the

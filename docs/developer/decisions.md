@@ -182,6 +182,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-171](#d-171-the-cluster-overviews-issues-folded-by-subject) | The cluster Overview's issues, folded by subject | built: `cluster.overview` returns one row per workload or object and a table of causes; `everyIssue` and `subject` read what is folded |
 | [D-172](#d-172-a-sub-request-that-chooses-from-a-large-result) | A sub-request that chooses from a large result | decided, not built: only for what code cannot reduce, entry numbers only, off by default, on the conversation's connection |
 | [D-new](#d-new-a-refusal-answers-a-waiting-read-at-once) | A refusal answers a waiting read at once | built: a read that waits for its list returns the API server's 403 after one list; the window reads the Namespaces once the kinds say the user may |
+| [D-new](#d-new-a-removed-clusters-last-user-and-bookmark-go-with-it) | A removed cluster's last user and bookmark go with it | built: removing a source drops its contexts' last known users and its bookmark; a start drops the last known users of contexts no source has |
 
 ## D-1: UI toolkit
 
@@ -7229,3 +7230,29 @@ says the same; reading the Namespaces before the kinds, as before.
 [`accessiblens_follow.go`](../../internal/engine/accessiblens_follow.go) `settleReads`,
 `readFollowing`; [`fyneui/shell.go`](../../internal/ui/fyneui/shell.go) `loadKinds` ·
 `TestBudgetRefusedClusterScopedList`, `TestNamespaceFilterOffersAccessibleNamespaces`
+
+## D-new: A removed cluster's last user and bookmark go with it
+
+**Status:** built · **By:** lead (open to revision)
+
+Removing a kubeconfig source, or a cluster from Cogpit, drops what Cogpit kept for it outside the
+cluster settings: the last known user of each of its contexts no source offers any more
+(`cluster-users.json`) and the source's bookmark (`bookmarks.json`). Once at start, the last known
+users of the contexts that are certainly gone (`goneContexts`: no source covers them, their file
+was deleted, or the file no longer defines them) go too. A file `$KUBECONFIG` names is removed for
+the run only and keeps both.
+
+**Why:** a cluster removed from Cogpit and added again is a new cluster, and its cluster settings
+go the same way; a username and a path that outlive the cluster are data nobody sees and only the
+caps bound. The start covers what no removal sees: a context deleted from its file, a file deleted
+while Cogpit was not running.
+
+**Rejected:** dropping the entries when the watcher sees a file go — a file that comes back (a
+volume mounted again) would lose its user, as the hotbar keeps a missing file's tile; keeping them
+until the caps push them out — 1,024 contexts' names and users on disk for clusters long gone.
+
+[`contextlink.go`](../../internal/engine/contextlink.go) (`forgetUsersOfSource`,
+`forgetUsersOfGoneContexts`), [`whoami_store.go`](../../internal/engine/whoami_store.go),
+[`fileaccess.go`](../../cmd/cogpit/fileaccess.go) (`forgetRemovedSources`) ·
+`TestRemovingASourceForgetsItsClustersUsers`, `TestRemovingASessionSourceKeepsItsUsers`,
+`TestStartForgetsTheUsersOfGoneContexts`, `TestRemovedSourceDropsItsBookmark`, `TestStoreDrop`
