@@ -1173,8 +1173,10 @@ problem folded into one line with a count); the engine keeps the logs of the 8 c
 ([`diaglogs.go`](../../internal/engine/diaglogs.go)). Its sources only observe: a round-tripper
 above the request timeout and the gates
 ([`diagtransport.go`](../../internal/cluster/diagtransport.go): 401, 403, 429, 5xx, no answer, a
-broken request, a request that is not a stream and took 5 s or more; a Secret's error body is never
-read); a `measuredLimiter` per token bucket (waits of 1 s or more, named by the read through
+broken request, a request that is not a stream and took 5 s or more, a log, exec, attach or port
+forward answered after 5 s or more; a Secret's error body is never read), which also times the
+connection's answers ([`diagstats.go`](../../internal/cluster/diagstats.go): GET /version, the
+streams and those waiting now, the HTTP client's connections by `httptrace`); a `measuredLimiter` per token bucket (waits of 1 s or more, named by the read through
 `Cache.LabelRequests`); and the cache's `OnDiagnostic` and `OnStall`
 ([`cache/diag.go`](../../internal/cache/diag.go): fallbacks, stalls, loads of 5 s or more).
 `diagnostics.report` ([`diagnostics_report.go`](../../internal/engine/diagnostics_report.go))

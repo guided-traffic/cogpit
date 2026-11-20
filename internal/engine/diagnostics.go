@@ -80,7 +80,11 @@ func (s *Session) diagnosticsLoop(stop <-chan struct{}) {
 			for _, inf := range d.Informers {
 				events += inf.Events
 			}
-			fp += fmt.Sprint(" ", b.Context, d.Requests.Total, len(d.Informers), events, b.diagLog().Changes())
+			var timings uint64 // a stream that waits, or got its answer (diagstats.go)
+			if b.Conn != nil {
+				timings = b.Conn.TransportChanges()
+			}
+			fp += fmt.Sprint(" ", b.Context, d.Requests.Total, len(d.Informers), events, b.diagLog().Changes(), timings)
 		}
 		if fp == last {
 			continue
