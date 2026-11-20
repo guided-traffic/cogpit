@@ -317,7 +317,7 @@ coverage-report: ## Merge the profiles in .cache/coverage into combined.out, the
 
 # The static checks CI runs, one job each, besides lint.
 # renovate: datasource=go depName=golang.org/x/vuln/cmd/govulncheck
-GOVULNCHECK_VERSION ?= v1.9.0
+GOVULNCHECK_VERSION ?= v1.10.0
 GOVULNCHECK     := $(BIN)/govulncheck
 # renovate: datasource=go depName=github.com/fzipp/gocyclo/cmd/gocyclo
 GOCYCLO_VERSION ?= v0.6.0
