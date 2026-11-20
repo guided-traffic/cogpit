@@ -9,8 +9,8 @@ import (
 // A read the API server refuses is given back and shown (D-177): a refused scope a handle holds is
 // listed again at every step of client-go's backoff for as long as it is held, so a reader that
 // holds its handles while it is shown (a list view and its related objects' reads, a drawer, the
-// Workloads and cluster Overviews, the Flux and Argo CD dashboards, the Trivy integration) gives a
-// refused one, or a refused namespace of one,
+// Workloads and cluster Overviews, the Flux and Argo CD dashboards, the Image Security and Velero
+// pages, the Trivy integration) gives a refused one, or a refused namespace of one,
 // back with its refusal kept (cache.Handle.ReleaseWithErr, ReleaseRefusedNamespaces): the handle
 // goes on reporting the refusal, which the reader shows, and nothing refused is listed again.
 // cluster.refreshAccess reads it again: the reader starts again once the refusals were cleared

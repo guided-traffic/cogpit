@@ -76,6 +76,11 @@ func buildVeleroModel(b *Backend, vb *veleroBuild, namespaces []string, now time
 	if !vb.served {
 		return mb.m
 	}
+	for _, k := range veleroKinds {
+		if _, served := b.Profile(k); served && (!vb.read[k] || (vb.kindErr[k] != "" && len(vb.objs[k]) == 0)) {
+			mb.m.Unread = append(mb.m.Unread, k)
+		}
+	}
 	mb.header()
 	scheds := mb.schedules()
 	mb.tiles(scheds)

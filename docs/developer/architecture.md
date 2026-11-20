@@ -1307,7 +1307,8 @@ retaken) is the waiting read's answer at once, after one list
 before a refusal never sends the refused read again (`TestBudgetAccessibleNamespaces`,
 `TestTargetReadsFollowARefusedClusterWideList`, `TestKindNamespaceLimitedUser`).
 Readers that hold their reads while shown (a list view and its related objects' reads, a drawer's
-reads, the Workloads and cluster Overviews, the Flux and Argo CD dashboards, the Trivy integration; [`pagerefusals.go`](../../internal/engine/pagerefusals.go))
+reads, the Workloads and cluster Overviews, the Flux and Argo CD dashboards, the Image Security and
+Velero pages, the Trivy integration; [`pagerefusals.go`](../../internal/engine/pagerefusals.go))
 give a read refused wholly back with its refusal kept, and of a read namespace by namespace each
 refused namespace (`Handle.ReleaseRefusedNamespaces`), at their loop's next look, and show the
 refusal; they start again, and read it again, once `cluster.refreshAccess` cleared the refusals

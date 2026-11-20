@@ -1612,7 +1612,10 @@ right applies to the whole page.
 - **Agents:** `trivy_imageSecurity {context?, namespaces?, findings?, filter?, limit?}` reads the
   page; `ui_setFilter` sets its search. No vulnerability's title or description is read.
 - **Reads:** the reports, without the fields the page does not show, and the pods, only while the
-  page is open. Off: no entry, nothing read.
+  page is open. Off: no entry, nothing read. Reports you may not list: the error line says so
+  ("Cogpit may not list vulnerabilityreports.aquasecurity.github.io", or the cluster's refusal),
+  without cards or counts, and they are not asked for again until Refresh Access Reviews or the
+  page is opened again.
 
 ### The Velero page
 
@@ -1649,6 +1652,10 @@ from the cache and nothing else: no action, no request to Velero, nothing create
   `velero.io/exclude-from-backup`, which leaves only the Namespace object out), in scope of a paused
   schedule only. "In scope" is read from the schedules, never proof of a backup.
 - **Agents:** `velero_dashboard {context?, namespaces?}` returns the same page.
+- **Reads:** Velero's kinds, the namespaces, PVCs and workloads, only while the page is open. A kind
+  you may not list counts "—" in its tile, which names it ("Cogpit may not list backups.velero.io",
+  or the cluster's refusal); the sections built from it count "—" and claim nothing. It is not asked
+  for again until Refresh Access Reviews or the page is opened again.
 
 ### A volume's usage
 

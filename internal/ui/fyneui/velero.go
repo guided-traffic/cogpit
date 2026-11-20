@@ -3,6 +3,7 @@ package fyneui
 import (
 	"image/color"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -154,11 +155,22 @@ func (p *veleroPanel) sections(m *engine.VeleroDashboardModel) []fyne.CanvasObje
 	for _, t := range m.Tiles {
 		tiles = append(tiles, newVeleroTile(p.sh, t))
 	}
+	// A section built from a kind the page could not read counts "—" and claims nothing: the
+	// tiles say why (D-177). Needs attention reads every Velero kind, Schedules and Outside every
+	// schedule the Schedules.
+	anyUnread := len(m.Unread) > 0
+	schedsUnread := slices.Contains(m.Unread, engine.VeleroSchedulesKey)
+	count := func(n int, unread bool) string {
+		if unread && n == 0 {
+			return noCount
+		}
+		return strconv.Itoa(n)
+	}
 	objs := []fyne.CanvasObject{
 		newVeleroSection(veleroStatusLabel, "", ""),
 		container.New(layout.NewGridLayoutWithColumns(max(1, len(tiles))), tiles...),
 		gapOf(4),
-		newVeleroSection(veleroAttentionLabel, strconv.Itoa(len(m.Attention)), ""),
+		newVeleroSection(veleroAttentionLabel, count(len(m.Attention), anyUnread), ""),
 	}
 	empty := func(text string) fyne.CanvasObject {
 		if !m.Synced {
@@ -166,9 +178,11 @@ func (p *veleroPanel) sections(m *engine.VeleroDashboardModel) []fyne.CanvasObje
 		}
 		return newTextLine(text, colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	}
-	if len(m.Attention) == 0 {
+	switch {
+	case len(m.Attention) == 0 && anyUnread:
+	case len(m.Attention) == 0:
 		objs = append(objs, empty("Nothing needs attention."))
-	} else {
+	default:
 		objs = append(objs, p.attentionTable(m.Attention))
 	}
 	if len(m.FailedVolumes) > 0 { // the volumes behind the backups' errors; no section without them
@@ -178,16 +192,19 @@ func (p *veleroPanel) sections(m *engine.VeleroDashboardModel) []fyne.CanvasObje
 		}
 		objs = append(objs, gapOf(4), newVeleroSection(veleroVolumesLabel, strconv.Itoa(n), ""), p.volumesTable(m.FailedVolumes))
 	}
-	objs = append(objs, gapOf(4), newVeleroSection(veleroSchedulesLabel, strconv.Itoa(len(m.Schedules)), ""))
-	if len(m.Schedules) == 0 {
+	objs = append(objs, gapOf(4), newVeleroSection(veleroSchedulesLabel, count(len(m.Schedules), schedsUnread), ""))
+	switch {
+	case len(m.Schedules) == 0 && schedsUnread:
+	case len(m.Schedules) == 0:
 		objs = append(objs, empty("No schedules."))
-	} else {
+	default:
 		objs = append(objs, p.schedulesTable(m.Schedules))
 	}
-	objs = append(objs, gapOf(4), newVeleroSection(veleroOutsideLabel, strconv.Itoa(len(m.Outside)), veleroInferred))
+	objs = append(objs, gapOf(4), newVeleroSection(veleroOutsideLabel, count(len(m.Outside), schedsUnread), veleroInferred))
 	switch {
 	case m.OutsideError != "":
 		objs = append(objs, newTextLine(m.OutsideError, colorMuted, theme.SizeNameText, fyne.TextStyle{}))
+	case len(m.Outside) == 0 && schedsUnread:
 	case len(m.Outside) == 0:
 		objs = append(objs, empty("Every namespace is in scope of a schedule."))
 	default:
@@ -418,10 +435,7 @@ func newVeleroTile(sh *shell, t engine.VeleroTile) fyne.CanvasObject {
 	title := newTapTarget(newTextLine(t.Title, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true}), func() {
 		sh.dispatch("ui.openView", openViewParams{View: kind}, func(_ any, err error) { sh.showError(err) })
 	})
-	count := formatCount(int64(t.Count))
-	if !t.Synced {
-		count += " …"
-	}
+	count := kindCount(t.Count, t.Synced, t.Error) // "—" for a kind it could not read (D-177)
 	head := container.NewBorder(nil, nil, title, newTextLine(count, colorMuted, theme.SizeNameText, fyne.TextStyle{}))
 	lines := container.New(layout.NewCustomPaddedVBoxLayout(2))
 	for _, l := range t.Lines {

@@ -103,6 +103,10 @@ type VeleroDashboardModel struct {
 	Outside []VeleroOutside `json:"outside"`
 	// OutsideError says why Outside could not be read (the namespaces cannot be listed).
 	OutsideError string `json:"outsideError,omitempty"`
+	// Unread are Velero's kinds the cluster serves that the page could not read: the access reviews
+	// say the user may not list them, or the API server refused them (or failed) with nothing
+	// listed. What is built from them is unknown, not none (D-177); their tiles name why.
+	Unread []string `json:"unread,omitempty"`
 	// Synced is false while a kind is still being listed.
 	Synced bool `json:"synced"`
 	// Error names the kinds the page cannot read; empty when it reads all.
@@ -232,8 +236,8 @@ func newVeleroSource(b *Backend, acquire func(*model.KindProfile) *cache.Handle,
 		if !ok {
 			continue
 		}
-		if listable, known := b.Listable(p, nil); known && !listable {
-			continue // a watch the API server refuses would only retry
+		if b.deniedKind(p) {
+			continue // the access reviews say no: a read the API server would refuse (D-177)
 		}
 		h := acquire(p)
 		src.unsubs = append(src.unsubs, h.Subscribe(func(cache.Event) { onChange() }))
@@ -277,11 +281,19 @@ func (src *veleroSource) waitSynced(ctx context.Context) {
 	}
 }
 
+// veleroTileKinds are the kinds a Status tile reads: a tile names its own kinds' errors, so the
+// page's error line leaves them out and says each refusal once (D-177).
+var veleroTileKinds = map[string]bool{
+	VeleroSchedulesKey: true, VeleroBackupsKey: true, VeleroRestoresKey: true,
+	VeleroLocationsKey: true, VeleroSnapshotLocationsKey: true, VeleroRepositoriesKey: true,
+}
+
+// errText is the page's error line: the errors of the kinds no tile reads.
 func (src *veleroSource) errText() string {
 	var parts []string
 	for _, key := range veleroPageKinds {
 		k := src.kinds[key]
-		if k == nil {
+		if k == nil || veleroTileKinds[key] {
 			continue
 		}
 		if err := k.handle.Err(); err != nil {
@@ -336,7 +348,8 @@ type veleroWorker struct {
 	s       *Session
 	backend *Backend
 	src     *veleroSource
-	planKey string // which kinds the open page reads and how (veleroPlanKey); the state's lock
+	planKey string       // which kinds the open page reads and how (veleroPlanKey); the state's lock
+	refused refusedReads // the reads given back as refused (pagerefusals.go)
 
 	mu         sync.Mutex
 	namespaces []string
@@ -354,6 +367,7 @@ type veleroWorker struct {
 // startVeleroPage starts the page's worker; the first build runs at once.
 func (s *Session) startVeleroPage(b *Backend, namespaces []string) *veleroWorker {
 	w := &veleroWorker{s: s, backend: b, namespaces: slices.Clone(namespaces), wake: make(chan struct{}, 1), quit: make(chan struct{})}
+	w.refused.startAt(b.ns.refusalsGen())
 	wake := w.wake
 	w.src = newVeleroSource(b, b.acquireForPage, func() { signal(wake) }) // nothing while a plan is pending
 	signal(w.wake)
@@ -384,10 +398,15 @@ func (w *veleroWorker) stop() {
 
 // unsettled reports whether the page should build again without an event: a sync state or an
 // error changed (neither comes with one), the definitions' list ended for a page that reads
-// nothing, or veleroRefresh passed.
+// nothing, or veleroRefresh passed. A read the API server refused wholly goes back first, its
+// refusal kept (pagerefusals.go).
 func (w *veleroWorker) unsettled() bool {
+	gave := false
+	for _, k := range w.src.kinds {
+		gave = w.refused.giveBack(k.handle) || gave
+	}
 	last := w.build.Load()
-	if last == nil || last.synced != w.src.synced() || last.errText != w.src.errText() {
+	if last == nil || gave || last.synced != w.src.synced() || last.errText != w.src.errText() {
 		return true
 	}
 	if len(w.src.kinds) == 0 && last.unknown != w.backend.customKindsUnknown(veleroKindsWhat) {
@@ -497,14 +516,15 @@ func (b *Backend) veleroPlanKey() string {
 
 // reconcileVeleroPageLocked runs the page's worker: started when the page opens, given the UI's
 // namespaces, stopped when another view opens or the backend changes, and started again when the
-// served Velero kinds or the access reviews change how it reads them.
+// served Velero kinds or the access reviews change how it reads them, or cluster.refreshAccess
+// follows a read given back as refused.
 func (st *state) reconcileVeleroPageLocked(b *Backend, now UIState) {
 	want := b != nil && now.View == VeleroDashboard
 	var key string
 	if want {
 		key = b.veleroPlanKey()
 	}
-	if st.velero != nil && (!want || st.velero.backend != b || st.velero.planKey != key) {
+	if st.velero != nil && (!want || st.velero.backend != b || st.velero.planKey != key || st.velero.refused.retake(b)) {
 		st.velero.stop()
 		st.velero = nil
 	}

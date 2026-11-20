@@ -7540,6 +7540,11 @@ nothing ([D-151](#d-151-integrations-never-write-to-the-cluster)).
   cluster). The page needs the lists the summary scope drops, so whole or trimmed it adds one
   watch while it is open; the trimmed scope adds another only while the reports' own view is open
   beside it.
+- **A refusal** follows [D-177](#d-177-a-refused-read-is-given-back-and-shown): reports the access
+  reviews deny are not read and the error line says "Cogpit may not list
+  vulnerabilityreports.aquasecurity.github.io"; a read the API server refuses goes back, its refusal
+  stays in the error line; either way no cards, no header line and no count, and the pods refused
+  leave the running images out of the header.
 - **Header:** beside the title, "150 images running · 142 scanned · 8 not scanned · newest scan 2h
   ago" # example: the distinct images (repository and tag, the registry and Docker Hub's
   `library/` left out) of the pods in phase Running; scanned those a report covers in one of
@@ -7624,7 +7629,8 @@ running pod's drawer (the row names the workload); counting findings in the Vuln
 `TestImageSecurityFindings`, `TestImageSecurityPage`, `TestImageSecurityNotServed`,
 `TestTrivyWorkloadRef`, `TestTrimVulnerabilityFindings`, `TestImageSecurityCommand`,
 `TestImageSecurityInTheNavigator`, `TestImageSecurityPageInTheWindow`,
-`TestRenderImageSecurityDark`, `TestRenderImageSecurityLight`, `TestDemoVulnerabilityReports`
+`TestRenderImageSecurityDark`, `TestRenderImageSecurityLight`, `TestDemoVulnerabilityReports`,
+`TestBudgetImageSecurityRefusedReports`, `TestRenderImageSecurityMayNotListDark`
 
 ## D-new: The Velero page
 
@@ -7642,7 +7648,12 @@ without an event). Colours follow D-calm: red to act now, amber to check, the re
 
 - **Reads:** Velero's Schedules, Backups, Restores, BackupStorageLocations, VolumeSnapshotLocations,
   BackupRepositories, PodVolumeBackups and DataUploads, and Namespaces, PVCs, Deployments,
-  StatefulSets and DaemonSets; a kind the user may not list is left out, a tile says why. No
+  StatefulSets and DaemonSets; a kind the user may not list is left out, a tile says why. A refusal
+  follows [D-177](#d-177-a-refused-read-is-given-back-and-shown): a read the API server refused goes
+  back, its tile keeps the refusal and counts "—"; the page's error line names only the kinds no
+  tile reads, so each refusal is said once; a section built from a kind not read (Needs attention
+  from any, Schedules and Outside every schedule from the Schedules) counts "—" without "Nothing
+  needs attention." or "No schedules." (`VeleroDashboardModel.Unread`). No
   DownloadRequest, ServerStatusRequest or DeleteBackupRequest and nothing of the object storage (the
   owner: no access to S3): a backup's own counts of errors and the messages its failed volume
   backups carry, never the backup's error log.
@@ -7757,7 +7768,8 @@ storage (the owner: no access to S3).
 `TestVeleroAttentionOrder`, `TestVeleroHeader`, `TestVeleroMaskVolumeMessage`, `TestVeleroFailedVolumes`,
 `TestVeleroPage`, `TestVeleroPageWithoutVelero`,
 `TestDemoVeleroPage`, `TestDemoVeleroStatesAllDay`, `TestVeleroDashboardCommand`, `TestRenderVeleroDark`, `TestRenderVeleroLight`,
-`TestVeleroPageClicks`, `TestVeleroNavigatorEntry`
+`TestVeleroPageClicks`, `TestVeleroNavigatorEntry`,
+`TestBudgetVeleroRefusedKinds`, `TestRenderVeleroMayNotListDark`
 
 ## D-calm: Calm colours on the integrations' pages
 

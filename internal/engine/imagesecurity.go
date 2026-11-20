@@ -110,6 +110,7 @@ type imageSecSource struct {
 	reportsP, podsP *model.KindProfile
 	unsubs          []func()
 	reason          string
+	denied          string        // the reports the access reviews say the user may not list (mayNotList); not read
 	gen             atomic.Uint64 // bumped by every event of either
 	onChange        func()
 }
@@ -123,8 +124,12 @@ func newImageSecSource(b *Backend, reason string, acquire func(*model.KindProfil
 		return src
 	}
 	src.reportsP, _ = b.Profile(trivyReportsKind)
-	src.reports = b.acquireTrimmed(src.reportsP, trivyFindingsTrim)
-	src.unsubs = append(src.unsubs, src.reports.Subscribe(src.changed))
+	if b.deniedKind(src.reportsP) {
+		src.denied = mayNotList(src.reportsP) // a read the API server would refuse (D-177)
+	} else {
+		src.reports = b.acquireTrimmed(src.reportsP, trivyFindingsTrim)
+		src.unsubs = append(src.unsubs, src.reports.Subscribe(src.changed))
+	}
 	if p, ok := b.Profile(logKindPods); ok {
 		if listable, known := b.Listable(p, nil); !known || listable {
 			src.podsP = p
@@ -203,6 +208,9 @@ func (src *imageSecSource) waitSynced(ctx context.Context) {
 
 func (src *imageSecSource) errText() string {
 	var parts []string
+	if src.denied != "" {
+		parts = append(parts, src.denied)
+	}
 	if src.reports != nil && src.reports.Err() != nil {
 		parts = append(parts, "Vulnerability reports: "+src.reports.Err().Error())
 	}
@@ -218,11 +226,16 @@ func (src *imageSecSource) build(context string) *imageSecBuild {
 		return &imageSecBuild{synced: true, reason: src.reason}
 	}
 	synced := src.synced() // before List, as views do
-	var pods []*unstructured.Unstructured
-	if src.pods != nil {
+	// Pods the API server refused count nothing: the header leaves the running images out (D-177).
+	podsRead := src.pods != nil && !refusedAll(src.pods)
+	var pods, reports []*unstructured.Unstructured
+	if podsRead {
 		pods = KindList(src.pods, src.podsP)
 	}
-	fb := newImageSecBuild(context, src.reports.List(), pods, src.pods != nil)
+	if src.reports != nil {
+		reports = src.reports.List()
+	}
+	fb := newImageSecBuild(context, reports, pods, podsRead)
 	fb.synced, fb.errText = synced, src.errText()
 	return fb
 }
@@ -234,7 +247,8 @@ type imageSecWorker struct {
 	s       *Session
 	backend *Backend
 	src     *imageSecSource
-	planKey string // what the open page reads and how (imageSecPlanKey); the state's lock
+	planKey string       // what the open page reads and how (imageSecPlanKey); the state's lock
+	refused refusedReads // the reads given back as refused (pagerefusals.go)
 
 	mu       sync.Mutex
 	params   viewParams
@@ -251,6 +265,7 @@ type imageSecWorker struct {
 // startImageSecurity starts the page's worker; the first build runs at once.
 func (s *Session) startImageSecurity(b *Backend, reason string, params viewParams) *imageSecWorker {
 	w := &imageSecWorker{s: s, backend: b, params: params, wake: make(chan struct{}, 1), quit: make(chan struct{})}
+	w.refused.startAt(b.ns.refusalsGen())
 	wake := w.wake
 	w.src = newImageSecSource(b, reason, b.acquireForPage, func() { signal(wake) }) // nothing while a plan is pending
 	signal(w.wake)
@@ -280,10 +295,12 @@ func (w *imageSecWorker) stop() {
 }
 
 // unsettled reports whether a sync state or an error changed since the last build: neither comes
-// with a watch event.
+// with a watch event. A read the API server refused wholly goes back first, its refusal kept
+// (pagerefusals.go).
 func (w *imageSecWorker) unsettled() bool {
+	gave := w.refused.giveBack(w.src.reports, w.src.pods)
 	last := w.build.Load()
-	return last == nil || (w.src.reason == "" && (last.synced != w.src.synced() || last.errText != w.src.errText()))
+	return last == nil || gave || (w.src.reason == "" && (last.synced != w.src.synced() || last.errText != w.src.errText()))
 }
 
 // rebuild reads the cache again after a change of the reports or the pods, builds the table and
@@ -382,7 +399,8 @@ func (b *Backend) imageSecPlanKey(reason string) string {
 // reconcileImageSecPageLocked runs the page's worker: started when the page opens, given the UI's
 // namespaces, search, sort and columns, stopped when another view opens or the backend changes,
 // and started again when the integration is switched, the reports' kind comes, goes or moves to
-// another version, or the access reviews change how the page reads. The page's sort is remembered
+// another version, the access reviews change how the page reads, or cluster.refreshAccess follows a
+// read given back as refused. The page's sort is remembered
 // as a view's is.
 func (st *state) reconcileImageSecPageLocked(b *Backend, now UIState) {
 	want := b != nil && now.View == ImageSecurity
@@ -391,7 +409,7 @@ func (st *state) reconcileImageSecPageLocked(b *Backend, now UIState) {
 		reason = imageSecReason(b, &now)
 		key = b.imageSecPlanKey(reason)
 	}
-	if st.imageSec != nil && (!want || st.imageSec.backend != b || st.imageSec.planKey != key) {
+	if st.imageSec != nil && (!want || st.imageSec.backend != b || st.imageSec.planKey != key || st.imageSec.refused.retake(b)) {
 		st.imageSec.stop()
 		st.imageSec = nil
 	}
