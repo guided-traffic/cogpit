@@ -124,6 +124,10 @@ type DiagnosticsReport struct {
 	// Log is the context's diagnostics log, the line seen last first: at most
 	// cluster.DiagLogLimit lines, each a problem with its count (cluster.DiagEntry).
 	Log []cluster.DiagEntry `json:"log"`
+	// Transport is how long the API server's answers take on the latest connection: GET
+	// /version, the requests that open a container's stream and those waiting for an answer now,
+	// the HTTP client's connections (cluster.TransportStats).
+	Transport *cluster.TransportStats `json:"transport,omitempty"`
 }
 
 // DiagStreaming counts the open and warm watches by how their initial list came.
@@ -279,4 +283,6 @@ func (r *DiagnosticsReport) addConnection(b *Backend) {
 	}
 	slices.SortFunc(r.ProblemCounts, func(a, b DiagCount) int { return cmp.Or(cmp.Compare(b.Count, a.Count), cmp.Compare(a.Name, b.Name)) })
 	r.Log = log.Entries()
+	ts := b.Conn.TransportStats()
+	r.Transport = &ts
 }

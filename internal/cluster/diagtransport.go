@@ -25,30 +25,59 @@ import (
 // what the connection does anyway: they send nothing of their own.
 
 // diagRoundTripper notes in the diagnostics log every request the API server refused, asked to
-// slow down or failed, every one without an answer or broken on the way, and every one that is not a
-// stream and took SlowRequest or more. It sits above the request timeout, so that a request without
-// an answer reaches it as ErrNoAnswer.
+// slow down or failed, every one without an answer or broken on the way, every one that is not a
+// stream and took SlowRequest or more, and every one that opens a container's stream (a log, exec,
+// attach, a port forward) and was answered only after SlowRequest; it times them, GET /version and
+// the HTTP client's connections (diagstats.go). It sits above the request timeout, so that a
+// request without an answer reaches it as ErrNoAnswer.
 type diagRoundTripper struct {
 	log    *DiagLog
+	stats  *transportStats // nil: no timings (diagstats.go)
 	prefix string
 	next   http.RoundTripper
 	now    func() time.Time
 }
 
 // installDiag adds the diagnostics round-tripper to cfg's transports, above the request timeout and
-// the gates (installHealth comes first).
-func installDiag(cfg *rest.Config, log *DiagLog, prefix string) {
+// the gates (installHealth comes first), and returns the timings it gathers.
+func installDiag(cfg *rest.Config, log *DiagLog, prefix string) *transportStats {
+	stats := newTransportStats()
 	cfg.Wrap(func(next http.RoundTripper) http.RoundTripper {
-		return &diagRoundTripper{log: log, prefix: prefix, next: next, now: time.Now}
+		return &diagRoundTripper{log: log, stats: stats, prefix: prefix, next: next, now: time.Now}
 	})
+	return stats
 }
 
 func (d *diagRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	u := stripPrefix(req.URL, d.prefix)
+	verb, resource := Classify(req.Method, u)
+	kind := streamKind(resource)
 	start := d.now()
+	if kind == "" || kind == StreamLogs {
+		// Exec, attach and port forwards dial connections of their own (client-go's upgrade
+		// transports): the HTTP client's connections are the rest's.
+		req = d.stats.traceConnections(req, d.now)
+	}
+	done := func() {}
+	if kind != "" {
+		done = d.stats.wait(WaitingStream{Kind: kind, What: describeRequest(verb, resource, u), Method: req.Method, URL: safeURL(req.URL), Since: start})
+	}
 	resp, err := d.next.RoundTrip(req)
-	took := d.now().Sub(start)
+	done()
+	end := d.now()
+	took := end.Sub(start)
 	if req.Context().Err() != nil && err != nil {
 		return resp, err // the caller gave up: nothing about the cluster
+	}
+	failed := err != nil || resp == nil || resp.StatusCode >= http.StatusBadRequest
+	switch {
+	case kind != "":
+		d.stats.stream(kind, took, failed, end)
+	case verb == VerbDiscovery && u.Path == "/version":
+		d.stats.versionAnswer(took, failed, end)
+	}
+	if resp != nil && kind != StreamExec && kind != StreamAttach && kind != StreamPortForward {
+		d.stats.answered(resp.Proto)
 	}
 	d.observe(req, resp, err, took)
 	return resp, err
@@ -84,12 +113,15 @@ func (d *diagRoundTripper) observe(req *http.Request, resp *http.Response, err e
 		e.Kind, e.RetryAfter = DiagTooMany, resp.Header.Get("Retry-After")
 	case resp.StatusCode >= 500:
 		e.Kind = DiagServerError
+	case took >= SlowRequest && streamKind(resource) != "":
+		e.Kind, e.Status = DiagSlowStream, resp.StatusCode
+		e.Text = "the API server opens the stream at the kubelet of the pod's node before it answers"
 	case took >= SlowRequest && !isStream(req, verb, resource):
 		e.Kind, e.Status = DiagSlow, resp.StatusCode
 	default:
 		return
 	}
-	if resp != nil && e.Kind != DiagSlow {
+	if resp != nil && e.Kind != DiagSlow && e.Kind != DiagSlowStream {
 		e.Status = resp.StatusCode
 		e.Text = statusMessage(resp, resource)
 	}

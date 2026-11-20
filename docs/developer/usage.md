@@ -1380,6 +1380,10 @@ The tab, from the top:
   them; "streams off, every read lists" and why, while a connection that began streaming lists;
 - Cogpit's rate limits, each with how many requests waited, how long, the longest wait and how many
   wait now; orange while one waits or one waited 1 s or more;
+- the API server's answers on the latest connection: a log, exec, attach or port forward that waits
+  for its answer now and for how long (orange from 5 s), the time GET /version (the heartbeat's
+  request) takes, the time each kind of stream took to be answered, and the HTTP client's
+  connections (protocol, how many were opened, how long the latest took to set up);
 - four columns: the **log** (the line seen last first), the API requests by verb and resource, the
   watches with their load time ("loaded in 1.2 s (streamed)"), the objects and memory per kind.
 
@@ -1420,6 +1424,7 @@ column read from them names them after its own error ("Cogpit may not list pods"
 | no answer | no answer within the request timeout (30 s # default) |
 | network | the request did not reach the server, or its answer broke off |
 | slow answer | a request that is not a stream took 5 s or more |
+| slow stream | a log, exec, attach or port forward was answered only after 5 s or more: the API server opens it at the kubelet of the pod's node before it answers, so the time is the API server's way to that kubelet |
 | rate limited | a request waited 1 s or more at a Cogpit rate limit, named by its read ("pods in team-a") |
 | not streamed | streaming on: the server did not stream a read's initial list (WatchList), so Cogpit listed it; or a stream stalled and its connection lists every read ([initial streaming](#cluster-settings--general-debug-initial-streaming)): the line says whether the stream got no answer or objects then silence, and how the list in its place answered |
 | slow load | a read took 5 s or more to load |
@@ -1435,12 +1440,30 @@ status, not its message.
 
 **Report** shows the plain-text report the copy icon and **Save Report…** put out
 (`cogpit-connection-diagnostics-<yyyy-mm-dd-hhmmss>.txt`): connection, problems, rate limits,
-initial lists, log, watches, requests and the context's latest three connect attempts.
+the API server's answers, initial lists, log, watches, requests and the context's latest three
+connect attempts.
 Endpoints are replaced: a host becomes `host-1`, an address `ip-1` (consistently throughout), ports
 go, a URL keeps its path (`https://host-1/api/v1/pods`), file paths become `<path>`, a server in a
 context name too (`team-a/api-ocp-example-com:6443/jdoe` → `team-a/host-1/jdoe`). Users, groups,
 namespaces, objects and API groups stay readable: read it before you send it. Agents use
 `diagnostics_get` (real values) and `diagnostics_report`.
+
+<details>
+<summary>The API server's answers in the report</summary>
+
+| Line | Says |
+|---|---|
+| GET /version | how many answered, the median of the latest 64, the longest, the latest: the heartbeat's request, on the connection the views use, so its time is the API server's own answer time |
+| Connections | the protocol (HTTP/2.0, HTTP/1.1), how many connections the HTTP client opened since connecting, how long the latest took from its TCP connect to the end of its TLS handshake (a proxy's CONNECT included), split into TCP and TLS, the longest; failed TLS handshakes. Exec, attach and port forwards open connections of their own, not counted here |
+| Streams | per kind (logs, exec, attach, port forwards): how many were opened, the time to the API server's answer (median, longest, latest), how many failed |
+| Waiting for an answer now | each log, exec, attach or port forward still waiting, how long, and its request |
+
+A logs tab that stays at "Opening Logs: …" waits for this answer: save the report while it does.
+GET /version fast and the logs slow points at the API server's way to the kubelet; both slow at the
+API server or the network in between; several connections in a short time at something that
+closes them.
+
+</details>
 
 ## In a cluster
 
