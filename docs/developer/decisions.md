@@ -5363,7 +5363,14 @@ the latest connect.
   within a minute (`cluster.WarmingRepeatWithin`).
 - **Sources**, which send nothing: a round-tripper above the request timeout and the gates
   ([`diagtransport.go`](../../internal/cluster/diagtransport.go)), the token buckets
-  (`Conn.Budgets`), the cache's load times and fallbacks (`Cache.OnDiagnostic`). A Secret's error
+  (`Conn.Budgets`), the cache's load times and fallbacks (`Cache.OnDiagnostic`).
+- **Answer times** ([`diagstats.go`](../../internal/cluster/diagstats.go), `Conn.TransportStats`),
+  per connection, measured by the same round-tripper, so below Cogpit's gates and rate limits and
+  above client-go's credential plugin: GET /version; each request that opens a log, exec, attach
+  or port forward, to the answer that opens it (a "slow stream" line from 5 s), and while it waits
+  (the report lists it with its age); the HTTP client's connections from the TCP connect's start to
+  the TLS handshake's end, by `httptrace` on its requests, and the latest answer's protocol. Median
+  over the latest 64 answers. The tab shows a short line, orange while a stream has waited 5 s. A Secret's error
   answer keeps only its status
   ([H-8](../security/privilege-footprint.md#h-8-secret-data-arrives-with-the-list)).
 - **Report** (`diagnostics.report`, [`engine/diagscrub.go`](../../internal/engine/diagscrub.go)):
@@ -5374,15 +5381,27 @@ the latest connect.
 **Why:** A slow or refused connection must be traceable by the user and shareable as a log a
 colleague can work with: resource names kept, endpoints not; one place for the numbers instead of
 the status bar. A retried refusal is one problem, not a hundred. An API server answers a watch 429
-while it builds its cache of a resource, and client-go asks again: no fault unless it repeats.
+while it builds its cache of a resource, and client-go asks again: no fault unless it repeats. A
+logs tab that stays at "Opening" waits for the API server, which asks the node's kubelet first:
+the report has to show that wait while it lasts, and GET /version on the same connection beside it
+to tell the API server's own time from its way to the kubelet.
+
+**Rejected** (answer times, the lead's): a stream's first byte instead of its answer — a followed
+log of a quiet container sends none, and the tab opens on the answer; a dialer wrapper for the
+connections — it sees the TCP connect but not the TLS handshake; counting exec's, attach's and port
+forwards' connections — client-go's upgrade transports dial their own, outside the HTTP client.
 
 **Not covered:** a view waiting for the access reviews has no line of its own; the anonymous
-reachability probe's requests; QPS and burst are fixed, no preference.
+reachability probe's requests; QPS and burst are fixed, no preference; the tab's waiting age moves
+only when a counter does (at the latest with the next heartbeat), the report's is exact; the time
+a credential plugin takes and a request held at the gate are not in the answer times.
 
 **Code:** [`engine/diaglogs.go`](../../internal/engine/diaglogs.go),
 [`fyneui/diagnostics.go`](../../internal/ui/fyneui/diagnostics.go) · 
 `TestDiagLogFoldsTheSameProblem`, `TestDiagLogIsBounded`, `TestDiagRoundTripperNotesProblems`,
-`TestEndpointScrubber`, `TestConnectionDiagnosticsOfALimitedUser`, `TestCacheWarmingIsNoProblem`
+`TestEndpointScrubber`, `TestConnectionDiagnosticsOfALimitedUser`, `TestCacheWarmingIsNoProblem`,
+`TestDiagRoundTripperTimesAStreamAndShowsItWaiting`, `TestDiagRoundTripperCountsTheClientsConnections`,
+`TestReportWritesTheAPIServersAnswers`
 
 ## D-134: The window's zoom
 

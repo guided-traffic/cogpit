@@ -15,7 +15,7 @@ import (
 // refused (401, 403), one it asked to slow down (429, its API Priority and Fairness), one it failed
 // (5xx), one it answered while its cache of the resource was still being built (a 429 that is no
 // problem unless it repeats), one without an answer or that broke on the way, one answered only after SlowRequest, one
-// that waited at Cogpit's own rate limit for ThrottleNote or more, a read whose initial list the
+// that opens a container's stream answered only after SlowRequest, one that waited at Cogpit's own rate limit for ThrottleNote or more, a read whose initial list the
 // server did not stream, one that took SlowLoad or more to load, and a kind read namespace by
 // namespace after a refusal. Kept in memory only, never on disk (the owner: gone at quit), and
 // bounded (the owner: "Aber Limit einbauen, nicht immer größer werden lassen"): at most
@@ -41,6 +41,7 @@ const (
 	DiagTimeout      DiagKind = "timeout"         // no answer within the request timeout
 	DiagNetwork      DiagKind = "network"         // the request did not reach the server, or its answer broke off
 	DiagSlow         DiagKind = "slow"            // answered after SlowRequest or more
+	DiagSlowStream   DiagKind = "slowStream"      // a request that opens a container's stream, answered after SlowRequest or more
 	DiagThrottled    DiagKind = "throttled"       // waited ThrottleNote or more at one of Cogpit's rate limits
 	DiagFallback     DiagKind = "fallback"        // a read's initial list was not streamed: it was listed instead
 	DiagSlowLoad     DiagKind = "slowLoad"        // a read took SlowLoad or more to load
@@ -61,7 +62,9 @@ const (
 	// DiagLogLimit bounds a context's diagnostics log: its lines, each a problem folded with its
 	// repeats.
 	DiagLogLimit = 500
-	// SlowRequest is how long a request that is not a stream may take before it is a slow one.
+	// SlowRequest is how long a request may take before it is a slow one: a request that is not a
+	// stream to its answer, one that opens a container's stream (a log, exec) to the answer that
+	// opens it.
 	SlowRequest = 5 * time.Second
 	// ThrottleNote is how long a request may wait at Cogpit's own rate limit before it is noted.
 	ThrottleNote = time.Second

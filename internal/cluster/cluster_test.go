@@ -181,6 +181,11 @@ func TestConnectAgainstFakeServer(t *testing.T) {
 	if c.Counter().Snapshot().ByVerb[VerbDiscovery] != 2 {
 		t.Error("the typed client does not count")
 	}
+	// The diagnostics' timings (diagstats.go): GET /version twice, on the one connection opened.
+	ts := c.TransportStats()
+	if ts.Version.Count != 2 || ts.Version.Failed != 0 || ts.Connections.Setup.Count != 1 || ts.Connections.Proto == "" {
+		t.Errorf("timings = %+v, want two answers of GET /version on one connection", ts)
+	}
 }
 
 func TestConnectNamespaceDefaultsAndExplicitContext(t *testing.T) {
