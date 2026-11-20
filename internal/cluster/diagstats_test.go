@@ -177,7 +177,10 @@ func TestDiagRoundTripperCountsTheClientsConnections(t *testing.T) {
 			}
 			get()
 			get() // the open connection again
-			if c := stats.snapshot().Connections; c.Setup.Count != 1 || c.Proto != proto || c.Setup.Latest <= 0 || c.TCP <= 0 || c.TLS <= 0 {
+			// A loopback connect can take less than the clock's resolution (Windows): the times
+			// only have to add up.
+			if c := stats.snapshot().Connections; c.Setup.Count != 1 || c.Proto != proto || c.Setup.LatestAt.IsZero() ||
+				c.TCP < 0 || c.TLS < 0 || c.Setup.Latest < c.TCP || c.Setup.Latest < c.TLS {
 				t.Fatalf("connections = %+v, want one opened, %s, with its times", c, proto)
 			}
 			hc.CloseIdleConnections()
