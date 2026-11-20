@@ -141,7 +141,8 @@ type argoDashWorker struct {
 	rows    *rowCache
 	kinds   []*argoDashKind
 	unsubs  []func()
-	planKey string // how the page reads its kinds (Backend.pageReadKey); the state's lock
+	planKey string       // how the page reads its kinds (Backend.pageReadKey); the state's lock
+	refused refusedReads // the reads given back as refused (pagerefusals.go)
 
 	mu     sync.Mutex
 	params viewParams
@@ -157,6 +158,15 @@ type argoDashWorker struct {
 type argoDashKind struct {
 	profile *model.KindProfile
 	handle  *cache.Handle
+	denied  bool // the access reviews say the user may not list it where the page reads it
+}
+
+// err is the kind's error: that the user may not list it (mayNotList), else its read's.
+func (k *argoDashKind) err() string {
+	if k.denied {
+		return mayNotList(k.profile)
+	}
+	return errText(k.handle.Err())
 }
 
 // newArgoDashWorker acquires the page's handles through acquire (the open page's acquireForPage,
@@ -174,7 +184,7 @@ func (s *Session) newArgoDashWorker(b *Backend, params viewParams, notify bool, 
 		if !ok {
 			continue
 		}
-		k := &argoDashKind{profile: p, handle: acquire(p)}
+		k := &argoDashKind{profile: p, handle: acquire(p), denied: b.deniedKind(p)}
 		w.unsubs = append(w.unsubs, k.handle.Subscribe(func(cache.Event) { onChange() }))
 		w.kinds = append(w.kinds, k)
 	}
@@ -182,7 +192,9 @@ func (s *Session) newArgoDashWorker(b *Backend, params viewParams, notify bool, 
 }
 
 func (s *Session) startArgoDashboard(b *Backend, params viewParams) *argoDashWorker {
+	gen := b.ns.refusalsGen()
 	w := s.newArgoDashWorker(b, params, true, b.acquireForPage) // nothing while a plan is pending
+	w.refused.startAt(gen)
 	signal(w.wake)
 	s.goSafe("argo cd dashboard", func() {
 		runCoalesced(w.quit, w.wake, s.opts.SnapshotInterval, w.unsettled, w.rebuild)
@@ -237,11 +249,24 @@ func (w *argoDashWorker) synced() bool {
 	return w.table != nil || w.backend.CustomKindsSettled()
 }
 
-// unsettled reports whether a sync state changed since the last build: it comes with no event,
-// nor does the end of the definitions' list for a page that reads no Applications.
+// unsettled reports whether a sync state or an error changed since the last build: neither comes
+// with an event, nor does the end of the definitions' list for a page that reads no Applications.
+// A read the API server refused wholly goes back first, its refusal kept (pagerefusals.go).
 func (w *argoDashWorker) unsettled() bool {
+	gave := false
+	for _, k := range w.kinds {
+		gave = w.refused.giveBack(k.handle) || gave
+	}
 	m := w.model.Load()
-	return m == nil || m.Synced != w.synced() || (w.table == nil && m.Error != w.backend.customKindsUnknown(argoKindsWhat))
+	if m == nil || gave || m.Synced != w.synced() || (w.table == nil && m.Error != w.backend.customKindsUnknown(argoKindsWhat)) {
+		return true
+	}
+	for i, k := range w.kinds {
+		if i < len(m.Kinds) && m.Kinds[i].Error != k.err() {
+			return true
+		}
+	}
+	return false
 }
 
 // argoKindsWhat names Argo CD's kinds in the text of a page that cannot tell whether the cluster
@@ -296,7 +321,7 @@ func (w *argoDashWorker) build(p viewParams) (*ArgoCDDashboardModel, *TableSnaps
 				apps = append(apps, o)
 			}
 		}
-		ok := OverviewKind{Kind: k.profile.Key, Title: k.profile.Title, Count: n, Synced: synced, Error: errText(k.handle.Err())}
+		ok := OverviewKind{Kind: k.profile.Key, Title: k.profile.Title, Count: n, Synced: synced, Error: k.err()}
 		for _, st := range StatusOrder {
 			if c := counts[st]; c > 0 {
 				ok.Statuses = append(ok.Statuses, StatusCount{Status: st, Count: c})
@@ -505,9 +530,9 @@ func (st *state) reconcileArgoPageLocked(b *Backend, now UIState) {
 	want := b != nil && now.View == ArgoCDDashboard
 	var key string
 	if want {
-		key = b.pageReadKey(argoDashKinds, false)
+		key = b.pageReadKey(argoDashKinds) // a kind the reviews come to deny names it (argoDashKind.denied)
 	}
-	if st.argo != nil && (!want || st.argo.backend != b || st.argo.planKey != key) {
+	if st.argo != nil && (!want || st.argo.backend != b || st.argo.planKey != key || st.argo.refused.retake(b)) {
 		st.argo.stop()
 		st.argo = nil
 	}

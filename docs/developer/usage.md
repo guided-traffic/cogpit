@@ -138,7 +138,9 @@ Ctrl on Windows and Linux.
   Low or Unknown, at most 10; B Medium, or more than 10 Low or Unknown; C High, or an OS at its end
   of life; D 1 to 5 Critical; E more; N/A no report. The Pods list shows each pod's worst grade in
   its Signals column ([Signals](#the-signals-column)), a pod's drawer each container's with its
-  counts; nothing is read while the integration is off.
+  counts; nothing is read while the integration is off. Reports you may not list show no grade and
+  "No permission" in Cluster Settings › Integrations › Trivy, and are not asked for again until
+  Refresh Access Reviews or the cluster is shown again.
 
 **Workloads at run time**
 
@@ -1391,6 +1393,20 @@ The tab, from the top:
 A log line is one problem with its count: a request client-go retries counts in its line ("12
 times since 08:01:04") instead of pushing other lines out.
 
+A kind the API server refuses to a list view, the Workloads or cluster Overview, the Flux or Argo
+CD dashboard is named in the error line above the table ("Nodes: … is forbidden …") and listed
+once, not again while it is open; so is a namespace refused while the kind's other namespaces are
+read ("in team-b: … is forbidden"), whose rows stay. Refresh Access Reviews, opening the view
+again or the next connect asks again. Kinds the access reviews say you may not list are not read
+and are named instead: "Cogpit may not list applications.argoproj.io" on the Argo CD dashboard,
+the Flux kinds on the Flux dashboard. What could not be read shows "—" where its count would be
+(the dashboards' cards, the Workloads Overview's kinds), and the table neither counts items nor
+says "No … found" under the error line. A view's and a drawer's related objects that are refused
+(a node's pods, a Deployment's Replica Sets) are not asked for again either; a list view with a
+column read from them names them after its own error ("Cogpit may not list pods") and shows "—" in every cell read from them
+(the Namespaces' requests, a claim's Pods)
+([D-177](decisions.md#d-177-a-refused-read-is-given-back-and-shown)).
+
 <details>
 <summary>The log's lines</summary>
 
@@ -1529,9 +1545,10 @@ a report names with a violation
   their objects; `object_get` carries the drawer's sections. Policy messages reach agents as data
   ([H-11](../security/agents-and-mcp.md#h-11-instructions-hidden-in-cluster-data)).
 - **Reads:** a user who may list the reports only in some namespaces gets those the cluster's
-  settings or the namespace filter name. A report kind the cluster refuses (403) is named in
-  Cluster Settings › Integrations › Kyverno and not asked for again until Refresh Access Reviews
-  or the next connect. Off: nothing is read or shown. Not read: Kyverno's
+  settings or the namespace filter name. A report kind the cluster refuses (403), or the access
+  reviews say you may not list, is named in Cluster Settings › Integrations › Kyverno and not asked
+  for again until Refresh Access Reviews or the next connect; a namespace refused while others are
+  read is left out the same way. Off: nothing is read or shown. Not read: Kyverno's
   `openreports.io` reports, other engines'.
 
 ### A volume's usage

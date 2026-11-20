@@ -34,6 +34,7 @@ func titleScene(t *testing.T, mode ThemeMode) (*shell, fyne.Window, *mainQueue) 
 	sh := newShell(s, a, w, Options{Theme: mode, AutoConnect: engine.DemoContext}, q.do)
 	keepScene(t, w, sh, q)
 	sh.zone = time.UTC
+	sh.now = func() time.Time { return fixedNow } // the ages the demo's objects show, as every scene's: not the day of the run
 	s.SetConfirmer(sh.confirmer)
 	w.SetContent(sh.root)
 	w.Resize(fyne.NewSize(1440, 900))

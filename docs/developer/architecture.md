@@ -966,6 +966,12 @@ it in the Preferences' zone. A kind's `Detail` has no clock, so it writes a time
 - An index may declare a `Sum`: what each object adds under its keys (`model.Totals`), kept with
   the index and moved with each event, read with `model.TotalsOf(rel, index, key)` at no cost
   however many objects: the Namespaces list's requests and limits (`PodsByNamespace`, D-154).
+- A column read from an index names its kind (`model.Column.Related`): while the user may not list
+  that kind (the reviews deny it, or the API server refused it; `model.RelatedRefusals`,
+  `relatedSet.refused`), `BuildRowWith` writes `model.NoCountCell` ("—", muted) into each of its
+  cells, and the view's error line names the kind after its own error ("Cogpit may not list pods",
+  only for a kind a column reads;
+  `joinErrLine`; [D-177](decisions.md#d-177-a-refused-read-is-given-back-and-shown)).
 - An index is built on its first lookup and kept current by its kind's events. A view wakes on every
   change of an indexed kind (its row cache keys on the related generation); a drawer only for the
   keys it looked up (`TestWorkloadDrawerWakesOnlyForItsPods`).
@@ -1127,7 +1133,10 @@ Informers run only in [`internal/cache`](../../internal/cache/cache.go), and eve
 `cache.DynamicSource` (the connection's dynamic client, or its metadata client for a metadata-only
 scope), unless a cover serves the scope (below). After the last `Release` the informer stays warm
 for `DefaultWarmPeriod` (5 minutes, not configurable), then stops. A failing list or watch is a
-state: client-go retries, and `Handle.Err` reports it.
+state: client-go retries, and `Handle.Err` reports it; `Handle.ReleaseWithErr` gives a handle back
+and keeps its state (its error, whether it synced, what it held), and `ReleaseRefusedNamespaces`
+gives back the refused namespaces of a read namespace by namespace, for a reader that shows a
+refusal (below).
 
 | Mechanism | Effect | Where |
 |---|---|---|
@@ -1283,6 +1292,16 @@ retaken) is the waiting read's answer at once, after one list
 `TestBudgetRefusedClusterScopedList`). `acquirePlanned` holds `nsState.planMu`, so a plan made
 before a refusal never sends the refused read again (`TestBudgetAccessibleNamespaces`,
 `TestTargetReadsFollowARefusedClusterWideList`, `TestKindNamespaceLimitedUser`).
+Readers that hold their reads while shown (a list view and its related objects' reads, a drawer's
+reads, the Workloads and cluster Overviews, the Flux and Argo CD dashboards, the Trivy integration; [`pagerefusals.go`](../../internal/engine/pagerefusals.go))
+give a read refused wholly back with its refusal kept, and of a read namespace by namespace each
+refused namespace (`Handle.ReleaseRefusedNamespaces`), at their loop's next look, and show the
+refusal; they start again, and read it again, once `cluster.refreshAccess` cleared the refusals
+(`refusedReads.retake`), as the Kyverno integration's reads do. A kind the access reviews deny
+where a page would read it is named ("Cogpit may not list …", `mayNotList`)
+([D-177](decisions.md#d-177-a-refused-read-is-given-back-and-shown), `TestBudgetViewsRefusedKinds`,
+`TestBudgetPartiallyRefusedRead`, `TestBudgetRelatedReadsRefused`, `TestBudgetPagesRefusedKinds`, `TestBudgetTrivyRefusedReports`,
+`TestReadersNameKindsTheReviewsDeny`).
 
 ### D-79: Trimmed scopes
 

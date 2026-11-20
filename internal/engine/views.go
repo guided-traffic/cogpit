@@ -121,7 +121,7 @@ func (st *state) reconcileLocked(now UIState) {
 		}
 	}
 	st.noteVanishedLocked(b, prof, now.View)
-	if st.view != nil && (st.view.backend != b || st.view.profile != prof || st.view.plan.key() != plan.key() || st.view.relKey != relKey) {
+	if st.view != nil && (st.view.backend != b || st.view.profile != prof || st.view.plan.key() != plan.key() || st.view.relKey != relKey || st.view.refused.retake(b)) {
 		st.view.stop()
 		st.view = nil
 	}
@@ -154,7 +154,7 @@ func (st *state) reconcileLocked(now UIState) {
 		drawerPlan = b.drawerPlanKey(drawerProf, now.Drawer.Namespace, backRefs)
 	}
 	if st.drawer != nil && (now.Drawer == nil || st.drawer.backend != b || st.drawer.ref != *now.Drawer || st.drawer.profile != drawerProf ||
-		st.drawer.planKey != drawerPlan || st.drawer.backRefs != backRefs) {
+		st.drawer.planKey != drawerPlan || st.drawer.backRefs != backRefs || st.drawer.refused.retake(b)) {
 		st.drawer.stop()
 		st.drawer = nil
 	}

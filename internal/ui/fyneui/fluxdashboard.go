@@ -95,8 +95,10 @@ func (p *fluxPanel) show(m engine.FluxDashboardModel) {
 	// Each group of kinds is a bracket in the cluster's cyan with its object count ("sources · 5"),
 	// the first one, which the navigator leaves without a name, "release & build".
 	totals := map[string]int{}
+	read := map[string]bool{} // a section with a kind that could be read: its total is a count
 	for _, k := range m.Kinds {
 		totals[k.Section] += k.Count
+		read[k.Section] = read[k.Section] || !unread(k.Count, k.Error)
 	}
 	for i, k := range m.Kinds {
 		if i == 0 || k.Section != section {
@@ -106,7 +108,11 @@ func (p *fluxPanel) show(m engine.FluxDashboardModel) {
 			if name == "" {
 				name = "release & build"
 			}
-			head := newBracketLabel(name+" · "+strconv.Itoa(totals[section]), colorAccent)
+			total := noCount
+			if read[section] {
+				total = strconv.Itoa(totals[section])
+			}
+			head := newBracketLabel(name+" · "+total, colorAccent)
 			if len(objs) > 0 {
 				objs = append(objs, gapOf(groupGap))
 			}
@@ -122,16 +128,8 @@ func (p *fluxPanel) show(m engine.FluxDashboardModel) {
 		grid = append(grid, t)
 	}
 	flush()
-	switch {
-	case len(m.Kinds) == 0 && m.Error != "":
-		// The definitions cannot be listed (a namespace-limited user) or are still being listed:
-		// whether the cluster serves Flux is unknown. The reason quotes the server: wrapped.
-		why := widget.NewLabel(m.Error)
-		why.Wrapping = fyne.TextWrapWord
-		objs = append(objs, why)
-	case len(m.Kinds) == 0:
-		objs = append(objs, newTextLine("The cluster serves no Flux kinds.", colorMuted, theme.SizeNameText, fyne.TextStyle{}))
-	}
+	// Without a kind to show, the table's error line says why, once (D-177): the cluster serves no
+	// Flux kinds, the user may not list them, or whether the cluster serves them is unknown.
 	for key := range p.tiles {
 		if !seen[key] {
 			delete(p.tiles, key)
@@ -154,9 +152,10 @@ type fluxTile struct {
 	plate  *surface // the card's plate: dim, a hairline only, while the kind has no objects
 	// links are the states' links by state ("notReady"): a dot in the state's colour and the
 	// count with the state's name, each opening the kind's view filtered to the state.
-	links map[string]*tapTarget
-	shown []engine.FluxStateCount
-	drawn bool
+	links  map[string]*tapTarget
+	shown  []engine.FluxStateCount
+	unread bool // the kind could not be read (unread): no states, not "No objects"
+	drawn  bool
 }
 
 func newFluxTile(sh *shell, kind string) *fluxTile {
@@ -184,11 +183,7 @@ func (t *fluxTile) set(k engine.FluxDashboardKind) {
 		t.link.text = k.Title
 		t.link.Refresh()
 	}
-	count := formatCount(int64(k.Count))
-	if !k.Synced {
-		count += " …"
-	}
-	t.count.SetText(count)
+	t.count.SetText(kindCount(k.Count, k.Synced, k.Error))
 	statuses := make([]engine.StatusCount, len(k.States))
 	names := make(map[model.Status]string, len(k.States))
 	for i, st := range k.States {
@@ -206,10 +201,11 @@ func (t *fluxTile) set(k engine.FluxDashboardKind) {
 		}
 		t.plate.Refresh()
 	}
-	if t.drawn && statesEqual(t.shown, k.States) {
+	gone := unread(k.Count, k.Error)
+	if t.drawn && statesEqual(t.shown, k.States) && t.unread == gone {
 		return
 	}
-	t.shown, t.drawn = k.States, true
+	t.shown, t.unread, t.drawn = k.States, gone, true
 	t.links = make(map[string]*tapTarget, len(k.States))
 	objs := make([]fyne.CanvasObject, 0, len(k.States))
 	for _, st := range k.States {
@@ -226,7 +222,7 @@ func (t *fluxTile) set(k engine.FluxDashboardKind) {
 		t.links[string(st.State)] = link
 		objs = append(objs, link)
 	}
-	if len(objs) == 0 {
+	if len(objs) == 0 && !gone {
 		objs = append(objs, newTextLine("No objects", colorMuted, theme.SizeNameText, fyne.TextStyle{}))
 	}
 	t.states.Objects = objs

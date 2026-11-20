@@ -84,6 +84,20 @@ func (noRelated) Listed(RelatedIndex) bool                                  { re
 // NoRelated is a Related without objects, for rows and details built outside a view.
 var NoRelated Related = noRelated{}
 
+// RelatedRefusals is a Related that knows which of its kinds the user may not list: the API
+// server refused their read, or the access reviews deny it.
+type RelatedRefusals interface {
+	// Refused reports whether the user may not list the related kind (a kind key).
+	Refused(kind string) bool
+}
+
+// RelatedRefused reports whether rel knows the user may not list the related kind; false for a
+// Related that cannot tell.
+func RelatedRefused(rel Related, kind string) bool {
+	r, ok := rel.(RelatedRefusals)
+	return ok && r.Refused(kind)
+}
+
 func relatedOrNone(rel Related) Related {
 	if rel == nil {
 		return NoRelated

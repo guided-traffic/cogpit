@@ -31,6 +31,7 @@ type relatedSet struct {
 	needs    []model.RelatedIndex
 	profiles map[string]*model.KindProfile // by kind key; a kind the cluster does not serve is absent
 	handles  map[string]*cache.Handle      // by kind key
+	denied   map[string]bool               // kinds the access reviews say the user may not list where they are read (deniedKind)
 	unsubs   []func()
 
 	gen    atomic.Uint64 // bumped by every event of an indexed kind
@@ -102,7 +103,7 @@ func newRelatedSetWith(b *Backend, needs []model.RelatedIndex, onChange func(), 
 		acquire = b.Acquire
 	}
 	r := &relatedSet{
-		needs: needs, profiles: map[string]*model.KindProfile{}, handles: map[string]*cache.Handle{},
+		needs: needs, profiles: map[string]*model.KindProfile{}, handles: map[string]*cache.Handle{}, denied: map[string]bool{},
 		track: track, onChange: onChange, holds: 1, indexes: map[string]*liveIndex{},
 		pending: map[string]*pendingMoves{},
 	}
@@ -119,7 +120,7 @@ func newRelatedSetWith(b *Backend, needs []model.RelatedIndex, onChange func(), 
 		}
 		h := acquire(p)
 		kind, derived := ix.Kind, p.Derive != nil // the callback reads no map this loop still fills
-		r.profiles[kind], r.handles[kind] = p, h
+		r.profiles[kind], r.handles[kind], r.denied[kind] = p, h, b.deniedKind(p)
 		r.unsubs = append(r.unsubs, h.Subscribe(func(ev cache.Event) {
 			r.gen.Add(1)
 			if r.apply(kind, derived, ev) || !track {
@@ -256,6 +257,51 @@ func (li *liveIndex) move(id string, obj *unstructured.Unstructured, keys []stri
 }
 
 // synced reports whether every served kind of the set finished its initial list.
+// refused reports whether the user may not list a kind of the set: the access reviews deny it, or
+// the API server refused its read wholly (refusedAll, also once given back). Fixed handles and
+// denials: no lock.
+func (r *relatedSet) refused(kind string) bool {
+	if r == nil {
+		return false
+	}
+	h, ok := r.handles[kind]
+	return ok && (r.denied[kind] || refusedAll(h))
+}
+
+// refusedKinds names the set's kinds the user may not list (refused), as RBAC names them
+// ("pods", "endpointslices.discovery.k8s.io"), in the order of needs; with shown, only the kinds
+// it keeps (a view names a kind only when a column of it reads from it).
+func (r *relatedSet) refusedKinds(shown func(kind string) bool) []string {
+	if r == nil {
+		return nil
+	}
+	var out []string
+	for _, ix := range r.needs {
+		if shown != nil && !shown(ix.Kind) {
+			continue
+		}
+		if p := r.profiles[ix.Kind]; p != nil && r.refused(ix.Kind) {
+			if name := p.GVR().GroupResource().String(); !slices.Contains(out, name) {
+				out = append(out, name)
+			}
+		}
+	}
+	return out
+}
+
+// handleList is the set's handles, for a reader that gives a refused one back (refusedReads); nil
+// for no set. The handles are fixed once the set is made.
+func (r *relatedSet) handleList() []*cache.Handle {
+	if r == nil {
+		return nil
+	}
+	out := make([]*cache.Handle, 0, len(r.handles))
+	for _, h := range r.handles {
+		out = append(out, h)
+	}
+	return out
+}
+
 func (r *relatedSet) synced() bool {
 	if r == nil {
 		return true
@@ -300,9 +346,12 @@ func (r *relatedSet) view() (model.Related, uint64) {
 	if r == nil {
 		return model.NoRelated, 0
 	}
-	g := r.gen.Load() << 1
+	g := r.gen.Load() << 2
 	if r.synced() {
 		g |= 1
+	}
+	if len(r.refusedKinds(nil)) > 0 { // a refusal changes the rows (model.NoCountCell), and no event says so
+		g |= 2
 	}
 	return &relatedView{r: r, seen: map[lookupKey][]*unstructured.Unstructured{}}, g
 }
@@ -455,6 +504,9 @@ func (v *relatedView) declared(ix model.RelatedIndex) (model.RelatedIndex, bool)
 	}
 	return model.RelatedIndex{}, false
 }
+
+// Refused implements model.RelatedRefusals: the user may not list the kind (relatedSet.refused).
+func (v *relatedView) Refused(kind string) bool { return v.r.refused(kind) }
 
 // Objects implements model.Related. Only the indexes the profile declared are served.
 func (v *relatedView) Objects(ix model.RelatedIndex, key string) []*unstructured.Unstructured {

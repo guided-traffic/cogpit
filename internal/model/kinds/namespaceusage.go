@@ -36,9 +36,10 @@ const (
 	titleMemoryRequests = "Memory Req / Lim"
 )
 
+// The allocation columns are read from the namespace's pods (PodsByNamespace).
 var (
-	cpuRequestsColumn    = model.Column{ID: idCPURequests, Title: titleCPURequests, Type: model.ColumnMetric}
-	memoryRequestsColumn = model.Column{ID: idMemoryRequests, Title: titleMemoryRequests, Type: model.ColumnMetric}
+	cpuRequestsColumn    = model.Column{ID: idCPURequests, Title: titleCPURequests, Type: model.ColumnMetric, Related: podsResource}
+	memoryRequestsColumn = model.Column{ID: idMemoryRequests, Title: titleMemoryRequests, Type: model.ColumnMetric, Related: podsResource}
 )
 
 func podNamespaceKeys(pod *unstructured.Unstructured) []string {

@@ -110,12 +110,18 @@ func (p *argoPanel) request() {
 // show draws a model.
 func (p *argoPanel) show(m *engine.ArgoCDDashboardModel) {
 	p.data = m
+	// The strip counts the Applications: none read (a refusal, a failed list), no count (D-177).
+	appsUnread := len(m.Strip) > 0 && unread(m.Strip[0].Count, m.Error)
 	if len(m.Strip) > 0 {
-		p.stripHead.SetText("applications · " + strconv.Itoa(m.Strip[0].Count))
+		head := strconv.Itoa(m.Strip[0].Count)
+		if appsUnread {
+			head = noCount
+		}
+		p.stripHead.SetText("applications · " + head)
 	}
 	tiles := make([]fyne.CanvasObject, 0, len(m.Strip))
 	for _, t := range m.Strip {
-		tiles = append(tiles, newArgoTile(p.sh, t, m.Synced))
+		tiles = append(tiles, newArgoTile(p.sh, t, m.Synced, appsUnread))
 	}
 	p.strip.Objects = tiles
 	p.strip.Refresh()
@@ -150,6 +156,8 @@ func (p *argoPanel) showActivity() {
 	}
 	switch {
 	case len(lines) > 0:
+	case len(p.data.Strip) > 0 && unread(p.data.Strip[0].Count, p.data.Error):
+		// The Applications could not be read: their operations are unknown, not none (D-177).
 	case len(terms) > 0:
 		lines = append(lines, newTextLine("No activity matches the filter.", colorMuted, theme.SizeNameText, fyne.TextStyle{}))
 	default:
@@ -169,8 +177,9 @@ func (p *argoPanel) enable(b *textButton, on bool) {
 
 // newArgoTile is one count of the strip: the count large, in its status colour when not zero, the
 // label below; a click opens the Applications view filtered to the tile's state (its status filter,
-// D-34: "Sync: OutOfSync", "Health: Degraded"), Applications unfiltered.
-func newArgoTile(sh *shell, t engine.ArgoTile, synced bool) fyne.CanvasObject {
+// D-34: "Sync: OutOfSync", "Health: Degraded"), Applications unfiltered. Unread: the Applications
+// could not be read, and the count is noCount, muted.
+func newArgoTile(sh *shell, t engine.ArgoTile, synced, unread bool) fyne.CanvasObject {
 	// Quiet when healthy (Dark Cockpit): the number is the text colour, a zero is muted, and only a
 	// count of something that needs a look is in its status colour with a spine at the tile's edge.
 	color := theme.ColorNameForeground
@@ -182,7 +191,10 @@ func newArgoTile(sh *shell, t engine.ArgoTile, synced bool) fyne.CanvasObject {
 		color = colorMuted
 	}
 	count := formatCount(int64(t.Count))
-	if !synced {
+	switch {
+	case unread:
+		count = noCount
+	case !synced:
 		count += " …"
 	}
 	num := newTextLine(count, color, theme.SizeNameHeadingText, fyne.TextStyle{Bold: true})

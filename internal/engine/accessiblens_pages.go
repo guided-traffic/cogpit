@@ -41,11 +41,29 @@ func (b *Backend) customKindsUnknown(what string) string {
 	return ""
 }
 
+// mayNotList is what a page says of a kind the access reviews say the user may not list in any
+// namespace it would read it in (Backend.Listable): "Cogpit may not list
+// kustomizations.kustomize.toolkit.fluxcd.io", as the integrations' states name such a kind (D-177).
+func mayNotList(p *model.KindProfile) string {
+	return "Cogpit may not list " + p.GVR().GroupResource().String()
+}
+
+// deniedKind reports whether the access reviews say the user may not list a kind where a reader
+// would read it: nowhere (Listable), or in none of the namespaces its plan names.
+func (b *Backend) deniedKind(p *model.KindProfile) bool {
+	if listable, known := b.Listable(p, nil); known && !listable {
+		return true
+	}
+	plan := b.namespacePlan(p)
+	return plan.perNamespace && len(plan.watch) == 0
+}
+
 // pageReadKey is how a page reads its kinds through acquireForPage: per kind its plan's key
-// (pending, all, or the namespaces), so that a page whose kinds' plans change starts again; with
-// skipUnlistable, a kind the page leaves out as one the user may not list is marked so. Kinds the
-// cluster does not serve are left out. The Overviews keep it too (A98).
-func (b *Backend) pageReadKey(keys []string, skipUnlistable bool) string {
+// (pending, all, or the namespaces), or "unlistable" for a kind the access reviews say the user may
+// not list (deniedKind: the page leaves it out or names it, mayNotList), so that a page whose
+// kinds' plans change starts again. Kinds the cluster does not serve are left out. The Overviews
+// keep it too (A98).
+func (b *Backend) pageReadKey(keys []string) string {
 	var sb strings.Builder
 	for _, key := range keys {
 		p, ok := b.Profile(key)
@@ -53,10 +71,8 @@ func (b *Backend) pageReadKey(keys []string, skipUnlistable bool) string {
 			continue
 		}
 		read := b.namespacePlan(p).key()
-		if skipUnlistable {
-			if listable, known := b.Listable(p, nil); known && !listable {
-				read = "unlistable"
-			}
+		if b.deniedKind(p) {
+			read = "unlistable"
 		}
 		sb.WriteString(key)
 		sb.WriteByte('=')

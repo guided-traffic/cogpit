@@ -185,6 +185,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-174](#d-174-a-removed-clusters-last-user-and-bookmark-go-with-it) | A removed cluster's last user and bookmark go with it | built: removing a source drops its contexts' last known users and its bookmark; a start drops the last known users of contexts no source has |
 | [D-175](#d-175-a-nodes-memory-is-the-kubelets-working-set) | A node's memory is the kubelet's working set | built: node-exporter's node memory is `AnonPages + Cached + Buffers − Inactive(file)`, the root cgroup's working set the kubelet and the Metrics Server report |
 | [D-176](#d-176-two-update-runs-write-the-same-pictures) | Two `-update` runs write the same pictures | built: a picture waits for the window's reads; the demo's own clock; the churning demo's pictures with `-live` |
+| [D-177](#d-177-a-refused-read-is-given-back-and-shown) | A refused read is given back and shown | built: views, pages, drawers, related reads and the Trivy and Kyverno integrations give a refused read back, name it once, show "—" for what was not read; Refresh Access reads again |
 
 ## D-1: UI toolkit
 
@@ -2983,6 +2984,9 @@ shows these reports only in its paid Security Center.
 - One cache handle per shown cluster, by the reports' namespace plan, in a trimmed scope
   (`trivy-summary`) without `report.vulnerabilities`; the reports' own view and editor read them
   whole. `ClusterVulnerabilityReport`s are not read.
+- Reports the API server refuses wholly, or the access reviews deny in every namespace named, are
+  the integration's state (forbidden) and are not asked for again until `cluster.refreshAccess`
+  ([D-177](#d-177-a-refused-read-is-given-back-and-shown)).
 
 **Why:** a report is made for the workload, and Trivy Operator picks the same owner; a report of the
 same image elsewhere would grade the pod by another workload's scan. The CronJob from the Job's name
@@ -3000,7 +3004,7 @@ name too long for a label (read from the annotation) is tested on a synthetic re
 [`model/imagerating.go`](../../internal/model/imagerating.go) `ParseVulnerabilityReport`,
 `VulnerabilityReport.Matches` · **Tests:** `TestParseVulnerabilityReport`, `TestImageMatches`,
 `TestTrivyImageGrades`, `TestTrivyWorkloadsOf`, `TestTrivyNamespaceLimited`,
-`TestTrivyReadsTrimmedReports`, `TestKindTrivy`
+`TestTrivyReadsTrimmedReports`, `TestKindTrivy`, `TestBudgetTrivyRefusedReports`
 
 ## D-79: Kyverno's policy violations on the objects
 
@@ -3028,10 +3032,12 @@ this and used by D-78 too: [architecture](architecture.md) §4.4 and §5.
 - Not read: the policies (the mode is not shown). `error`, `pass` and `skip` mark nothing; a
   violation enters neither the status filter nor the Overview's issues.
 - Curated profiles of both report kinds let API discovery offer them without the definitions.
-- A report kind the API server refuses wholly (403 in all namespaces, or in every namespace read)
-  is a state the integration's status names: its handle goes back, and it is read again only after
-  `cluster.refreshAccess` or the next connect, as the custom kinds and the namespaces watch do (the
-  lead's detail, open to revision). A held refused scope is listed again at every step of
+- A report kind the API server refuses wholly (403 in all namespaces, or in every namespace read),
+  or the access reviews deny in every namespace named, is a state the integration's status names:
+  its handle goes back, and it is read again only after `cluster.refreshAccess` or the next
+  connect, as the custom kinds and the namespaces watch do (the lead's detail, open to revision);
+  a namespace refused while others list goes back alone
+  ([D-177](#d-177-a-refused-read-is-given-back-and-shown)). A held refused scope is listed again at every step of
   client-go's backoff (0.8 s doubling to a cap of 30 s, plus up to as much again), for as long as
   the cluster is shown.
 
@@ -7375,7 +7381,8 @@ the root's `memory.stat` and `/proc/meminfo`, read at the same moment, give the 
 A render test's picture shows the window once the shell's own reads are in: `savePNG` drains the
 test's queue until the clusters, the status bar's counters, the namespaces, the drawer's detail and
 metrics and a settings section's reads have answered, and ends a connected cluster's blink past its
-connect. A path a picture shows lies in a folder of a fixed name. The demo cluster runs on a clock of
+connect. A path a picture shows lies in a folder of a fixed name. Every scene shows ages and
+times by the tests' fixed clock (`fixedNow`), never by the day of the run. The demo cluster runs on a clock of
 its own that starts at `Options.Now` and runs with the computer's: its churn's changes are stamped,
 and its Metrics Server measures, at that clock's time, with the computer's time as a measurement's
 timestamp. The pictures of the churning demo cluster (`demo_pods`, `demo_showcase`,
@@ -7395,3 +7402,86 @@ system's temporary folder, whose name differs per machine.
 `saveLivePNG`), [`fixeddir_unix_test.go`](../../internal/ui/fyneui/fixeddir_unix_test.go),
 [`demo.go`](../../internal/demo/demo.go) (`Cluster.now`), [`metrics.go`](../../internal/demo/metrics.go)
 (`measuredAt`) · `TestDemoMetricsServer`
+
+## D-177: A refused read is given back and shown
+
+**Status:** built · **By:** lead (open to revision)
+
+A reader that holds its reads while it is shown gives back a read the API server refuses, and keeps
+the refusal as its state: a list view and the Workloads and cluster Overviews and the Flux and Argo
+CD dashboards name it in their error line, the Trivy and Kyverno integrations' status is forbidden.
+A list view's and a drawer's reads of related objects (the pods behind the Nodes, the Endpoint
+Slices behind the Services, a Deployment's Replica Sets and pods, the drawer's events) go back the
+same way.
+A read refused wholly (403 in its one scope, or in every namespace it reads) goes back whole; of a
+read namespace by namespace, each refused namespace goes back and the others are read and watched
+on. Nothing refused is listed again until `cluster.refreshAccess` (the reader starts again), the
+view or page opened again, the cluster shown again or the next connect. A refusal in all namespaces
+is followed first, namespace by namespace, as every read follows it (D-173).
+
+- The handle goes back through `cache.Handle.ReleaseWithErr`, a refused namespace of it through
+  `ReleaseRefusedNamespaces`: the handle keeps its error, whether it had synced and what it held,
+  so the reader's code reads it as any handle; a refused scope is not kept warm, so its informer
+  stops at once.
+- A kind the access reviews say the user may not list where a reader would read it is named the
+  same way, and not read: "Cogpit may not list kustomizations.kustomize.toolkit.fluxcd.io,
+  gitrepositories.source.toolkit.fluxcd.io" on the Flux dashboard (not "The cluster serves no
+  Flux kinds."), "Cogpit may not list applications.argoproj.io" on the Argo CD dashboard and its
+  cards, the Workloads Overview's kinds and events likewise, and the Trivy and Kyverno
+  integrations forbidden ("may not list policyreports.wgpolicyk8s.io"), with no grade or mark.
+  The cluster Overview leaves such a kind out without a word: Nodes, which a namespace-limited user
+  may rarely list, would name it on every such user's Overview.
+- The Argo CD dashboard rebuilds when a kind's error changes, as the other pages do, so its error
+  line shows a refusal whenever it comes.
+- A list view with a column read from a related kind the user may not list (the API server refused
+  it, or the access reviews deny it) names it on its error line after its own error, one line, the kinds
+  comma-joined ("Cogpit may not list pods"), and every cell read from it (`model.Column.Related`:
+  the Namespaces' requests, a claim's pods, a priority class's pods, an ApplicationSet's
+  Applications, a resource slice's allocated devices) shows "—" in the muted colour, never 0 or
+  empty. A related kind no column reads (the Nodes' pods, the custom kinds' definitions behind the
+  Pods' owner links) is not named: nothing on the view stands for it, and the definitions, which a
+  namespace-limited user may rarely list, would put an error on every such user's Pods view.
+- What could not be read shows no count, and the refusal is said once, in the error line above the
+  table, as in every list view: a kind's card or tile with an error and nothing counted shows "—"
+  in the muted colour (not "0", not "No objects"; the Argo CD strip, its head and a Flux section's
+  head likewise), the table's header no item count and no "syncing…", its placeholder no "No …
+  found." (also under a failed list), the Flux dashboard without a kind no text of its own, the Argo
+  CD dashboard's recent activity no "No operations yet." while the Applications could not be read.
+
+**Why:** a refused scope a handle holds is listed again at every step of client-go's backoff (0.8 s
+doubling to a cap of 30 s, plus up to as much again) for as long as it is held. Measured against the
+fake API server for a user the access reviews cannot tell about (a webhook authorizer), cluster-wide
+and namespace-limited: each refused kind 3 lists in its namespace within 6 s of opening, and one or
+two more in any 3 s while shown — a list view's kind (Stateful Sets, Nodes), the Workloads
+Overview's 5 or 6 kinds, the cluster Overview's Nodes, Events, Stateful Sets and Daemon Sets, the
+Flux dashboard's 2, the Argo CD dashboard's 3 or 4, the Trivy integration's reports; a namespace
+refused while another lists, 3 lists within 4 s; a view's related read (the Nodes' pods: 4 within
+6 s, the Services' Endpoint Slices: 3) and a Deployment drawer's (Replica Sets 3, pods 4 or 5,
+events 3), one more in any 3 s. After it: one list each, none in the window. A kind the reviews deny
+was shown as a cluster without Flux, or as zero Applications.
+
+**Rejected:** a wrapper per reader with a refused flag, as the Kyverno integration's reads — every
+place a reader reads a handle (its builds, the Overview's fold) would change; the cache ending a refused
+scope for every holder by itself — only the reader knows when to read it again
+(`cluster.refreshAccess` starts readers, not scopes), and a read that waits (D-173) ends anyway; dropping a refused namespace from the read's plan — the plan's key would change and
+start the reader again, and the namespace would vanish from the scope the view names; keeping the
+held read, which costs a list per backoff step and fills Connection Diagnostics' refused line. For
+a related read the user may not list: silence — the empty or zero columns read as "nothing
+there"; a tooltip alone — nobody sees it; a banner — a new decoration where the error line already
+says what could not be read.
+
+**Limits:** a reader that starts again because another kind's plan changed reads a given-back kind
+once more. A drawer names no related refusal: it has no error line, and its sections read from
+such a kind (a node's Pods, a workload's Pods table) show what they show without its objects.
+
+[`cache/cache.go`](../../internal/cache/cache.go) `ReleaseWithErr`, `ReleaseRefusedNamespaces`;
+[`engine/pagerefusals.go`](../../internal/engine/pagerefusals.go) `refusedReads`,
+[`engine/accessiblens_pages.go`](../../internal/engine/accessiblens_pages.go) `mayNotList`,
+[`engine/trivy.go`](../../internal/engine/trivy.go) `deniedAll`,
+[`engine/kyverno.go`](../../internal/engine/kyverno.go) `dropRefused` · `TestReleaseWithErrKeepsTheRefusal`,
+`TestBudgetTrivyRefusedReports`, `TestBudgetPagesRefusedKinds`, `TestBudgetClusterOverviewRefusedNodes`,
+`TestBudgetViewsRefusedKinds`, `TestBudgetPartiallyRefusedRead`, `TestReadersNameKindsTheReviewsDeny`,
+`TestBudgetRelatedReadsRefused`, `TestRelatedRefusalsAreNamed`,
+`TestRenderClaimsMayNotListPodsDark`, `TestRenderFluxDashboardMayNotListDark`,
+`TestRenderArgoDashboardMayNotListDark`, `TestRenderWorkloadsOverviewMayNotListDark`,
+`TestRenderKyvernoMayNotListDark`, `TestFluxTileOfARefusedKind`

@@ -186,7 +186,8 @@ type clusterOverviewWorker struct {
 	s       *Session
 	backend *Backend
 	src     *overviewSource
-	planKey string // which kinds the open page reads and how (Backend.pageReadKey); the state's lock
+	planKey string       // which kinds the open page reads and how (Backend.pageReadKey); the state's lock
+	refused refusedReads // the reads given back as refused (pagerefusals.go)
 
 	mu     sync.Mutex
 	params viewParams
@@ -205,6 +206,7 @@ type clusterOverviewWorker struct {
 // startClusterOverview starts the page's worker; the first build runs at once.
 func (s *Session) startClusterOverview(b *Backend, params viewParams, choice OverviewChoice) *clusterOverviewWorker {
 	w := &clusterOverviewWorker{s: s, backend: b, params: params, choice: choice, wake: make(chan struct{}, 1), quit: make(chan struct{})}
+	w.refused.startAt(b.ns.refusalsGen())
 	wake := w.wake
 	w.src = newOverviewSource(b, b.acquireForPage, func() { signal(wake) }) // nothing while a plan is pending (A98)
 	w.charts = newOverviewCharts(s, b, choice)
@@ -247,10 +249,15 @@ func (w *clusterOverviewWorker) stop() {
 }
 
 // unsettled reports whether a sync state or an error changed since the last build (neither comes
-// with a watch event), or an event of the Issues left the last hour.
+// with a watch event), or an event of the Issues left the last hour. A read the API server refused
+// wholly goes back first, its refusal kept (pagerefusals.go).
 func (w *clusterOverviewWorker) unsettled() bool {
+	gave := false
+	for _, k := range w.src.kinds() {
+		gave = w.refused.giveBack(k.handle) || gave
+	}
 	last := w.build.Load()
-	if last == nil {
+	if last == nil || gave {
 		return true
 	}
 	if last.synced != w.src.synced() || last.errText != w.src.errText() {
@@ -595,9 +602,9 @@ func (st *state) reconcileClusterPageLocked(b *Backend, now UIState) {
 	want := b != nil && now.View == ClusterOverview
 	var key string
 	if want {
-		key = b.pageReadKey(clusterOverviewKinds, true) + b.acceptedNodeConditionsKey() // its issues read the conditions (nodeconditions.go)
+		key = b.pageReadKey(clusterOverviewKinds) + b.acceptedNodeConditionsKey() // its issues read the conditions (nodeconditions.go)
 	}
-	if st.cluster != nil && (!want || st.cluster.backend != b || st.cluster.planKey != key) {
+	if st.cluster != nil && (!want || st.cluster.backend != b || st.cluster.planKey != key || st.cluster.refused.retake(b)) {
 		st.cluster.stop()
 		st.cluster = nil
 	}

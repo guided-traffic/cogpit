@@ -45,8 +45,9 @@ type drawerWatch struct {
 	wake       chan struct{}
 	quit       chan struct{}
 	stopped    atomic.Bool
-	planKey    string // how its kind and the events were read when it started (accessiblens_plan.go); set under state.mu
-	backRefs   bool   // whether it reads its kind's back references (Preferences.BackReferences); set under state.mu
+	planKey    string       // how its kind and the events were read when it started (accessiblens_plan.go); set under state.mu
+	refused    refusedReads // its reads given back as refused (pagerefusals.go)
+	backRefs   bool         // whether it reads its kind's back references (Preferences.BackReferences); set under state.mu
 
 	// blockers are a Terminating namespace's Blocking Deletion reads (nsblockers.go); nil for
 	// other kinds.
@@ -65,6 +66,7 @@ func (s *Session) startDrawerWatch(b *Backend, p *model.KindProfile, ref model.O
 	if !p.Namespaced {
 		ns = ""
 	}
+	gen := b.ns.refusalsGen()
 	d := &drawerWatch{
 		backend: b, ref: ref, profile: p,
 		obj:  b.acquireNow(p, ns), // in all namespaces, or the object's alone (accessiblens_follow.go)
@@ -74,6 +76,7 @@ func (s *Session) startDrawerWatch(b *Backend, p *model.KindProfile, ref model.O
 		hidden: hidden, hiddenSet: true,
 		backRefs: backRefs,
 	}
+	d.refused.startAt(gen)
 	d.unsubs = append(d.unsubs, d.obj.Subscribe(func(ev cache.Event) {
 		// A virtual kind's cache holds what it derives from, not its objects (a Helm release's
 		// revisions are Secrets named sh.helm.release.v1.<name>.v<n>): any change in the namespace
@@ -102,11 +105,14 @@ func (s *Session) startDrawerWatch(b *Backend, p *model.KindProfile, ref model.O
 	objSynced, evSynced := d.synced()
 	blockersKey := d.blockers.key()
 	poll := func() bool {
+		// A refusal is the drawer's state, not a list client-go's backoff sends again while it is
+		// open (D-177): its object's, its events' and its related objects' reads go back.
+		gave := d.refused.giveBack(append(d.related.handleList(), d.obj, d.events)...)
 		o, e := d.synced()
 		k := d.blockers.key() // an access review answered, a first list finished (nsblockers.go)
 		changed := o != objSynced || e != evSynced || k != blockersKey
 		objSynced, evSynced, blockersKey = o, e, k
-		return changed
+		return changed || gave
 	}
 	s.goSafe("detail drawer", func() {
 		runCoalesced(d.quit, d.wake, s.opts.SnapshotInterval, poll, func() {

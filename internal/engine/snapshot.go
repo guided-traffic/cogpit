@@ -25,8 +25,9 @@ type viewWorker struct {
 	profile *model.KindProfile
 	rows    *rowCache
 	handle  *cache.Handle
-	plan    nsPlan // how the kind is read: in all namespaces, one by one, or not yet (accessiblens_plan.go)
-	relKey  string // how the related-objects indexes read their kinds (Backend.relatedKey); set under state.mu
+	plan    nsPlan       // how the kind is read: in all namespaces, one by one, or not yet (accessiblens_plan.go)
+	refused refusedReads // the read, or its namespaces, given back as refused (pagerefusals.go)
+	relKey  string       // how the related-objects indexes read their kinds (Backend.relatedKey); set under state.mu
 	unsub   func()
 	related *relatedSet // the indexes of the profile's Needs; nil without
 	usage   *usageFeed  // the metrics of a kind with CPU and Memory columns; nil without or while they are hidden (guarded by mu)
@@ -45,12 +46,14 @@ type viewWorker struct {
 // once; an informer that is warm already serves it without a list request. The kind is read as
 // plan says; a pending plan reads nothing until the session starts the view again with its plan.
 func (s *Session) startViewWorker(b *Backend, p *model.KindProfile, rc *rowCache, params viewParams, plan nsPlan) *viewWorker {
+	gen := b.ns.refusalsGen()
 	w := &viewWorker{
 		s: s, backend: b, profile: p, rows: rc, params: params, plan: plan,
 		handle: b.acquireForView(p, plan),
 		wake:   make(chan struct{}, 1),
 		quit:   make(chan struct{}),
 	}
+	w.refused.startAt(gen)
 	unsub := w.handle.Subscribe(func(cache.Event) { signal(w.wake) })
 	unsubOverlays := b.overlays.subscribe(func() { signal(w.wake) }) // the integrations' marks (overlay.go)
 	w.unsub = func() { unsub(); unsubOverlays() }
@@ -101,8 +104,11 @@ func (w *viewWorker) stop() {
 // unsettled reports whether the informer's sync state or error changed since the last snapshot:
 // neither comes with a watch event.
 func (w *viewWorker) unsettled() bool {
+	// A refusal is the view's error, not a list client-go's backoff sends again for as long as the
+	// view is open (D-177): the read, or its refused namespaces, go back with the refusal kept.
+	gave := w.refused.giveBack(append(w.related.handleList(), w.handle)...) // its related objects' reads too
 	last := w.snap.Load()
-	if last == nil {
+	if last == nil || gave {
 		return true
 	}
 	return last.Synced != w.synced() || last.Error != w.shownErr()
@@ -111,11 +117,33 @@ func (w *viewWorker) unsettled() bool {
 // shownErr is the informer's error the view shows: none while the connection is interrupted or
 // its login expired (D-58): the rows are the cache's state as of then, and the connection's banner
 // says what is wrong.
+//
+// A related kind the user may not list follows the view's own error on the same line, "Cogpit may
+// not list pods", when a column of the view reads from it (its cells show "—", D-177); a kind read
+// only for links (the custom kinds' definitions behind the Pods' owners) is left unnamed.
 func (w *viewWorker) shownErr() string {
 	if w.backend.watch.current() != Connected {
 		return ""
 	}
-	return errText(w.handle.Err())
+	return joinErrLine(errText(w.handle.Err()), w.related.refusedKinds(w.columnReads))
+}
+
+// columnReads reports whether a column of the view's kind reads its cells from the related kind.
+func (w *viewWorker) columnReads(kind string) bool {
+	return slices.ContainsFunc(w.profile.Columns, func(c model.Column) bool { return c.Related == kind })
+}
+
+// joinErrLine is a view's error line: its own error, then the related kinds the user may not list
+// (mayNotList's words, the kinds comma-joined), "; " between them.
+func joinErrLine(own string, refused []string) string {
+	if len(refused) == 0 {
+		return own
+	}
+	line := "Cogpit may not list " + strings.Join(refused, ", ")
+	if own == "" {
+		return line
+	}
+	return own + "; " + line
 }
 
 // synced reports whether the view's kind and the kinds of its related-objects indexes finished

@@ -66,8 +66,9 @@ type FluxDashboardModel struct {
 	Namespaces []string `json:"namespaces,omitempty"`
 	// Synced is false while a kind is still being listed.
 	Synced bool `json:"synced"`
-	// Error names the kinds the page cannot read ("Kustomizations: forbidden …"); empty when it
-	// reads all.
+	// Error names the kinds the page cannot read: those the access reviews say the user may not
+	// list ("Cogpit may not list kustomizations.kustomize.toolkit.fluxcd.io"), the API server's
+	// refusals ("Kustomizations: forbidden …"); empty when it reads all.
 	Error string `json:"error,omitempty"`
 }
 
@@ -100,7 +101,8 @@ type fluxDashboardWorker struct {
 	s       *Session
 	backend *Backend
 	src     *fluxSource
-	planKey string // which Flux kinds the open page reads and how (fluxPlanKey); the state's lock
+	planKey string       // which Flux kinds the open page reads and how (fluxPlanKey); the state's lock
+	refused refusedReads // the reads given back as refused (pagerefusals.go)
 
 	mu     sync.Mutex
 	params viewParams
@@ -118,6 +120,7 @@ type fluxDashboardWorker struct {
 type fluxSource struct {
 	kinds  []fluxSourceKind
 	unsubs []func()
+	denied []string // the kinds served that the access reviews say the user may not list (mayNotList)
 }
 
 type fluxSourceKind struct {
@@ -173,8 +176,9 @@ func newFluxSource(b *Backend, acquire func(*model.KindProfile) *cache.Handle, o
 		if !ok {
 			continue
 		}
-		if listable, known := b.Listable(p, nil); known && !listable {
-			continue // a watch the API server refuses would only retry
+		if b.deniedKind(p) {
+			src.denied = append(src.denied, p.GVR().GroupResource().String()) // a watch the API server refuses would only retry
+			continue
 		}
 		h := acquire(p)
 		src.unsubs = append(src.unsubs, h.Subscribe(func(cache.Event) { onChange() }))
@@ -218,6 +222,9 @@ func (src *fluxSource) waitSynced(ctx context.Context) {
 
 func (src *fluxSource) errText() string {
 	var parts []string
+	if len(src.denied) > 0 {
+		parts = append(parts, "Cogpit may not list "+strings.Join(src.denied, ", "))
+	}
 	for _, k := range src.kinds {
 		if err := k.handle.Err(); err != nil {
 			parts = append(parts, k.info.Title+": "+err.Error())
@@ -326,7 +333,7 @@ func fluxTable(context string, fb *fluxBuild, p viewParams) *TableSnapshot {
 	switch {
 	case fb.unknown != "":
 		snap.Error = fb.unknown
-	case len(fb.kinds) == 0:
+	case len(fb.kinds) == 0 && fb.errText == "":
 		snap.Error = "The cluster serves no Flux kinds."
 	}
 	return snap
@@ -361,6 +368,7 @@ func fluxRow(context string, k kinds.FluxKind, o fluxObjectState) model.Row {
 // startFluxDashboard starts the page's worker; the first build runs at once.
 func (s *Session) startFluxDashboard(b *Backend, params viewParams) *fluxDashboardWorker {
 	w := &fluxDashboardWorker{s: s, backend: b, params: params, wake: make(chan struct{}, 1), quit: make(chan struct{})}
+	w.refused.startAt(b.ns.refusalsGen())
 	wake := w.wake
 	w.src = newFluxSource(b, b.acquireForPage, func() { signal(wake) }) // nothing while a plan is pending
 	signal(w.wake)
@@ -390,10 +398,15 @@ func (w *fluxDashboardWorker) stop() {
 }
 
 // unsettled reports whether a sync state or an error changed since the last build: neither comes
-// with a watch event, nor does the end of the definitions' list for a page that reads no kind.
+// with a watch event, nor does the end of the definitions' list for a page that reads no kind. A
+// read the API server refused wholly goes back first, its refusal kept (pagerefusals.go).
 func (w *fluxDashboardWorker) unsettled() bool {
+	gave := false
+	for _, k := range w.src.kinds {
+		gave = w.refused.giveBack(k.handle) || gave
+	}
 	last := w.model.Load()
-	return last == nil || last.synced != w.src.synced() || last.errText != w.src.errText() ||
+	return last == nil || gave || last.synced != w.src.synced() || last.errText != w.src.errText() ||
 		(len(last.kinds) == 0 && last.unknown != w.backend.customKindsUnknown(fluxKindsWhat))
 }
 
@@ -488,7 +501,7 @@ func (b *Backend) fluxPlanKey() string {
 			sb.WriteByte('|')
 		}
 	}
-	return b.pageReadKey(keys, true) + sb.String()
+	return b.pageReadKey(keys) + sb.String()
 }
 
 // reconcileFluxPageLocked runs the Flux dashboard's worker: started when the page opens, given the
@@ -501,7 +514,7 @@ func (st *state) reconcileFluxPageLocked(b *Backend, now UIState) {
 	if want {
 		key = b.fluxPlanKey()
 	}
-	if st.flux != nil && (!want || st.flux.backend != b || st.flux.planKey != key) {
+	if st.flux != nil && (!want || st.flux.backend != b || st.flux.planKey != key || st.flux.refused.retake(b)) {
 		st.flux.stop()
 		st.flux = nil
 	}

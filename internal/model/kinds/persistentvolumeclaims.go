@@ -37,8 +37,8 @@ var persistentVolumeClaims = &model.KindProfile{
 		nameColumn,
 		namespaceColumn,
 		{ID: "storageClass", Title: "Storage Class", Type: model.ColumnText},
-		{ID: "size", Title: "Size", Type: model.ColumnNumber},              // sorted by bytes
-		{ID: idPods, Title: titlePods, Type: model.ColumnText, Width: 220}, // pod names, not the workloads' "3/3"
+		{ID: "size", Title: "Size", Type: model.ColumnNumber},                                     // sorted by bytes
+		{ID: idPods, Title: titlePods, Type: model.ColumnText, Width: 220, Related: podsResource}, // pod names, not the workloads' "3/3"
 		ageColumn,
 		statusColumn,
 	},
