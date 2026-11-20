@@ -7433,12 +7433,14 @@ is followed first, namespace by namespace, as every read follows it (D-173).
   may rarely list, would name it on every such user's Overview.
 - The Argo CD dashboard rebuilds when a kind's error changes, as the other pages do, so its error
   line shows a refusal whenever it comes.
-- A list view whose related read the user may not list (the API server refused it, or the access
-  reviews deny it) names it on its error line after its own error, one line, the kinds
+- A list view with a column read from a related kind the user may not list (the API server refused
+  it, or the access reviews deny it) names it on its error line after its own error, one line, the kinds
   comma-joined ("Cogpit may not list pods"), and every cell read from it (`model.Column.Related`:
   the Namespaces' requests, a claim's pods, a priority class's pods, an ApplicationSet's
   Applications, a resource slice's allocated devices) shows "—" in the muted colour, never 0 or
-  empty.
+  empty. A related kind no column reads (the Nodes' pods, the custom kinds' definitions behind the
+  Pods' owner links) is not named: nothing on the view stands for it, and the definitions, which a
+  namespace-limited user may rarely list, would put an error on every such user's Pods view.
 - What could not be read shows no count, and the refusal is said once, in the error line above the
   table, as in every list view: a kind's card or tile with an error and nothing counted shows "—"
   in the muted colour (not "0", not "No objects"; the Argo CD strip, its head and a Flux section's
@@ -7479,7 +7481,7 @@ such a kind (a node's Pods, a workload's Pods table) show what they show without
 [`engine/kyverno.go`](../../internal/engine/kyverno.go) `dropRefused` · `TestReleaseWithErrKeepsTheRefusal`,
 `TestBudgetTrivyRefusedReports`, `TestBudgetPagesRefusedKinds`, `TestBudgetClusterOverviewRefusedNodes`,
 `TestBudgetViewsRefusedKinds`, `TestBudgetPartiallyRefusedRead`, `TestReadersNameKindsTheReviewsDeny`,
-`TestBudgetRelatedReadsRefused`, `TestRelatedRefusalsAreNamed`, `TestRenderNodesMayNotListPodsDark`,
+`TestBudgetRelatedReadsRefused`, `TestRelatedRefusalsAreNamed`,
 `TestRenderClaimsMayNotListPodsDark`, `TestRenderFluxDashboardMayNotListDark`,
 `TestRenderArgoDashboardMayNotListDark`, `TestRenderWorkloadsOverviewMayNotListDark`,
 `TestRenderKyvernoMayNotListDark`, `TestFluxTileOfARefusedKind`

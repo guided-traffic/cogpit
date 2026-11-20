@@ -970,6 +970,7 @@ it in the Preferences' zone. A kind's `Detail` has no clock, so it writes a time
   that kind (the reviews deny it, or the API server refused it; `model.RelatedRefusals`,
   `relatedSet.refused`), `BuildRowWith` writes `model.NoCountCell` ("—", muted) into each of its
   cells, and the view's error line names the kind after its own error ("Cogpit may not list pods",
+  only for a kind a column reads;
   `joinErrLine`; [D-177](decisions.md#d-177-a-refused-read-is-given-back-and-shown)).
 - An index is built on its first lookup and kept current by its kind's events. A view wakes on every
   change of an indexed kind (its row cache keys on the related generation); a drawer only for the

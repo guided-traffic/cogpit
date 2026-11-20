@@ -269,13 +269,17 @@ func (r *relatedSet) refused(kind string) bool {
 }
 
 // refusedKinds names the set's kinds the user may not list (refused), as RBAC names them
-// ("pods", "endpointslices.discovery.k8s.io"), in the order of needs.
-func (r *relatedSet) refusedKinds() []string {
+// ("pods", "endpointslices.discovery.k8s.io"), in the order of needs; with shown, only the kinds
+// it keeps (a view names a kind only when a column of it reads from it).
+func (r *relatedSet) refusedKinds(shown func(kind string) bool) []string {
 	if r == nil {
 		return nil
 	}
 	var out []string
 	for _, ix := range r.needs {
+		if shown != nil && !shown(ix.Kind) {
+			continue
+		}
 		if p := r.profiles[ix.Kind]; p != nil && r.refused(ix.Kind) {
 			if name := p.GVR().GroupResource().String(); !slices.Contains(out, name) {
 				out = append(out, name)
@@ -346,7 +350,7 @@ func (r *relatedSet) view() (model.Related, uint64) {
 	if r.synced() {
 		g |= 1
 	}
-	if len(r.refusedKinds()) > 0 { // a refusal changes the rows (model.NoCountCell), and no event says so
+	if len(r.refusedKinds(nil)) > 0 { // a refusal changes the rows (model.NoCountCell), and no event says so
 		g |= 2
 	}
 	return &relatedView{r: r, seen: map[lookupKey][]*unstructured.Unstructured{}}, g

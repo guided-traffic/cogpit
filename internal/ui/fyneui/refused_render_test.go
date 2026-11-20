@@ -190,22 +190,6 @@ type refusedRelated struct {
 
 func (r refusedRelated) Refused(kind string) bool { return slices.Contains(r.refused, kind) }
 
-// TestRenderNodesMayNotListPodsDark: the Nodes view of a user who may not list pods, which the
-// view reads its nodes' pods from: the error line names them, once.
-func TestRenderNodesMayNotListPodsDark(t *testing.T) {
-	f := kindsFake(t, "nodes")
-	snap := *f.Table("nodes")
-	snap.Error = "Cogpit may not list pods"
-	f.setTable("nodes", &snap)
-	sh, w, q := newTestShell(t, f, Options{Theme: ThemeDark})
-	q.until(t, "the nodes view", func() bool {
-		return len(sh.kinds) > 0 && sh.view.snap != nil && sh.view.snap.View == "nodes" && sh.diag.total > 0
-	})
-	q.until(t, "the error line", func() bool { return sh.view.errLine.Visible() && sh.view.errLine.text == snap.Error })
-	settle(w)
-	savePNG(t, w, "nodes_may_not_list_pods_dark.png")
-}
-
 // TestRenderClaimsMayNotListPodsDark: the Persistent Volume Claims of a user who may not list pods:
 // every Pods cell is "—" in the muted colour, never empty, and the error line names the pods.
 func TestRenderClaimsMayNotListPodsDark(t *testing.T) {

@@ -118,13 +118,19 @@ func (w *viewWorker) unsettled() bool {
 // its login expired (D-58): the rows are the cache's state as of then, and the connection's banner
 // says what is wrong.
 //
-// A related kind the user may not list (its pods behind the Nodes, D-177) follows the view's own
-// error on the same line: "Cogpit may not list pods".
+// A related kind the user may not list follows the view's own error on the same line, "Cogpit may
+// not list pods", when a column of the view reads from it (its cells show "—", D-177); a kind read
+// only for links (the custom kinds' definitions behind the Pods' owners) is left unnamed.
 func (w *viewWorker) shownErr() string {
 	if w.backend.watch.current() != Connected {
 		return ""
 	}
-	return joinErrLine(errText(w.handle.Err()), w.related.refusedKinds())
+	return joinErrLine(errText(w.handle.Err()), w.related.refusedKinds(w.columnReads))
+}
+
+// columnReads reports whether a column of the view's kind reads its cells from the related kind.
+func (w *viewWorker) columnReads(kind string) bool {
+	return slices.ContainsFunc(w.profile.Columns, func(c model.Column) bool { return c.Related == kind })
 }
 
 // joinErrLine is a view's error line: its own error, then the related kinds the user may not list

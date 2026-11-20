@@ -543,10 +543,10 @@ func TestBudgetRelatedReadsRefused(t *testing.T) {
 	}
 }
 
-// TestRelatedRefusalsAreNamed: a list view whose related read the user may not list says so on its
-// error line ("Cogpit may not list pods") and shows every cell read from it as "—", never 0 or
-// empty: the Nodes' pods, the Namespaces' pods behind the requests, whether the access reviews say
-// no or the API server refuses.
+// TestRelatedRefusalsAreNamed: a list view with a column read from a related kind the user may not
+// list says so on its error line ("Cogpit may not list pods") and shows every cell of that column
+// as "—", never 0 or empty (the Namespaces' requests, read from their pods), whether the access
+// reviews say no or the API server refuses; a view without such a column (the Nodes) names nothing.
 func TestRelatedRefusalsAreNamed(t *testing.T) {
 	for _, incomplete := range []bool{false, true} {
 		t.Run(fmt.Sprintf("the access reviews cannot tell: %v", incomplete), func(t *testing.T) {
@@ -557,14 +557,17 @@ func TestRelatedRefusalsAreNamed(t *testing.T) {
 			s, srv := refusedSession(ctx, t, u, 0)
 			srv.Set(testkit.NodesGVR, testkit.Object("v1", "Node", "", "node-1", nil))
 			srv.Set(testkit.NamespacesGVR, testkit.Object("v1", "Namespace", "", "team-a", nil))
-			for _, c := range []struct{ view, column string }{{"nodes", ""}, {"namespaces", "cpuRequests"}} {
+			for _, c := range []struct{ view, column, err string }{
+				{"namespaces", "cpuRequests", "Cogpit may not list pods"},
+				{"nodes", "", ""}, // after the Namespaces: the pods' refusal is known by then
+			} {
 				s.OpenTab(c.view, false)
 				var ts *engine.TableSnapshot
 				if !testkit.WaitFor(ctx, func() bool {
 					ts = s.Table(c.view)
-					return ts != nil && len(ts.Rows) == 1 && ts.Error == "Cogpit may not list pods"
+					return ts != nil && ts.Synced && len(ts.Rows) == 1 && ts.Error == c.err
 				}) {
-					t.Fatalf("%s: %+v", c.view, ts)
+					t.Fatalf("%s: %+v, want the error %q", c.view, ts, c.err)
 				}
 				if c.column == "" {
 					continue
