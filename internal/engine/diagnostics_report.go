@@ -16,7 +16,8 @@ import (
 // into a ticket or save to a file, with the endpoints replaced (diagscrub.go). It holds the
 // connection, the problems since the latest connect, Cogpit's rate limits, how the initial lists
 // came, the diagnostics log, the watches, the requests and the context's latest connect attempts
-// from the connection log (D-66). It is built from what Cogpit keeps: it sends no request.
+// from the connection log (D-66), and how long the API server's answers take
+// (diagnostics_transport.go). It is built from what Cogpit keeps: it sends no request.
 
 // reportAttempts is how many of the context's latest connect attempts the report holds.
 const reportAttempts = 3
@@ -106,6 +107,8 @@ func reportText(r DiagnosticsReport, attempts []ConnectAttempt, now time.Time) s
 		line("%s", BudgetText(bs))
 	}
 
+	transportReport(line, r.Transport, now, clock) // diagnostics_transport.go
+
 	line("\n== Initial lists of the open and warm watches ==")
 	line("streamed by the server %d · listed %d · listed after the server did not stream them %d%s",
 		r.Streaming.Streamed, r.Streaming.Listed, r.Streaming.FellBack, StreamsOffText(r.Streaming))
@@ -177,6 +180,8 @@ func DiagKindLabel(kind string) string {
 		return "network"
 	case cluster.DiagSlow:
 		return "slow answer"
+	case cluster.DiagSlowStream:
+		return "slow stream"
 	case cluster.DiagThrottled:
 		return "rate limited"
 	case cluster.DiagFallback:
@@ -273,7 +278,7 @@ func DiagEntryText(e cluster.DiagEntry, clock func(time.Time) string) string {
 // without one, or any that took a second or more (a refusal's milliseconds do not).
 func timed(e cluster.DiagEntry) bool {
 	switch e.Kind {
-	case cluster.DiagThrottled, cluster.DiagSlowLoad, cluster.DiagSlow, cluster.DiagTimeout:
+	case cluster.DiagThrottled, cluster.DiagSlowLoad, cluster.DiagSlow, cluster.DiagSlowStream, cluster.DiagTimeout:
 		return e.Took > 0
 	}
 	return e.Took >= time.Second

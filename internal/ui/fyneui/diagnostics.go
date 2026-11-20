@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -48,6 +49,7 @@ type diagnosticsTab struct {
 	connection *selLine          // the server, its version, the latest connect
 	problems   *textLine         // the problems since the latest connect and how the initial lists came
 	budgets    *textLine         // Cogpit's rate limits and what waited at them
+	answers    *textLine         // how long the API server's answers take, the streams waiting for one
 	log        *fyne.Container
 	requests   *fyne.Container
 	watches    *fyne.Container
@@ -82,6 +84,8 @@ func newDiagnosticsTab(sh *shell) *diagnosticsTab {
 	d.problems.truncate = true
 	d.budgets = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	d.budgets.truncate = true
+	d.answers = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
+	d.answers.truncate = true
 	d.mode = newTwoWay(sh, "Overview", "Report", d.choose)
 	d.copyBtn = newTipButton(sh, theme.ContentCopyIcon(), "Copy the report: the endpoints replaced", d.copyReport)
 	d.saveBtn = newTipButton(sh, theme.DocumentSaveIcon(), "Save Report…: the endpoints replaced", d.saveReport)
@@ -95,7 +99,7 @@ func newDiagnosticsTab(sh *shell) *diagnosticsTab {
 		column("Objects and memory per kind", d.kinds))
 	split := container.NewHSplit(column("Log, the line seen last first", d.log), cols)
 	split.Offset = 0.45
-	status := inset(theme.SizeNameInnerPadding, "", container.NewVBox(d.problems, d.budgets))
+	status := inset(theme.SizeNameInnerPadding, "", container.NewVBox(d.problems, d.budgets, d.answers))
 	d.overview = container.NewBorder(status, nil, nil, nil, split)
 	d.reportNote = newTextLine(reportNoteText, colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	d.reportNote.truncate = true
@@ -329,10 +333,12 @@ func (d *diagnosticsTab) showConnection(r engine.DiagnosticsReport) {
 		setSel(d.connection, text)
 		d.problems.Hide()
 		d.budgets.Hide()
+		d.answers.Hide()
 		return
 	}
 	d.problems.Show()
 	d.budgets.Show()
+	d.answers.Show()
 	conn := "Server " + r.Server
 	if r.ServerVersion != "" {
 		conn += " · Kubernetes " + r.ServerVersion
@@ -347,6 +353,19 @@ func (d *diagnosticsTab) showConnection(r engine.DiagnosticsReport) {
 	text, c = budgetsText(r)
 	d.budgets.SetText(text)
 	d.budgets.SetColor(c)
+	text, c = answersText(r, d.sh.now())
+	d.answers.SetText(text)
+	d.answers.SetColor(c)
+}
+
+// answersText is the line of how long the API server's answers take (engine.AnswersLine), in the
+// warning colour while a stream has waited for its answer too long.
+func answersText(r engine.DiagnosticsReport, now time.Time) (string, fyne.ThemeColorName) {
+	text, pressed := engine.AnswersLine(r.Transport, now)
+	if pressed {
+		return text, colorStatusWarning
+	}
+	return text, colorMuted
 }
 
 // problemsText is the line of the problems since the latest connect and of how the open and warm

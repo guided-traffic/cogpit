@@ -56,6 +56,12 @@ const connectionDiag = `{"server": "https://api.ocp.example.com:6443", "serverVe
     {"name": "discovery", "qps": 50, "burst": 300, "requests": 71},
     {"name": "access reviews", "qps": 10, "burst": 20, "requests": 3}],
   "streaming": {"streamed": 0, "listed": 0, "fellBack": 5},
+  "transport": {
+    "version": {"count": 412, "median": 48000000, "longest": 1300000000, "latest": 51000000, "latestAt": "2026-10-11T14:29:55Z"},
+    "streams": [{"kind": "logs", "count": 9, "median": 140000000, "longest": 14000000000, "latest": 120000000, "latestAt": "2026-10-11T14:21:07Z"}],
+    "waiting": [{"kind": "logs", "what": "get pods/api-7d9f (log) in team-a", "method": "GET",
+      "url": "https://api.ocp.example.com:6443/api/v1/namespaces/team-a/pods/api-7d9f/log?follow=true&tailLines=1000&timestamps=true", "since": "2026-10-11T14:29:13Z"}],
+    "connections": {"setup": {"count": 2, "latest": 180000000, "longest": 2100000000, "latestAt": "2026-10-26T08:01:02Z"}, "protocol": "HTTP/2.0", "tcp": 21000000, "tls": 152000000}},
   "problems": 4,
   "problemCounts": [{"name": "throttled", "count": 34}, {"name": "refused", "count": 12}, {"name": "fallback", "count": 5}, {"name": "serverError", "count": 2}],
   "log": [
@@ -151,6 +157,11 @@ func TestDiagnosticsTabConnection(t *testing.T) {
 	if got := d.budgets.text; !strings.Contains(got, "requests 5/s (burst 10): 214 of 1,204 waited 2 min 41 s, the longest 38 s, 12 waiting now") ||
 		!strings.Contains(got, "discovery 50/s (burst 300): none waited") || d.budgets.color != colorStatusWarning {
 		t.Errorf("budgets %q in %s", got, d.budgets.color)
+	}
+	if got := d.answers.text; got != "The API server's answers: get pods/api-7d9f (log) in team-a waiting 47 s for an answer · "+
+		"GET /version median 48 ms, longest 1.3 s · logs (9) median 140 ms, longest 14 s · HTTP/2.0 2 connections, the latest set up in 180 ms" ||
+		d.answers.color != colorStatusWarning {
+		t.Errorf("answers %q in %s", got, d.answers.color)
 	}
 	lines := map[string]fyne.ThemeColorName{}
 	for _, o := range d.log.Objects {

@@ -276,6 +276,7 @@ type Conn struct {
 	// The diagnostics log and the rate limits that note in it (diaglog.go, diagtransport.go, D-133);
 	// the access reviews' limit is theirs (access.go).
 	diag       *DiagLog
+	stats      *transportStats // the connection's timings (diagstats.go)
 	limiter    *measuredLimiter
 	listLimit  *measuredLimiter
 	discoLimit *measuredLimiter
@@ -415,7 +416,7 @@ func Connect(ctx context.Context, opts Options) (_ *Conn, err error) {
 	health := installHealth(cfg, counter.prefix, opts.RequestTimeout)
 	// The diagnostics log's round-tripper, above the timeout and the gates (D-133).
 	diag.Connecting(server)
-	installDiag(cfg, diag, counter.prefix)
+	stats := installDiag(cfg, diag, counter.prefix)
 	if err := health.anonymousProbe(cfg, counter); err != nil {
 		return nil, &ConnectError{Context: name, Problem: "cannot build the client: " + kubeconfig.SafeError(err).Error(), Err: err}
 	}
@@ -499,6 +500,7 @@ func Connect(ctx context.Context, opts Options) (_ *Conn, err error) {
 		disco:       disco,
 		counter:     counter,
 		diag:        diag,
+		stats:       stats,
 		limiter:     limiter,
 		listLimit:   listLimiter,
 		discoLimit:  discoLimiter,
@@ -736,6 +738,25 @@ func (c *Conn) Counter() *RequestCounter { return c.counter }
 // DiagLog returns the context's diagnostics log the connection notes in (D-133); nil for a
 // connection built around a clientset (tests).
 func (c *Conn) DiagLog() *DiagLog { return c.diag }
+
+// TransportStats returns the connection's timings since it began (diagstats.go): GET /version,
+// the requests that open a container's stream and those that wait for an answer now, the HTTP
+// client's connections. Empty for a connection built around a clientset (tests).
+func (c *Conn) TransportStats() TransportStats {
+	if c == nil {
+		return TransportStats{}
+	}
+	return c.stats.snapshot()
+}
+
+// TransportChanges counts the changes of TransportStats so far (a stream waiting or answered, an
+// answer of GET /version): the diagnostics event's fingerprint.
+func (c *Conn) TransportChanges() uint64 {
+	if c == nil {
+		return 0
+	}
+	return c.stats.changed()
+}
 
 // Budgets returns the connection's rate limits and what waited at each since it began: the
 // requests', the cache's lists' (D-135), discovery's and, once the first review was asked, the access reviews' (D-133).
