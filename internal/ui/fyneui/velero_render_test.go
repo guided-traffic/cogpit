@@ -233,7 +233,6 @@ func TestVeleroNavigatorEntry(t *testing.T) {
 	if side.titles[engine.VeleroDashboard] != "Velero" || side.depth(engine.VeleroDashboard) != 0 || navIcon(engine.VeleroDashboard) == nil {
 		t.Errorf("entry %q depth %d", side.titles[engine.VeleroDashboard], side.depth(engine.VeleroDashboard))
 	}
-	src.Delete(testkit.CRDsGVR, "", engine.VeleroBackupsKey)
 	// Without a failed volume backup the page has no Failed volume backups.
 	sh.dispatch("ui.openView", openViewParams{View: engine.VeleroDashboard}, nil)
 	q.until(t, "the page", func() bool {
