@@ -41,7 +41,7 @@ func findingCells(t *TableSnapshot) []string {
 // severity, then the images affected; Top namespaces by the worst grade; each entry names its token.
 func TestImageSecurityModel(t *testing.T) {
 	s := imageSecSession(t, testkit.ImageSecuritySource())
-	m, _, err := s.ImageSecurity(context.Background(), "", nil, nil, false)
+	m, _, err := s.ImageSecurity(context.Background(), "", nil, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +91,7 @@ func TestImageSecurityModel(t *testing.T) {
 	}
 
 	// One namespace: the cards count it alone.
-	m, _, err = s.ImageSecurity(context.Background(), "", []string{"team"}, nil, false)
+	m, _, err = s.ImageSecurity(context.Background(), "", []string{"team"}, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestImageSecurityFindings(t *testing.T) {
 	s := imageSecSession(t, testkit.ImageSecuritySource())
 	read := func(filter string) *TableSnapshot {
 		t.Helper()
-		_, snap, err := s.ImageSecurity(context.Background(), "", nil, &filter, true)
+		_, snap, err := s.ImageSecurity(context.Background(), "", nil, &filter, ImageSecurityFindings)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -218,9 +218,29 @@ func TestImageSecurityPage(t *testing.T) {
 	if u.Filter != ImageSecurityDefaultFilter || u.View != ImageSecurity {
 		t.Fatalf("opened with %q on %q", u.Filter, u.View)
 	}
-	snap := waitTable(t, s, ImageSecurity, func(t *TableSnapshot) bool { return t.Synced && len(t.Rows) == 8 })
+	cves := waitTable(t, s, ImageSecurity, func(t *TableSnapshot) bool { return t.Synced && len(t.Rows) == 5 })
+	if cves.Title != ImageSecurityTitle || cves.Sort != imageSecCVESort || cves.Total != 7 {
+		t.Errorf("CVEs %q sorted %+v, total %d", cves.Title, cves.Sort, cves.Total)
+	}
+	// A CVE's findings: the findings table with its token, a step of the tab's history; the CVEs
+	// again without it.
+	u, err := s.ShowImageSecurityTable(ImageSecurityFindings, "CVE-2024-0001")
+	if err != nil || u.View != ImageSecurityFindings || u.Filter != "sev>=high cve:CVE-2024-0001" || u.Sort != imageSecSort {
+		t.Fatalf("a CVE's findings: %v, %q %q %+v", err, u.View, u.Filter, u.Sort)
+	}
+	waitTable(t, s, ImageSecurityFindings, func(t *TableSnapshot) bool { return t.Synced && len(t.Rows) == 3 })
+	if u, _ = s.ShowImageSecurityTable(ImageSecurity, ""); u.View != ImageSecurity || u.Filter != "sev>=high" {
+		t.Fatalf("back to the CVEs: %q %q", u.View, u.Filter)
+	}
+	if u, _ = s.ShowImageSecurityTable(ImageSecurityFindings, ""); u.Filter != "sev>=high" {
+		t.Fatalf("the findings: %q", u.Filter)
+	}
+	snap := waitTable(t, s, ImageSecurityFindings, func(t *TableSnapshot) bool { return t.Synced && len(t.Rows) == 8 })
 	if snap.Title != ImageSecurityTitle || snap.Sort != imageSecSort || snap.Total != 11 {
 		t.Errorf("snapshot %q sorted %+v, total %d", snap.Title, snap.Sort, snap.Total)
+	}
+	if s.state.imageSecTableOf(ImageSecurity) != nil {
+		t.Error("the CVEs' snapshot is served while the findings show")
 	}
 	trimmed := func() bool {
 		for _, is := range b.Cache.Stats() {
@@ -246,22 +266,22 @@ func TestImageSecurityPage(t *testing.T) {
 
 	// The search: cleared, every finding; a change of a report reaches the page.
 	s.UpdateUI(func(u *UIState) { u.Filter = "" })
-	waitTable(t, s, ImageSecurity, func(t *TableSnapshot) bool { return len(t.Rows) == 11 })
+	waitTable(t, s, ImageSecurityFindings, func(t *TableSnapshot) bool { return len(t.Rows) == 11 })
 	src.Set(testkit.VulnReportsGVR, testkit.VulnReport("team", "Pod", "bare", "shell", "library/alpine", "3.12", [5]int64{}))
-	waitTable(t, s, ImageSecurity, func(t *TableSnapshot) bool { return len(t.Rows) == 9 && t.Total == 9 })
+	waitTable(t, s, ImageSecurityFindings, func(t *TableSnapshot) bool { return len(t.Rows) == 9 && t.Total == 9 })
 
 	// Switched off: no read, the page says why; on again, it reads.
 	setTrivy(s, false)
-	off := waitTable(t, s, ImageSecurity, func(t *TableSnapshot) bool { return len(t.Rows) == 0 && t.Error != "" })
+	off := waitTable(t, s, ImageSecurityFindings, func(t *TableSnapshot) bool { return len(t.Rows) == 0 && t.Error != "" })
 	if !strings.Contains(off.Error, "Trivy integration is off") {
 		t.Errorf("off: %q", off.Error)
 	}
 	waitFor(t, "no read of the trimmed reports", func() bool { return !trimmed() })
-	if _, _, err := s.ImageSecurity(context.Background(), "", nil, nil, false); !errors.Is(err, ErrTrivyOff) {
+	if _, _, err := s.ImageSecurity(context.Background(), "", nil, nil, ""); !errors.Is(err, ErrTrivyOff) {
 		t.Errorf("an agent's read while off: %v", err)
 	}
 	setTrivy(s, true)
-	waitTable(t, s, ImageSecurity, func(t *TableSnapshot) bool { return t.Synced && len(t.Rows) == 9 && t.Error == "" })
+	waitTable(t, s, ImageSecurityFindings, func(t *TableSnapshot) bool { return t.Synced && len(t.Rows) == 9 && t.Error == "" })
 
 	// Left: the handles go.
 	s.OpenTab("pods", false)
@@ -280,7 +300,7 @@ func TestImageSecurityNotServed(t *testing.T) {
 	if snap.Error != trivyNotServed+"." || len(snap.Rows) != 0 {
 		t.Errorf("not served: %q, %d rows", snap.Error, len(snap.Rows))
 	}
-	if _, _, err := s.ImageSecurity(context.Background(), "", nil, nil, false); !errors.Is(err, ErrNotApplicable) {
+	if _, _, err := s.ImageSecurity(context.Background(), "", nil, nil, ""); !errors.Is(err, ErrNotApplicable) {
 		t.Errorf("an agent's read: %v", err)
 	}
 }

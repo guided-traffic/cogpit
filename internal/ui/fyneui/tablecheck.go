@@ -190,7 +190,7 @@ func (tv *tableView) selectRows(refs []model.ObjectRef, mode engine.SelectMode) 
 // checkTapped toggles a row's checkbox; with ⇧ in mods (the click's, or the key's for Space and ↵)
 // it adds the rows from the anchor to it.
 func (tv *tableView) checkTapped(row int, mods fyne.KeyModifier) {
-	if tv.snap == nil || row < 0 || row >= len(tv.snap.Rows) {
+	if tv.snap == nil || row < 0 || row >= len(tv.snap.Rows) || !tv.rowsAreObjects() {
 		return
 	}
 	if mods&fyne.KeyModifierShift != 0 && tv.selectRange(row) {
@@ -204,7 +204,7 @@ func (tv *tableView) checkTapped(row int, mods fyne.KeyModifier) {
 // modifiedClick handles a click on a row with ⌘ (Ctrl off macOS) or ⇧ in its own modifier keys
 // (clickModifiers), and reports whether it did; a plain click selects the row through the table.
 func (tv *tableView) modifiedClick(row int, mods fyne.KeyModifier) bool {
-	if tv.snap == nil || row < 0 || row >= len(tv.snap.Rows) {
+	if tv.snap == nil || row < 0 || row >= len(tv.snap.Rows) || !tv.rowsAreObjects() {
 		return false
 	}
 	switch {

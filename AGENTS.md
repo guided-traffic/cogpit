@@ -55,6 +55,7 @@ internal/model kubeconfig     L0 the resource model (references, kind profiles, 
 internal/model/kinds          L0 the built-in kind profiles, one file per kind
 internal/model/k8seol         L0 Kubernetes' upstream release table, embedded and refreshed at release build (make k8s-eol, D-91)
 internal/buildinfo            L0 the version both binaries report (release, else dev and the commit)
+internal/pdfreport            L0 reports as PDF documents (gopdf, the Go fonts): values in, bytes out, no I/O
 internal/testkit              fixtures, a fake API server and clients, a fake LLM endpoint, a sigstore of its own; kind tests in testkit/integration
 ```
 

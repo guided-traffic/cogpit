@@ -437,6 +437,9 @@ func defaultSort(p *model.KindProfile) SortSpec {
 	if p == imageSecProfile { // the Image Security page's findings, the worst severity first (imagesecurity.go)
 		return imageSecSort
 	}
+	if p == imageSecCVEProfile { // its CVEs, likewise (imagesecurity_cves.go)
+		return imageSecCVESort
+	}
 	if p != nil && p.Key == eventsKind && p.ColumnIndex(lastSeenColumn) >= 0 {
 		return SortSpec{Column: lastSeenColumn, Desc: true}
 	}
@@ -466,8 +469,8 @@ func (s *Session) Table(view string) *TableSnapshot {
 	if view == ArgoCDDashboard {
 		return s.state.argoTable()
 	}
-	if view == ImageSecurity {
-		return s.state.imageSecTableOf()
+	if IsImageSecurity(view) {
+		return s.state.imageSecTableOf(view)
 	}
 	if view == VeleroDashboard {
 		return s.state.veleroTable()

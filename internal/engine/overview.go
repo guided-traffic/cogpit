@@ -167,6 +167,8 @@ func (b *Backend) viewProfile(view string) *model.KindProfile {
 	case ArgoCDDashboard:
 		return argoAttentionProfile(b) // argocd_dashboard.go
 	case ImageSecurity:
+		return imageSecCVEProfile // imagesecurity_cves.go
+	case ImageSecurityFindings:
 		return imageSecProfile // imagesecurity_model.go
 	case VeleroDashboard:
 		return veleroPageProfile // velero.go: its rows open their objects' drawers

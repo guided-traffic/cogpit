@@ -34,25 +34,37 @@ func newImageSecHarness(t *testing.T) *harness {
 	return h
 }
 
-// TestImageSecurityCommand: trivy.imageSecurity reads what the page shows, the findings cut at the
-// limit; the page opens with its default search; its rows are the workloads' (select all takes
-// them, view.rows and the CSV export read them); a card's token narrows them through ui.setFilter;
-// with the integration off the read is refused.
+// TestImageSecurityCommand: trivy.imageSecurity reads what the page shows, a table cut at the
+// limit; the page opens on its CVEs with its default search; trivy.imageSecurityTable switches to
+// the findings, whose rows are the workloads' (select all takes them, view.rows and the CSV export
+// read them); a card's token narrows them through ui.setFilter; with the integration off the read
+// is refused.
 func TestImageSecurityCommand(t *testing.T) {
 	h := newImageSecHarness(t)
 	agent := engine.OriginExternalAgent
 	var res commands.ImageSecurityResult
-	h.must(t, agent, "trivy.imageSecurity", map[string]any{"findings": true, "limit": 3}, &res)
+	h.must(t, agent, "trivy.imageSecurity", map[string]any{"table": "findings", "limit": 3}, &res)
 	if res.Running != 4 || res.Scanned != 3 || res.CVEs != 7 || res.Fixable != 3 || len(res.TopImages) != 3 || len(res.TopCVEs) != 5 {
 		t.Errorf("model %+v", res.ImageSecurityModel)
 	}
-	if res.Findings == nil || res.Matched != 8 || res.Returned != 3 || len(res.Findings.Rows) != 3 || res.Findings.Filter != engine.ImageSecurityDefaultFilter {
-		t.Fatalf("findings: matched %d, returned %d, %+v", res.Matched, res.Returned, res.Findings)
+	if res.Table == nil || res.Matched != 8 || res.Returned != 3 || len(res.Table.Rows) != 3 || res.Table.Filter != engine.ImageSecurityDefaultFilter {
+		t.Fatalf("findings: matched %d, returned %d, %+v", res.Matched, res.Returned, res.Table)
 	}
 	all := ""
-	h.must(t, agent, "trivy.imageSecurity", map[string]any{"findings": true, "filter": all, "namespaces": []string{"team"}}, &res)
-	if res.Matched != 2 || res.Findings.Total != 11 || res.CVEs != 2 {
-		t.Errorf("team, every finding: matched %d of %d, %d CVEs", res.Matched, res.Findings.Total, res.CVEs)
+	h.must(t, agent, "trivy.imageSecurity", map[string]any{"table": "findings", "filter": all, "namespaces": []string{"team"}}, &res)
+	if res.Matched != 2 || res.Table.Total != 11 || res.CVEs != 2 {
+		t.Errorf("team, every finding: matched %d of %d, %d CVEs", res.Matched, res.Table.Total, res.CVEs)
+	}
+	var cves commands.ImageSecurityResult
+	h.must(t, agent, "trivy.imageSecurity", map[string]any{"table": "cves"}, &cves)
+	if cves.Matched != 5 || cves.Table.Rows[0].Cells[1].Text != "CVE-2024-0001" || cves.Table.Rows[0].Cells[5].Text != "2" {
+		t.Errorf("CVEs: matched %d, %+v", cves.Matched, cves.Table.Rows[0])
+	}
+	if err := h.run(t, agent, "trivy.imageSecurity", map[string]any{"table": "images"}, nil); err == nil {
+		t.Error("an unknown table was read")
+	}
+	if err := h.run(t, agent, "trivy.imageSecurityTable", map[string]any{"table": "findings"}, nil); err == nil {
+		t.Error("the table switched while the page is not open")
 	}
 
 	// The page: opened with sev>=high; select all takes the rows' workloads; view.rows and the CSV
@@ -61,7 +73,12 @@ func TestImageSecurityCommand(t *testing.T) {
 	if f := h.s.UIState().Filter; f != engine.ImageSecurityDefaultFilter {
 		t.Fatalf("opened with %q", f)
 	}
-	waitTable(t, h.s, engine.ImageSecurity, func(t *engine.TableSnapshot) bool { return t.Synced && len(t.Rows) == 8 })
+	waitTable(t, h.s, engine.ImageSecurity, func(t *engine.TableSnapshot) bool { return t.Synced && len(t.Rows) == 5 })
+	if err := h.run(t, agent, "trivy.imageSecurityTable", map[string]any{"table": "cves", "cve": "CVE-2024-0001"}, nil); err == nil {
+		t.Error("a CVE given with the CVEs table")
+	}
+	h.must(t, engine.OriginGUI, "trivy.imageSecurityTable", map[string]any{"table": "findings"}, nil)
+	waitTable(t, h.s, engine.ImageSecurityFindings, func(t *engine.TableSnapshot) bool { return t.Synced && len(t.Rows) == 8 })
 	h.must(t, engine.OriginGUI, "ui.select", map[string]any{"all": true, "noDrawer": true}, nil)
 	var kindsSel []string
 	for _, r := range h.s.UIState().Selected {
@@ -83,7 +100,7 @@ func TestImageSecurityCommand(t *testing.T) {
 	}
 	filter := engine.ImageSecurityFilterWith(h.s.UIState().Filter, res.TopNamespaces[0].Token)
 	h.must(t, engine.OriginGUI, "ui.setFilter", map[string]any{"filter": filter}, nil)
-	waitTable(t, h.s, engine.ImageSecurity, func(t *engine.TableSnapshot) bool {
+	waitTable(t, h.s, engine.ImageSecurityFindings, func(t *engine.TableSnapshot) bool {
 		return len(t.Rows) == 2 && t.Rows[0].Ref == model.ObjectRef{Context: "test", Kind: "pods", Namespace: "team", Name: "bare"}
 	})
 
@@ -99,5 +116,5 @@ func TestImageSecurityCommand(t *testing.T) {
 	if err := h.run(t, agent, "trivy.imageSecurity", map[string]any{}, nil); !errors.Is(err, engine.ErrTrivyOff) && (err == nil || !strings.Contains(err.Error(), "Trivy integration is off")) {
 		t.Errorf("off: %v", err)
 	}
-	waitTable(t, h.s, engine.ImageSecurity, func(t *engine.TableSnapshot) bool { return len(t.Rows) == 0 && t.Error != "" })
+	waitTable(t, h.s, engine.ImageSecurityFindings, func(t *engine.TableSnapshot) bool { return len(t.Rows) == 0 && t.Error != "" })
 }

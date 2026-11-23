@@ -3,6 +3,7 @@ package fyneui
 import (
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 
@@ -15,13 +16,14 @@ import (
 )
 
 // The Image Security page's upper part (D-new): a line beside the page's title that counts the
-// running images and those Trivy scanned, and four cards in a row: Vulnerabilities (the CVE ids by
-// severity, a bar each, scaled to the largest), Top images, Top CVEs and Top namespaces. A click on
-// an entry of the last three narrows the findings table below to it, through the page's search
-// (ui.setFilter with the entry's token). The table is the page's table, which the table view shows
-// as it shows any view's. Colours follow D-calm: red and amber for Critical and High and for the
-// grades E and D, everything else grey (calmStatusColor, the calm grade badge). The data is the
-// engine's (trivy.imageSecurity).
+// running images and those Trivy scanned; the severity band, one segment per severity as wide as
+// its share of the CVE ids, its count on it (a click keeps that severity's rows); three cards in a
+// row: Top images, Top CVEs and Top namespaces (a click on an entry narrows the table to it,
+// through the page's search: ui.setFilter with the entry's token). The table below is the page's
+// table, which the table view shows as it shows any view's; its heading switches between the CVEs
+// and the findings (trivy.imageSecurityTable), and a click on a CVE shows its findings. Colours
+// follow D-calm: red and amber for Critical and High and for the grades E and D, everything else
+// grey (calmStatusColor, the calm grade badge). The data is the engine's (trivy.imageSecurity).
 
 // imageSecNav is the page's entry under the navigator's heading Integrations: shown while the
 // Trivy integration is on for the cluster and the cluster serves the reports.
@@ -39,12 +41,20 @@ var iconImageSecurity = fyne.NewStaticResource("cogpit-image-security.svg", []by
 
 func init() { navIcons[engine.ImageSecurity] = func() fyne.Resource { return iconImageSecurity } }
 
-// The page's texts: its table's heading, its search's hint, its rows' noun.
+// The page's texts: its search's hint, its tables' switch.
 const (
-	imageSecTableTitle = "Findings"
-	imageSecSearchHint = "CVE, package, image…"
-	imageSecRowNoun    = "findings"
+	imageSecSearchHint  = "CVE, package, image…"
+	imageSecCVEsLabel   = "CVEs"
+	imageSecFindingsLbl = "Findings"
 )
+
+// imageSecRowNoun names a table's rows in hints: "CVEs", "findings".
+func imageSecRowNoun(view string) string {
+	if view == engine.ImageSecurityFindings {
+		return "findings"
+	}
+	return imageSecCVEsLabel
+}
 
 // The cards' columns, in points: a severity's word and count, a grade's shield, a list's counts.
 const (
@@ -52,8 +62,11 @@ const (
 	isCountWidth  = 40
 	isShieldWidth = 18
 	isNumWidth    = 28
-	isBarHeight   = 6
 	isShieldSide  = 16
+	isBandHeight  = 22 // the severity band's segments
+	isBandGap     = 3
+	isBandMinSeg  = 34 // a segment above zero is at least this wide, for its count
+	isLegendSide  = 9  // a legend's square
 )
 
 // imageSecPanel shows the page's header line and cards.
@@ -65,6 +78,9 @@ type imageSecPanel struct {
 	data  *engine.ImageSecurityModel
 	shown bool // data is drawn
 
+	tables *imageSecTables // the table heading's switch, CVEs | Findings
+	pdf    *textButton     // Export PDF, in the page's header
+
 	requests atomic.Int32 // coalesced as the Workloads Overview's (overview.go)
 }
 
@@ -75,7 +91,72 @@ func newImageSecPanel(sh *shell) *imageSecPanel {
 	p.sub.baselineOf = theme.SizeNameSubHeadingText // on the title's line
 	p.box = container.NewVBox()
 	p.root = inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, p.box)
+	p.tables = newImageSecTables(sh)
+	p.pdf = newPlateButton("Export PDF", theme.DocumentSaveIcon(), p.exportPDF)
 	return p
+}
+
+// exportPDF renders the page as a PDF report (trivy.exportImageSecurityPdf: the namespaces and the
+// search as the page has them, every CVE with its containers) and saves it where the user says.
+func (p *imageSecPanel) exportPDF() {
+	p.pdf.Disable() // one at a time: a large cluster takes a second
+	p.sh.dispatch("trivy.exportImageSecurityPdf", struct{}{}, func(res any, err error) {
+		p.pdf.Enable()
+		if err != nil {
+			p.sh.showError(err)
+			return
+		}
+		var out struct {
+			Filename string `json:"filename"`
+			CVEs     int    `json:"cves"`
+			PDF      []byte `json:"pdf"`
+		}
+		if derr := decode(res, &out); derr != nil {
+			p.sh.toast("error", "Unexpected trivy.exportImageSecurityPdf result: "+derr.Error())
+			return
+		}
+		p.sh.saveReport(out.Filename, out.CVEs, out.PDF)
+	})
+}
+
+// imageSecTables is the switch in the table's heading: CVEs | Findings, the shown one chosen.
+type imageSecTables struct {
+	sh       *shell
+	cves     *tipButton
+	findings *tipButton
+	seg      *segmented
+	root     fyne.CanvasObject
+}
+
+func newImageSecTables(sh *shell) *imageSecTables {
+	t := &imageSecTables{sh: sh}
+	t.cves = newTipButton(sh, nil, "One row per CVE: how many images and containers it is found in, and which", func() { t.show("cves") })
+	t.findings = newTipButton(sh, nil, "One row per CVE, workload and container", func() { t.show("findings") })
+	t.cves.Text, t.findings.Text = imageSecCVEsLabel, imageSecFindingsLbl
+	t.seg = newSegmented(sh, t.cves, t.findings)
+	t.root = t.seg.root
+	return t
+}
+
+// choose marks the table a view shows.
+func (t *imageSecTables) choose(view string) {
+	switch view {
+	case engine.ImageSecurity:
+		t.seg.choose(0)
+	case engine.ImageSecurityFindings:
+		t.seg.choose(1)
+	}
+}
+
+// show switches the page's table, the search carried over.
+func (t *imageSecTables) show(table string) {
+	t.sh.dispatch("trivy.imageSecurityTable", imageSecTableParams{Table: table}, func(_ any, err error) { t.sh.showError(err) })
+}
+
+// imageSecTableParams are trivy.imageSecurityTable's parameters (engine/commands/trivy_security.go).
+type imageSecTableParams struct {
+	Table string `json:"table"`
+	CVE   string `json:"cve,omitempty"`
 }
 
 // request reads the model off the main goroutine and shows it. It may be called from the main
@@ -104,7 +185,7 @@ func (p *imageSecPanel) request() {
 			m = engine.ImageSecurityModel{Error: err.Error()}
 		}
 		p.show(&m)
-		if again && p.sh.ui.View == engine.ImageSecurity {
+		if again && engine.IsImageSecurity(p.sh.ui.View) {
 			p.request()
 		}
 	})
@@ -123,31 +204,17 @@ func (p *imageSecPanel) show(m *engine.ImageSecurityModel) {
 		p.box.Refresh()
 		return
 	}
-	p.box.Objects = []fyne.CanvasObject{container.NewGridWithColumns(4,
-		p.severityCard(m), p.imagesCard(m), p.cvesCard(m), p.namespacesCard(m))}
+	p.box.Objects = []fyne.CanvasObject{p.band(m), newSpace(theme.SizeNamePadding),
+		container.NewGridWithColumns(3, p.imagesCard(m), p.cvesCard(m), p.namespacesCard(m))}
+	if m.Trend != nil {
+		p.box.Objects = append(p.box.Objects, newSpace(theme.SizeNamePadding), p.trendCard(m.Trend))
+	}
 	p.box.Refresh()
 }
 
 // headLine is the line beside the title: "150 images running · 142 scanned · 8 not scanned ·
 // newest scan 2h ago"; the running images only while the page reads the pods.
-func (p *imageSecPanel) headLine(m *engine.ImageSecurityModel) string {
-	if m.Error != "" && m.Reports == 0 {
-		return ""
-	}
-	var parts []string
-	if m.PodsRead {
-		noun := " images running"
-		if m.Running == 1 {
-			noun = " image running"
-		}
-		parts = append(parts, formatCount(int64(m.Running))+noun, formatCount(int64(m.Scanned))+" scanned",
-			formatCount(int64(m.NotScanned))+" not scanned")
-	}
-	if !m.NewestScan.IsZero() {
-		parts = append(parts, "newest scan "+model.FormatAge(p.sh.now().Sub(m.NewestScan))+" ago")
-	}
-	return strings.Join(parts, " · ")
-}
+func (p *imageSecPanel) headLine(m *engine.ImageSecurityModel) string { return m.HeadLine(p.sh.now()) }
 
 // isCard is one card: its title in the text colour, a muted line at its right, its rows.
 func isCard(title, meta string, rows ...fyne.CanvasObject) fyne.CanvasObject {
@@ -165,44 +232,225 @@ func noneLine() fyne.CanvasObject {
 	return newTextLine("None", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 }
 
-// severityCard is Vulnerabilities: per severity its word, a bar scaled to the largest count, and
-// the count; Critical and High in their colours, the others grey.
-func (p *imageSecPanel) severityCard(m *engine.ImageSecurityModel) fyne.CanvasObject {
-	most := 0
+// band is the severity band: one segment per severity with CVE ids, as wide as its share (at
+// least isBandMinSeg), its count on it; under it a legend and "188 CVEs · 119 fixable". A click
+// on a segment keeps that severity's rows (the search's sev tokens replaced).
+func (p *imageSecPanel) band(m *engine.ImageSecurityModel) fyne.CanvasObject {
+	lay := &isBandLayout{}
+	var segs, legend []fyne.CanvasObject
 	for _, s := range m.Severities {
-		most = max(most, s.Count)
-	}
-	rows := make([]fyne.CanvasObject, 0, len(m.Severities))
-	for _, s := range m.Severities {
-		tone := calmStatusColor(s.Status)
-		style := fyne.TextStyle{Bold: s.Status != model.StatusNone}
-		word := newTextLine(s.Severity, tone, theme.SizeNameText, style)
-		countTone := tone
-		if s.Status == model.StatusWarning {
-			countTone = theme.ColorNameForeground // one colour a row: High's word and bar carry it
+		fill, ink := severityFill(s.Severity)
+		legend = append(legend, newLegendSquare(fill), newTextLine(s.Severity, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}),
+			newSpace(theme.SizeNamePadding))
+		if s.Count == 0 {
+			continue
 		}
-		count := newTextLine(formatCount(int64(s.Count)), countTone, theme.SizeNameText, fyne.TextStyle{Bold: s.Status != model.StatusNone})
-		count.align = fyne.TextAlignTrailing
-		frac := float32(0)
-		if most > 0 {
-			frac = float32(s.Count) / float32(most)
-		}
-		rows = append(rows, box(&isRowLayout{widths: []float32{isSevWidth, 0, isCountWidth}}, word, newIsBar(severityFill(s.Status), frac), count))
+		plate := newSurface(fill)
+		plate.radius = theme.SizeNameSelectionRadius
+		count := newTextLine(formatCount(int64(s.Count)), ink, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true})
+		count.align = fyne.TextAlignCenter
+		sev := s.Severity
+		segs = append(segs, newTapTarget(container.NewStack(plate, container.NewCenter(count)), func() { p.narrowSeverity(sev) }))
+		lay.counts = append(lay.counts, s.Count)
 	}
-	return isCard("Vulnerabilities", formatCount(int64(m.CVEs))+" CVEs · "+formatCount(int64(m.Fixable))+" fixable", rows...)
+	totals := newTextLine(formatCount(int64(m.CVEs))+" CVEs · "+formatCount(int64(m.Fixable))+" fixable", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
+	legendRow := container.NewBorder(nil, nil, container.NewHBox(legend...), totals)
+	if len(segs) == 0 {
+		return legendRow
+	}
+	return container.NewVBox(container.New(lay, segs...), legendRow)
 }
 
-// severityFill is a severity bar's colour: the crests' red and amber for Critical and High (the
-// shields' E and D), a faint grey for the others.
-func severityFill(s model.Status) fyne.ThemeColorName {
-	switch s {
-	case model.StatusError:
-		return colorGradeE
-	case model.StatusWarning:
-		return colorGradeD
+// severityFill is a severity's colour in the band and its legend, and the colour of the count on
+// it (D-calm): the crests' red and amber for Critical and High (the shields' E and D), greys from
+// light to faint for Medium, Low and Unknown.
+func severityFill(sev string) (fill, ink fyne.ThemeColorName) {
+	switch sev {
+	case "Critical":
+		return colorGradeE, colorGradeInkOnDark
+	case "High":
+		return colorGradeD, colorGradeInkOnDark
+	case "Medium":
+		return colorMuted, theme.ColorNameBackground
+	case "Low":
+		return theme.ColorNameDisabled, theme.ColorNameForeground
 	}
-	return theme.ColorNameDisabled
+	return colorHairline, theme.ColorNameForeground
 }
+
+// narrowSeverity keeps one severity's rows: the search's severity tokens replaced by its.
+func (p *imageSecPanel) narrowSeverity(sev string) {
+	filter := engine.ImageSecurityFilterSeverity(p.sh.ui.Filter, sev)
+	p.sh.dispatch("ui.setFilter", filterParams{Filter: filter}, func(_ any, err error) { p.sh.showError(err) })
+}
+
+// newLegendSquare is a legend's square in a colour, centred in its line.
+func newLegendSquare(fill fyne.ThemeColorName) fyne.CanvasObject {
+	sq := newSurface(fill)
+	return container.NewCenter(box(fixedSize{fyne.NewSquareSize(isLegendSide)}, sq))
+}
+
+// fixedSize lays its one object out at a fixed size.
+type fixedSize struct{ size fyne.Size }
+
+func (l fixedSize) Layout(objs []fyne.CanvasObject, _ fyne.Size) {
+	for _, o := range objs {
+		o.Move(fyne.NewPos(0, 0))
+		o.Resize(l.size)
+	}
+}
+
+func (l fixedSize) MinSize([]fyne.CanvasObject) fyne.Size { return l.size }
+
+// isBandLayout lays the band's segments out side by side, isBandGap apart, each as wide as its
+// count's share of the width left after the gaps, at least isBandMinSeg.
+type isBandLayout struct{ counts []int }
+
+func (l *isBandLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	widths := bandWidths(l.counts, size.Width-isBandGap*float32(max(len(objs)-1, 0)))
+	x := float32(0)
+	for i, o := range objs {
+		o.Move(fyne.NewPos(x, 0))
+		o.Resize(fyne.NewSize(widths[i], isBandHeight))
+		x += widths[i] + isBandGap
+	}
+}
+
+func (l *isBandLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
+	return fyne.NewSize(float32(len(objs))*(isBandMinSeg+isBandGap), isBandHeight)
+}
+
+// bandWidths shares a width among counts: each its share, the small ones raised to isBandMinSeg
+// and the others shrunk by what that took.
+func bandWidths(counts []int, width float32) []float32 {
+	out := make([]float32, len(counts))
+	total := 0
+	for _, c := range counts {
+		total += c
+	}
+	if total == 0 || width <= 0 {
+		return out
+	}
+	free, rest := width, 0
+	for i, c := range counts {
+		if w := width * float32(c) / float32(total); w < isBandMinSeg {
+			out[i] = isBandMinSeg
+			free -= isBandMinSeg
+		} else {
+			rest += c
+		}
+	}
+	for i, c := range counts {
+		if out[i] == 0 && rest > 0 {
+			out[i] = max(free*float32(c)/float32(rest), isBandMinSeg)
+		}
+	}
+	return out
+}
+
+// trendHeight is the findings curve's height, in points.
+const trendHeight = 96
+
+// trendCard is the findings curve from Prometheus: a stacked bar per point, the severities' colours
+// as the band has them; its title, the source and the range's choice above, the largest total at
+// the left, the first and the last time below; a note in place of the bars while it has none.
+func (p *imageSecPanel) trendCard(t *engine.ImageSecurityTrend) fyne.CanvasObject {
+	rng := newSelectField(trendRangeLabels(), func(label string) {
+		days, _ := strconv.Atoi(strings.TrimSuffix(label, " days"))
+		p.sh.dispatch("trivy.setTrendRange", struct {
+			Days int `json:"days"`
+		}{days}, func(_ any, err error) { p.sh.showError(err) })
+	})
+	rng.Selected = strconv.Itoa(t.Days) + " days"
+	meta := "a CVE counts once per image"
+	if t.Source != "" {
+		meta = t.Source + " · " + meta
+	}
+	head := container.NewBorder(nil, nil,
+		container.NewHBox(newTextLine("Findings over time", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true}),
+			newTextLine(meta, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})), rng)
+	var body fyne.CanvasObject
+	if len(t.Points) == 0 {
+		note := t.Note
+		if note == "" {
+			note = "No points in this range."
+		}
+		body = newTextLine(note, colorMuted, theme.SizeNameText, fyne.TextStyle{})
+	} else {
+		body = p.trendBars(t)
+	}
+	rows := []fyne.CanvasObject{head, body}
+	if len(t.Points) > 0 && t.Note != "" {
+		rows = append(rows, newTextLine(t.Note, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}))
+	}
+	plate := newSurface(theme.ColorNameInputBackground)
+	plate.radius = theme.SizeNameSelectionRadius
+	return container.NewStack(plate, inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, container.NewVBox(rows...)))
+}
+
+// trendRangeLabels are the curve's ranges as its choice writes them.
+func trendRangeLabels() []string {
+	out := make([]string, 0, len(engine.ImageSecurityTrendDays))
+	for _, d := range engine.ImageSecurityTrendDays {
+		out = append(out, strconv.Itoa(d)+" days")
+	}
+	return out
+}
+
+// trendBars draws the points as stacked bars, Critical at the bottom, with the largest total at the
+// left and the first and last time under the bars.
+func (p *imageSecPanel) trendBars(t *engine.ImageSecurityTrend) fyne.CanvasObject {
+	lay := &trendLayout{}
+	objs := make([]fyne.CanvasObject, 0, 5*len(t.Points))
+	for _, pt := range t.Points {
+		counts := [5]int{pt.Critical, pt.High, pt.Medium, pt.Low, pt.Unknown}
+		lay.points = append(lay.points, counts)
+		lay.peak = max(lay.peak, pt.Critical+pt.High+pt.Medium+pt.Low+pt.Unknown)
+		for _, sev := range []string{"Critical", "High", "Medium", "Low", "Unknown"} {
+			fill, _ := severityFill(sev)
+			objs = append(objs, newSurface(fill))
+		}
+	}
+	bars := container.New(lay, objs...)
+	tf := p.sh.timeFormat()
+	first, last := t.Points[0].At, t.Points[len(t.Points)-1].At
+	axis := container.NewBorder(nil, nil, newTextLine(tf.FormatDate(first), colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}),
+		newTextLine(tf.FormatDate(last), colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}))
+	peak := newTextLine(formatCount(int64(lay.peak)), colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
+	return container.NewBorder(nil, axis, container.NewVBox(peak), nil, bars)
+}
+
+// trendLayout lays the stacked bars out: one column per point, a gap between, each severity's
+// rectangle as tall as its share of the peak.
+type trendLayout struct {
+	points [][5]int
+	peak   int
+}
+
+func (l *trendLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	n := len(l.points)
+	if n == 0 || l.peak == 0 {
+		return
+	}
+	gap := float32(2)
+	if size.Width/float32(n) < 6 {
+		gap = 1
+	}
+	w := max((size.Width-gap*float32(n-1))/float32(n), 1)
+	for i, counts := range l.points {
+		x := float32(i) * (w + gap)
+		y := size.Height
+		for j, c := range counts {
+			h := size.Height * float32(c) / float32(l.peak)
+			o := objs[i*5+j]
+			y -= h
+			o.Move(fyne.NewPos(x, y))
+			o.Resize(fyne.NewSize(w, h))
+		}
+	}
+}
+
+func (l *trendLayout) MinSize([]fyne.CanvasObject) fyne.Size { return fyne.NewSize(0, trendHeight) }
 
 // imagesCard is Top images: the grade's shield, the image, its Critical and High.
 func (p *imageSecPanel) imagesCard(m *engine.ImageSecurityModel) fyne.CanvasObject {
@@ -218,20 +466,21 @@ func (p *imageSecPanel) imagesCard(m *engine.ImageSecurityModel) fyne.CanvasObje
 	return isCard("Top images", "Critical · High", rows...)
 }
 
-// cvesCard is Top CVEs: the severity's word, the id, the images it affects.
+// cvesCard is Top CVEs: the severity's word, the id, the images it is found in (by digest) and the
+// containers that run them.
 func (p *imageSecPanel) cvesCard(m *engine.ImageSecurityModel) fyne.CanvasObject {
 	rows := make([]fyne.CanvasObject, 0, len(m.TopCVEs))
 	for _, c := range m.TopCVEs {
 		word := newTextLine(c.Severity, calmStatusColor(c.Status), theme.SizeNameText, fyne.TextStyle{Bold: c.Status != model.StatusNone})
 		id := newTextLine(c.ID, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{})
 		id.truncate = true
-		n := isNum(int64(c.Images))
-		rows = append(rows, p.entryOf([]float32{isSevWidth, 0, isCountWidth}, c.Token, word, id, n))
+		rows = append(rows, p.entryOf([]float32{isSevWidth, 0, isNumWidth, isCountWidth}, c.Token, word, id,
+			isNum(int64(c.Images)), isNum(int64(c.Containers))))
 	}
 	if len(rows) == 0 {
 		rows = append(rows, noneLine())
 	}
-	return isCard("Top CVEs", "images", rows...)
+	return isCard("Top CVEs", "Images · Containers", rows...)
 }
 
 // namespacesCard is Top namespaces: the worst grade's shield, the namespace, its Critical and High.
@@ -317,41 +566,51 @@ func (l *isRowLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
 	return fyne.NewSize(w+l.gap()*float32(max(len(objs)-1, 0)), h)
 }
 
-// isBar is a severity's bar: frac of its width, isBarHeight tall, centred in its line.
-type isBar struct {
-	fill *surface
-	frac float32
-}
-
-func newIsBar(color fyne.ThemeColorName, frac float32) fyne.CanvasObject {
-	b := &isBar{fill: newSurface(color), frac: frac}
-	b.fill.radius = theme.SizeNameScrollBarSmall
-	return box(b, b.fill)
-}
-
-func (b *isBar) Layout(objs []fyne.CanvasObject, size fyne.Size) {
-	w := size.Width * b.frac
-	if b.frac > 0 {
-		w = max(w, isBarHeight) // a count above zero shows
-	}
-	objs[0].Move(fyne.NewPos(0, (size.Height-isBarHeight)/2))
-	objs[0].Resize(fyne.NewSize(w, isBarHeight))
-}
-
-func (b *isBar) MinSize([]fyne.CanvasObject) fyne.Size { return fyne.NewSize(0, isBarHeight) }
-
 // pageHeading is the header's left part on a page: the title, and on Image Security the line
 // beside it.
 func (tv *tableView) pageHeading(view string) []fyne.CanvasObject {
-	if view == engine.ImageSecurity {
+	if engine.IsImageSecurity(view) {
 		return []fyne.CanvasObject{tv.title, tv.imageSec.sub}
 	}
 	return []fyne.CanvasObject{tv.title}
 }
 
+// tableHeading is a page's table's heading: its title, on Image Security the switch between its
+// tables.
+func (tv *tableView) tableHeading(view string) fyne.CanvasObject {
+	if engine.IsImageSecurity(view) {
+		return tv.imageSec.tables.root
+	}
+	return tv.eventsTitle
+}
+
+// pageTools are a page's header tools at the right: the namespace filter, which applies to the
+// whole page; on Image Security its Export PDF before it.
+func (tv *tableView) pageTools(view string) []fyne.CanvasObject {
+	if engine.IsImageSecurity(view) {
+		return []fyne.CanvasObject{tv.imageSec.pdf, tv.nsBox}
+	}
+	return []fyne.CanvasObject{tv.nsBox}
+}
+
+// rowsAreObjects reports whether the shown table's rows are objects, with a checkbox, a menu and a
+// drawer: all but Image Security's CVEs.
+func (tv *tableView) rowsAreObjects() bool {
+	return tv.snap == nil || tv.snap.View != engine.ImageSecurity
+}
+
+// imageSecCVETapped shows a CVE's findings: the findings table with its cve: token.
+func (tv *tableView) imageSecCVETapped(row int) {
+	if tv.snap == nil || tv.snap.View != engine.ImageSecurity || row < 0 || row >= len(tv.snap.Rows) {
+		return
+	}
+	cve := tv.snap.Rows[row].Ref.Name
+	tv.sh.dispatch("trivy.imageSecurityTable", imageSecTableParams{Table: "findings", CVE: cve}, func(_ any, err error) { tv.sh.showError(err) })
+}
+
 // searchHint is the search field's hint: "Search pods…", on Image Security what its tokens take.
 func (tv *tableView) searchHint() string {
-	if tv.sh.ui.View == engine.ImageSecurity {
+	if engine.IsImageSecurity(tv.sh.ui.View) {
 		return imageSecSearchHint
 	}
 	return "Search " + tv.rowNoun() + "…"
@@ -373,7 +632,7 @@ func imageSecTone(col *model.Column, cell model.Cell) fyne.ThemeColorName {
 // imageSecRowTapped opens the drawer of a finding's workload at its container's section (D-150's
 // openAt): a pod's drawer has one per container; a workload's that has none opens at its top.
 func (tv *tableView) imageSecRowTapped(row int) {
-	if tv.snap == nil || tv.snap.View != engine.ImageSecurity || row < 0 || row >= len(tv.snap.Rows) {
+	if tv.snap == nil || tv.snap.View != engine.ImageSecurityFindings || row < 0 || row >= len(tv.snap.Rows) {
 		return
 	}
 	ci := slices.IndexFunc(tv.snap.Columns, func(c model.Column) bool { return c.ID == "container" })

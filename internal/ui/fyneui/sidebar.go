@@ -583,6 +583,9 @@ func customTitle(k kindInfo) string {
 // branches above it open, so that a view an agent opened inside a closed API group is visible, and
 // the keyboard moves to it. A view the tree leaves out (an outdated kind) is marked nowhere.
 func (s *sidebar) selectView(view string) {
+	if view == engine.ImageSecurityFindings {
+		view = engine.ImageSecurity // one page, one entry: its findings table too (imagesecurity.go)
+	}
 	if view == "" || s.titles[view] == "" || s.outdatedHidden(view) {
 		s.revealed, s.marked = "", ""
 		s.tree.rebuild()

@@ -62,7 +62,7 @@ linters:
     # internal/ui/... imports Fyne; model and kubeconfig do no I/O; only cluster, cache, terminal,
     # helm, metrics and alerting talk to the API server (kubectl talks to the release host and sigstore's log only).
     #   L5 cmd/*  ·  L4 ui/fyneui, mcp, agent, update, mesa, app  ·  L3 engine  ·  L2 helm, metrics, alerting, demo
-    #   L1 cluster, cache, terminal, kubectl, locale  ·  L0 model, kubeconfig, buildinfo
+    #   L1 cluster, cache, terminal, kubectl, locale  ·  L0 model, kubeconfig, buildinfo, pdfreport
     depguard:
       rules:
         fyne-only-in-ui:
@@ -135,6 +135,21 @@ linters:
               desc: "model and kubeconfig do no I/O"
             - pkg: "os$"
               desc: "model and kubeconfig do no I/O"
+        l0-pdfreport:
+          files:
+            - "**/internal/pdfreport/**"
+            - "!$test"
+          deny:
+            - pkg: "github.com/guided-traffic/cogpit/internal"
+              desc: "pdfreport imports no Cogpit package: the engine hands it values, it returns bytes"
+            - pkg: "k8s.io/client-go"
+              desc: "pdfreport does no I/O"
+            - pkg: "net/http"
+              desc: "pdfreport does no I/O"
+            - pkg: "os/exec"
+              desc: "pdfreport does no I/O"
+            - pkg: "os$"
+              desc: "pdfreport does no I/O"
         l1-cluster:
           files:
             - "**/internal/cluster/**"

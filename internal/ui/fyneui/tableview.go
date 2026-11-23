@@ -238,7 +238,7 @@ func newTableView(sh *shell) *tableView {
 // placePageSearch puts the search into a page's table header: at the right, as a view has it, or,
 // on Image Security, whose search is its main tool, across the row's free width (D-new).
 func (tv *tableView) placePageSearch(view string) {
-	if view == engine.ImageSecurity {
+	if engine.IsImageSecurity(view) {
 		tv.eventsTools.Objects = []fyne.CanvasObject{tv.states.box}
 		tv.eventsWide.Objects = []fyne.CanvasObject{tv.searchBox}
 	} else {
@@ -289,7 +289,7 @@ func (tv *tableView) setPageLayout(view string) {
 	tv.velero.setShown(velero)
 	// No status filter: the board's groups are the severities, Image Security's search has sev tokens,
 	// the Velero page has no table.
-	if board || velero || view == engine.ImageSecurity {
+	if board || velero || engine.IsImageSecurity(view) {
 		tv.states.box.Hide()
 	} else {
 		tv.states.box.Show()
@@ -308,16 +308,21 @@ func (tv *tableView) setPageLayout(view string) {
 		if view == engine.ArgoCDDashboard {
 			top, title = tv.argo.root, "Needs Attention"
 		}
-		if view == engine.ImageSecurity {
-			top, title = tv.imageSec.root, imageSecTableTitle
+		if engine.IsImageSecurity(view) {
+			top, title = tv.imageSec.root, ""
 		}
 		tv.pageTop.Objects = []fyne.CanvasObject{top}
 		tv.pageTop.Refresh()
 		tv.eventsTitle.SetText(title)
-		if tv.pageMode { // from another page: the heading and the search follow (imagesecurity.go)
+		tv.imageSec.tables.choose(view) // the table's heading is its switch (imagesecurity.go)
+		if tv.pageMode {                // from another page: the heading and the search follow (imagesecurity.go)
 			tv.heading.Objects = tv.pageHeading(view)
 			tv.heading.Refresh()
 			tv.placePageSearch(view)
+			tv.eventsHeading.Objects[0] = tv.tableHeading(view)
+			tv.eventsHeading.Refresh()
+			tv.tools.Objects = tv.pageTools(view)
+			tv.tools.Refresh()
 		}
 	}
 	if page == tv.pageMode {
@@ -326,8 +331,8 @@ func (tv *tableView) setPageLayout(view string) {
 	tv.pageMode = page
 	if page {
 		tv.heading.Objects = tv.pageHeading(view)
-		tv.tools.Objects = []fyne.CanvasObject{tv.nsBox}
-		tv.eventsHeading.Objects = []fyne.CanvasObject{tv.eventsTitle, tv.count, tv.csvButton, tv.syncing, tv.check.bar.root}
+		tv.tools.Objects = tv.pageTools(view)
+		tv.eventsHeading.Objects = []fyne.CanvasObject{tv.tableHeading(view), tv.count, tv.csvButton, tv.syncing, tv.check.bar.root}
 		tv.placePageSearch(view) // the status filter filters the table only
 		tv.pageBox.Show()
 	} else {
@@ -369,7 +374,7 @@ func (tv *tableView) requestPage() {
 		tv.flux.request()
 	case view == engine.ArgoCDDashboard:
 		tv.argo.request()
-	case view == engine.ImageSecurity:
+	case engine.IsImageSecurity(view):
 		tv.imageSec.request()
 	case view == engine.AlertBoard, view == engine.AlertSilences:
 		tv.alerts.request()
@@ -392,8 +397,8 @@ func (tv *tableView) rowNoun() string {
 	if tv.sh.ui.View == engine.ArgoCDDashboard {
 		return argoRowNoun(tv.sh) // argocd.go
 	}
-	if tv.sh.ui.View == engine.ImageSecurity {
-		return imageSecRowNoun // imagesecurity.go
+	if engine.IsImageSecurity(tv.sh.ui.View) {
+		return imageSecRowNoun(tv.sh.ui.View) // imagesecurity.go
 	}
 	if tv.sh.ui.View == engine.AlertBoard {
 		return "alerts"
@@ -778,10 +783,12 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 		return
 	}
 	var content cellContent
-	switch id.Col {
-	case tv.menuColumn():
+	switch {
+	case !tv.rowsAreObjects() && (id.Col == tv.menuColumn() || id.Col == checkColumn):
+		// A CVE is no object: no menu, no checkbox (imagesecurity.go).
+	case id.Col == tv.menuColumn():
 		content.kind = cellMenu
-	case checkColumn:
+	case id.Col == checkColumn:
 		content.kind = cellCheck
 	default:
 		row := &tv.snap.Rows[id.Row]
@@ -817,7 +824,7 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 		if col.Type == model.ColumnGrade {
 			content.kind, content.grade = cellGrade, cell.Grade // the shield; the text is its tooltip (gradebadge.go)
 		}
-		if tv.snap.View == engine.ImageSecurity { // D-calm: coloured words, no pill (imagesecurity.go)
+		if engine.IsImageSecurity(tv.snap.View) { // D-calm: coloured words, no pill (imagesecurity.go)
 			content.tone, content.pill = imageSecTone(col, cell), false
 		}
 	}
@@ -876,7 +883,11 @@ func (tv *tableView) updateHeader(id widget.TableCellID, o fyne.CanvasObject) {
 		tv.headers = append(tv.headers, h)
 	}
 	if id.Row == -1 && tv.snap != nil && id.Col == checkColumn {
-		h.setFixed(false)      // a cell Fyne used for a fixed column before keeps its divider here
+		h.setFixed(false) // a cell Fyne used for a fixed column before keeps its divider here
+		if !tv.rowsAreObjects() {
+			h.setMenu(id.Col, false) // no checkbox over rows that are no objects
+			return
+		}
 		tv.check.showHeader(h) // the header's checkbox: every row shown, or none
 		return
 	}
@@ -940,6 +951,10 @@ func (tv *tableView) rowTapped(id widget.TableCellID) {
 	tv.updateKeyboardCell()
 	tv.setHoverCell(id.Row, id.Col)
 	tv.sh.tip.hide()
+	if !tv.rowsAreObjects() {
+		tv.imageSecCVETapped(id.Row) // a CVE: its findings (imagesecurity.go)
+		return
+	}
 	if id.Col == checkColumn { // Space or ↵ with the keyboard on a checkbox: ⇧ is the key's
 		tv.checkTapped(id.Row, keyEventModifiers())
 		return

@@ -6,6 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/storage"
+
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/ui/nativedialog"
 )
@@ -29,6 +33,7 @@ var (
 	caExtensions   = []string{"pem", "crt", "cer"}
 	yamlExtensions = []string{extYAML, "yml"}
 	csvExtensions  = []string{"csv"}
+	pdfExtensions  = []string{"pdf"}
 )
 
 // syncPanel is the Sync Files and Folders panel, the system's dialog as Lens opens one: files and
@@ -116,6 +121,39 @@ func (sh *shell) saveTable(name string, rows int, data []byte) {
 		return
 	}
 	sh.saveWithDialog(name, rows, data, nil)
+}
+
+// savePDF saves a PDF report where the user picks in the system's save panel, else in Fyne's
+// dialog.
+func (sh *shell) savePDF(name string, cves int, data []byte) {
+	done := func(path string, err error) {
+		if err != nil {
+			sh.toast("error", "Could not save the report: "+err.Error())
+			return
+		}
+		sh.toast("info", fmt.Sprintf("Saved the report of %s to %s", pluralOf(cves, "CVE"), filepath.Base(path)))
+	}
+	if sh.files.save(nativedialog.SaveOptions{Title: "Export PDF", Name: name, Types: pdfExtensions}, func(path string) {
+		sh.writePicked(path, data, func(err error) { done(path, err) })
+	}) {
+		return
+	}
+	d := dialog.NewFileSave(func(w fyne.URIWriteCloser, err error) {
+		if err == nil && w == nil {
+			return // cancelled
+		}
+		if err == nil {
+			err = writeAndClose(w, data)
+		}
+		path := ""
+		if w != nil {
+			path = w.URI().Name()
+		}
+		done(path, err)
+	}, sh.win)
+	d.SetFileName(name)
+	d.SetFilter(storage.NewExtensionFileFilter([]string{".pdf"}))
+	sh.showDialog(d)
 }
 
 // saveManifest is the Create tab's save: its text into the YAML file the user picks in the

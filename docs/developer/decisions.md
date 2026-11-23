@@ -186,7 +186,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-175](#d-175-a-nodes-memory-is-the-kubelets-working-set) | A node's memory is the kubelet's working set | built: node-exporter's node memory is `AnonPages + Cached + Buffers − Inactive(file)`, the root cgroup's working set the kubelet and the Metrics Server report |
 | [D-176](#d-176-two-update-runs-write-the-same-pictures) | Two `-update` runs write the same pictures | built: a picture waits for the window's reads; the demo's own clock; the churning demo's pictures with `-live` |
 | [D-177](#d-177-a-refused-read-is-given-back-and-shown) | A refused read is given back and shown | built: views, pages, drawers, related reads and the Trivy and Kyverno integrations give a refused read back, name it once, show "—" for what was not read; Refresh Access reads again |
-| [D-new](#d-new-the-image-security-page) | The Image Security page | built: under Integrations while Trivy is on; four cards, findings with search tokens, opens on sev>=high; the reports trimmed to the shown fields while it is open |
+| [D-new](#d-new-the-image-security-page) | The Image Security page | built: under Integrations while Trivy is on; an image counted by its digest; severity band, three cards, a findings curve from Prometheus; CVEs or findings with search tokens, opens on sev>=high; Export PDF; the reports trimmed to the shown fields while it is open |
 | [D-new](#d-new-the-velero-page) | The Velero page | built: under Integrations while the cluster serves Velero's Backups; tiles, Needs attention, Failed volume backups, Schedules, Outside every schedule; read-only, from the cache |
 | [D-calm](#d-calm-calm-colours-on-the-integrations-pages) | Calm colours on the integrations' pages | built: grey ground, red to act now, amber to check, good states without colour; Image Security and Velero |
 
@@ -7514,11 +7514,15 @@ such a kind (a node's Pods, a workload's Pods table) show what they show without
 
 **Status:** built · **By:** owner (the page under Integrations, the layout of cards over a findings
 search, its texts, the calm colours D-calm, the reports' vulnerability lists read while the page is
-open), lead (open to revision) the rest
+open; an image counted once by its digest with its containers beside, the switchable CVEs and
+findings tables, the severity band over the cards, the curve from Prometheus, the PDF report of
+the data), lead (open to revision) the rest
 
-A page, `trivy/image-security`, titled Image Security: the whole cluster's vulnerability load from
-Trivy Operator's VulnerabilityReports and a search over their findings. Read only, it writes
-nothing ([D-151](#d-151-integrations-never-write-to-the-cluster)).
+A page, `trivy/image-security` (its CVEs) and `trivy/image-security/findings` (its findings), titled
+Image Security: the whole cluster's vulnerability load from Trivy Operator's VulnerabilityReports,
+how often each CVE occurs and where, and a search over them. Read only, it writes nothing
+([D-151](#d-151-integrations-never-write-to-the-cluster)); no triage, which would be a write or
+state of Cogpit's own.
 
 - **Where:** a top-level entry under the navigator's Integrations heading
   ([D-149](#d-149-the-navigators-integrations-heading)) after Argo CD, its icon a shield's outline
@@ -7545,20 +7549,31 @@ nothing ([D-151](#d-151-integrations-never-write-to-the-cluster)).
   vulnerabilityreports.aquasecurity.github.io"; a read the API server refuses goes back, its refusal
   stays in the error line; either way no cards, no header line and no count, and the pods refused
   leave the running images out of the header.
+- **An image is its digest** (`report.artifact.digest`), else its repository and tag (the
+  registry and Docker Hub's `library/` left out): replicas and the same image in several workloads
+  or namespaces count once, a tag pushed again while pods still run the old image counts twice
+  (each has its own findings; its name then carries the digest's first 12 hex digits, as in
+  "shop/api:2.4.1@sha256:1a2b3c4d5e6f"), one digest under two names (a mirror) once. A
+  **container** is a workload's container (namespace, workload as the page names it, container),
+  so two reports of one Deployment's ReplicaSets are one.
 - **Header:** beside the title, "150 images running · 142 scanned · 8 not scanned · newest scan 2h
-  ago" # example: the distinct images (repository and tag, the registry and Docker Hub's
-  `library/` left out) of the pods in phase Running; scanned those a report covers in one of
+  ago" # example: the distinct images of the pods in phase Running (a scanned one by its report's
+  identity, the others by repository and tag); scanned those a report covers in one of
   them, by D-78's matching of a pod to its controller's report; the newest `report.updateTimestamp`.
   A user who may not list pods gets only the newest scan.
-- **Cards, for the selected namespaces** (the search narrows the table only):
-  Vulnerabilities, the distinct CVE ids by severity, each under the worst severity a finding gives
-  it, Critical to Low and Unknown when there is one, a bar each scaled to the largest, and "1,234
-  CVEs · 412 fixable" # example, fixable an id with a fixed version in one of its findings; Top
+- **Severity band, for the selected namespaces** (the search narrows the table only): the
+  distinct CVE ids by severity, each under the worst severity a finding gives it, Critical to Low
+  and Unknown when there is one, one segment per severity with ids, as wide as its share and at
+  least 34 points, its count on it; a legend and "1,234 CVEs · 412 fixable" # example under it,
+  fixable an id with a fixed version in one of its findings. A click on a segment puts
+  `sev:<severity>` in place of the search's severity tokens.
+- **Cards, for the selected namespaces:** Top
   images, the five worst by grade ([D-113](#d-113-image-grades-shields-from-trivys-reports)'s
   rank), then Critical, then High, the counts the report's summary has (those the grade comes
   from, as the Signals column and the drawer show them), an image's worst report where several
   scan it; Top CVEs, the five worst by severity (Critical, High, Medium, Low, Unknown), then by
-  the images they affect, then by id; Top namespaces, the five whose worst image grades worst,
+  the images they are found in, then by the containers, then by id, each with both counts; Top
+  namespaces, the five whose worst image grades worst,
   then by their distinct Critical and High ids.
 - **A click on an entry** narrows the table through the page's search, engine state
   (`ui.setFilter`): `image:<repository:tag>`, `cve:<id>`, `ns:<namespace>`, in place of a token
@@ -7575,8 +7590,21 @@ nothing ([D-151](#d-151-integrations-never-write-to-the-cluster)).
 - **Opens on `sev>=high`** whenever it opens afresh (a tab, the navigator), removable: unfiltered,
   findings exceed the lists' 10,000-row budget ([testing](testing.md#performance-budgets));
   measured on a real cluster, 23,059 findings of 1,819 distinct CVEs, 4,210 of them High or
-  Critical. Unknown is the largest severity there (13,661 findings), so the Vulnerabilities card
+  Critical. Unknown is the largest severity there (13,661 findings), so the severity band
   shows it whenever there is one.
+- **Two tables**, switched in the table's heading (CVEs | Findings, `trivy.imageSecurityTable`),
+  each its own page key so that each keeps its sort and columns and Back returns; the search
+  carries over, to the CVEs without its `cve:` tokens. The navigator marks the page's one entry for
+  both.
+- **Table "CVEs"** (the page opens on it): a row per CVE id among the findings the namespaces and
+  the search's tokens keep: Severity (the worst), CVE, Score (the highest), Package and Fixed
+  (each distinct value, in the findings' order; empty Fixed: no fix), Images, Containers, Runs in
+  ("shop/api/server, …", every container in its tooltip up to 30); the search's words match the
+  row's cells, so a workload's name finds the CVEs it runs. The worst first, then the most images,
+  then the most containers, then the id; a sort on a column keeps that order for ties. Total
+  counts every CVE id. A row is no object: its reference names the page's key and the CVE, the
+  window gives it no checkbox, menu or drawer, and a click shows the CVE's findings (the findings
+  table, `cve:<id>` in place of a `cve:` token).
 - **Table "Findings":** a row per vulnerability of a report: Namespace, Workload ("Deployment
   api"), Container, Image, CVE, Severity, Score, Package, Installed, Fixed; Total counts every
   finding. The worst severity first (sorted by level, not by word), ties by workload, then as read,
@@ -7588,13 +7616,40 @@ nothing ([D-151](#d-151-integrations-never-write-to-the-cluster)).
   opens at its top. A workload's rows share its object, so they mark together as the drawer's.
 - **Colours (D-calm):** grey is the ground; the Severity word Critical in the error colour, High
   in the warning colour, the others and the installed version muted; no pill, no row status; in
-  the cards Critical and High bold in their colours, their bars in the E and D crests' colours,
-  the other bars faint; the shields of S to C grey with the letter in the text colour, D and E in
+  the cards Critical and High bold in their colours; the band's and the curve's Critical and High
+  in the E and D crests' colours (the count on them white), Medium, Low and Unknown in greys from
+  light to faint; the shields of S to C grey with the letter in the text colour, D and E in
   their own, N/A as everywhere. The shield elsewhere stays as D-113 has it.
-- **Agents:** `trivy.imageSecurity` {context, namespaces, findings, filter (default `sev>=high`,
-  empty every finding), limit (100, at most 1000)} returns the header's counts, the cards with
-  their tokens and, with findings, the table cut at the limit with the matched count; refused while
-  the integration is off, not applicable where the reports are not served. It carries no
+- **Findings over time** (the owner's: from Prometheus, hidden where there is none): a card under
+  the others, while the Trivy and Prometheus integrations are on, of the findings (CVE × image)
+  by severity from Trivy Operator's `trivy_image_vulnerabilities` (labels checked in its
+  `pkg/metrics`: severity Critical, High, Medium, Low, Unknown; `namespace` the report's while the
+  chart's ServiceMonitor keeps `honorLabels: true`, its default): `sum by (severity) (max by
+  (image_digest, severity) (…{image_digest!=""}) or max by (image_repository, image_tag, severity)
+  (…{image_digest=""}))`, the window's namespaces as a quoted `namespace=~` matcher. A stacked bar
+  per point: 7 days a point every 6 hours, 30 # default and 90 days one a day, the last at the
+  current minute (`trivy.setTrendRange`, UI state); a time without series has no bar, not a zero.
+  Asked through the Prometheus the metrics hub found, when the page shows, when the range or the
+  namespaces change and every 15 minutes, a failure retried after 30 seconds doubling to 15
+  minutes with the last answer kept; nothing while the page is not shown. No series at all is told
+  apart from none in the namespaces by `count(trivy_image_vulnerabilities)`: "Prometheus does not
+  scrape Trivy Operator's metrics (trivy_image_vulnerabilities)". A query beyond 7 KiB of
+  namespaces is not sent. The demo cluster draws a deterministic curve ending at its reports'
+  findings ("Demo data").
+- **Export PDF** (the page's header, `trivy.exportImageSecurityPdf`): a text report rendered by
+  [`pdfreport`](../../internal/pdfreport/) with `github.com/signintech/gopdf` and the Go fonts
+  (embedded, subset): A4 landscape; the header line, the band, the three cards, the curve, then
+  every CVE the window's namespaces and search keep in the CVEs table's order (the page's default
+  search when it is not open), each with all its containers (namespace, workload, container,
+  image, installed → fixed); the table head repeated on each page, a CVE split across a page break
+  marked "(continued)", every text cut with "…" to its column, "page n of m" in the footer. Named
+  "image-security-<cluster>-<date>.pdf", saved in the system's save panel. 2,000 CVEs of 20
+  containers each render in about a second (1,049 pages, 2.4 MB, measured on an M1 Ultra).
+- **Agents:** `trivy.imageSecurity` {context, namespaces, table (`cves`, `findings`), filter
+  (default `sev>=high`, empty every row), limit (100, at most 1000)} returns the header's counts,
+  the band's and cards' data with their tokens, the curve, and with table that table cut at the
+  limit with the matched count; refused while the integration is off, not applicable where the
+  reports are not served. `trivy.exportImageSecurityPdf` returns the report in base64. It carries no
   vulnerability's title or description (the trim drops them,
   [H-11](../security/agents-and-mcp.md#h-11-instructions-hidden-in-cluster-data)).
 - **The demo cluster** serves synthetic reports (`internal/demo/trivy.go`): a report per
@@ -7602,13 +7657,22 @@ nothing ([D-151](#d-151-integrations-never-write-to-the-cluster)).
   of its own.
 
 **Why:** the owner's pick of the layout (cards and a findings search) and its calm colours: one
-look at the cards says where to act, the search answers "where does this CVE or package run".
-Distinct CVE ids, not findings, count the load, since one CVE in many images is one fix upstream;
+look at the band and cards says where to act, the CVEs table answers "how often and where does
+this CVE run". An image counts once because it is the unit of a fix (one rebuild or version bump
+fixes it wherever it runs); by digest because a tag says nothing about content; the containers
+beside it say how far it spread. Distinct CVE ids, not findings, count the load, since one CVE in
+many images is one fix upstream;
 the images keep their summary counts, so that a shield's number is the same here as in the Pods
 list. A trimmed scope keeps memory to what is shown, since Trivy's opt-in fields can bring a report
 close to etcd's object limit, and leaves the third-party texts out of the agents' read.
 
-**Rejected:** the reports' whole objects while the page is open (twice the trimmed heap for fields
+**Rejected:** counting an image by repository and tag (a tag pushed again while old pods run
+merges two images and their findings), once per namespace (Grafana 16337's; a base image in 40
+deployments would count 40 times though one rebuild fixes it) or per container as the headline;
+CVE rows as expandable folds (sort, CSV and the agents' rows per container lost); a curve from
+Cogpit's own history (empty at first, gaps on days without Cogpit) or none; `max_over_time` per
+point (its sample cost on a large cluster); `go-pdf/fpdf` (archived); a picture of the window as
+the PDF (only the rows on screen, not searchable); the reports' whole objects while the page is open (twice the trimmed heap for fields
 nobody sees, the shared informer only with the reports' own view, seldom open beside the page);
 Top CVEs ranked by the images they affect first (on the demo the card showed only Low and
 Medium CVEs, and on the real cluster, Unknown in 13,661 of 23,059 findings and old distribution
@@ -7617,16 +7681,26 @@ fields first proposed, deleted in place (8 % less heap, measured: the maps keep 
 size, and title, link and date are not shown); a namespace entry setting the namespace filter (the cards would follow it); chips
 for the tokens (a token editor Fyne lacks, for what plain text already does); reading the
 ReplicaSets to find their Deployment (one more watch for what the name tells); the row opening a
-running pod's drawer (the row names the workload); counting findings in the Vulnerabilities card.
+running pod's drawer (the row names the workload); counting findings in the severity band.
 
 **Code:** [`engine/imagesecurity.go`](../../internal/engine/imagesecurity.go),
 [`engine/imagesecurity_model.go`](../../internal/engine/imagesecurity_model.go),
+[`engine/imagesecurity_cves.go`](../../internal/engine/imagesecurity_cves.go),
+[`engine/imagesecurity_trend.go`](../../internal/engine/imagesecurity_trend.go),
+[`engine/imagesecurity_pdf.go`](../../internal/engine/imagesecurity_pdf.go),
+[`metrics/promtrivy.go`](../../internal/metrics/promtrivy.go),
+[`pdfreport`](../../internal/pdfreport/),
 [`commands/trivy_security.go`](../../internal/engine/commands/trivy_security.go),
+[`commands/imagesecurity_trend.go`](../../internal/engine/commands/imagesecurity_trend.go),
 [`fyneui/imagesecurity.go`](../../internal/ui/fyneui/imagesecurity.go),
 [`fyneui/calmtone.go`](../../internal/ui/fyneui/calmtone.go),
 [`fyneui/gradebadge.go`](../../internal/ui/fyneui/gradebadge.go) `newCalmGradeBadge`,
 [`demo/trivy.go`](../../internal/demo/trivy.go) · **Tests:** `TestImageSecurityModel`,
-`TestImageSecurityFindings`, `TestImageSecurityPage`, `TestImageSecurityNotServed`,
+`TestImageSecurityFindings`, `TestImageSecurityCVEs`, `TestImageSecurityCountsByDigest`,
+`TestImageSecurityFilters`, `TestImageSecurityPDF`, `TestTrivyFindings`, `TestTrivyFindingsNotScraped`,
+`TestTrendPollerCadence`, `TestTrendPollerFailures`, `TestImageSecurityTrendOnThePage`, `TestDemoImageSecurityTrend`,
+`TestImageSecurityTrendRange`, `TestRenderSmall`, `TestRenderContinuedCVE`, `TestFitNeverOverflows`, `TestRenderLarge`,
+`TestImageSecurityPage`, `TestImageSecurityNotServed`,
 `TestTrivyWorkloadRef`, `TestTrimVulnerabilityFindings`, `TestImageSecurityCommand`,
 `TestImageSecurityInTheNavigator`, `TestImageSecurityPageInTheWindow`,
 `TestRenderImageSecurityDark`, `TestRenderImageSecurityLight`, `TestDemoVulnerabilityReports`,

@@ -1586,12 +1586,20 @@ right applies to the whole page.
 
 - **Header:** "93 images running · 81 scanned · 12 not scanned · newest scan 6m ago" # example:
   the distinct images of running pods, those a report covers, the latest scan.
-- **Cards:** Vulnerabilities (the distinct CVE ids by severity, each under its worst, and how many
-  have a fix), Top images (grade shield, image, Critical and High), Top CVEs (severity, id, images
-  affected), Top namespaces (worst grade, Critical and High). A click on an entry narrows the
-  table to it by adding its token to the search.
-- **Search:** the field across the findings' header row; plain words search every cell (Aa and `.*` as in any view), and these words narrow
-  the findings:
+- **Counting:** an image is its digest (Trivy's `report.artifact.digest`, else repository and tag):
+  replicas and the same image in several workloads or namespaces count once; a tag pushed again
+  while pods still run the old image counts twice, its name then followed by the digest's start
+  ("shop/api:2.4.1@sha256:1a2b3c4d5e6f" # example). A container is a workload's container
+  ("shop/api/server": namespace, workload, container).
+- **Severity band:** the distinct CVE ids by severity (each under its worst), one segment per
+  severity as wide as its share, its count on it; under it the legend and "188 CVEs · 119
+  fixable" # example. A click on a segment keeps that severity (`sev:critical` in place of the
+  search's severity tokens).
+- **Cards:** Top images (grade shield, image, Critical and High), Top CVEs (severity, id, images
+  and containers it is found in), Top namespaces (worst grade, Critical and High). A click on an
+  entry narrows the table to it by adding its token to the search.
+- **Search:** the field across the table's header row; plain words search every cell (Aa and `.*`
+  as in any view), and these words narrow the rows:
 
   | Token | Keeps |
   |---|---|
@@ -1604,15 +1612,38 @@ right applies to the whole page.
   | `cve:CVE-2024-45337` # example | that CVE |
 
   The same token twice means either (`sev:low sev:unknown`). The page opens with `sev>=high`;
-  clear the field for every finding.
-- **Findings:** one row per CVE, workload and container: Namespace, Workload ("Deployment api"),
-  Container, Image, CVE, Severity, Score, Package, Installed, Fixed; the worst first, sortable,
-  downloadable as CSV. A click opens the workload's drawer (a bare pod's at the container).
+  clear the field for every row. On the CVEs the tokens pick the findings a CVE is counted from:
+  `ns:shop` counts its images and containers in shop alone.
+- **CVEs** (the table the page opens with): one row per CVE: Severity, CVE, Score (the highest),
+  Package, Fixed (every fixed version, empty: no fix), Images, Containers, Runs in (the
+  containers, all of them in its tooltip up to 30); the worst first, then the most images, then
+  the most containers; sortable, downloadable as CSV. A CVE is no object: no checkbox, no menu; a
+  click shows its findings.
+- **Findings:** the switch in the table's heading (CVEs | Findings), or a click on a CVE (its
+  `cve:` token added; back to the CVEs drops it; ⌘[ returns as well). One row per CVE, workload and
+  container: Namespace, Workload ("Deployment api"), Container, Image, CVE, Severity, Score,
+  Package, Installed, Fixed; the worst first, sortable, downloadable as CSV. A click opens the
+  workload's drawer (a bare pod's at the container).
+- **Findings over time** (while the Prometheus integration is on and the cluster has a Prometheus):
+  a stacked bar per day (every 6 hours for 7 days) of the findings by severity, read from Trivy
+  Operator's metric `trivy_image_vulnerabilities`, a CVE counted once per image (its digest, else
+  repository and tag); 7, 30 # default or 90 days; for the window's namespaces. Asked when the page
+  opens, the range or the namespaces change, and every 15 minutes while it shows. Where Prometheus
+  does not scrape Trivy Operator the card says so; a time Prometheus has nothing for has no bar.
+  The demo cluster draws a curve of its own ("Demo data").
+- **Export PDF** (the page's header): a report of the page as it stands, A4 landscape: the header
+  line, the band, the three cards, the curve, then every CVE the search keeps, each with all the
+  containers it runs in (namespace, workload, container, image, installed → fixed version). Saved
+  where you pick, named "image-security-<cluster>-<date>.pdf" # example.
 - **Colours:** red for Critical and the E shield, amber for High and D, everything else grey.
-- **Agents:** `trivy_imageSecurity {context?, namespaces?, findings?, filter?, limit?}` reads the
-  page; `ui_setFilter` sets its search. No vulnerability's title or description is read.
+- **Agents:** `trivy_imageSecurity {context?, namespaces?, table?, filter?, limit?}` reads the
+  page (its curve included), with `table` `cves` or `findings` one of its tables;
+  `trivy_imageSecurityTable {table, cve?}` switches the shown table; `trivy_setTrendRange {days}`
+  sets the curve's range; `trivy_exportImageSecurityPdf {context?}` returns the report;
+  `ui_setFilter` sets its search. No vulnerability's title or description is read.
 - **Reads:** the reports, without the fields the page does not show, and the pods, only while the
-  page is open. Off: no entry, nothing read. Reports you may not list: the error line says so
+  page is open; for the curve, two queries of the cluster's Prometheus through the API server's
+  service proxy, with your identity, while the page shows. Off: no entry, nothing read. Reports you may not list: the error line says so
   ("Cogpit may not list vulnerabilityreports.aquasecurity.github.io", or the cluster's refusal),
   without cards or counts, and they are not asked for again until Refresh Access Reviews or the
   page is opened again.

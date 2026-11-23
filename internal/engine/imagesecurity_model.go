@@ -73,7 +73,8 @@ type imageSecReport struct {
 	r        model.VulnerabilityReport
 	ref      model.ObjectRef // the workload (trivyWorkloadRef); the report itself for a kind Cogpit does not open
 	workload string          // "Deployment api"
-	image    string          // model.VulnerabilityReport.Image: "library/nginx:1.21"
+	image    string          // model.VulnerabilityReport.Image: "library/nginx:1.21", its digest after it while another image has the same name (imageSecNames)
+	id       string          // the image's identity (imageIdentity)
 	from, to int             // its findings: findings[from:to]
 }
 
@@ -94,6 +95,7 @@ type imageSecPodImage struct {
 type imageSecBuild struct {
 	reports  []imageSecReport // by namespace, workload, container
 	findings []imageSecFinding
+	cves     int // the distinct CVE ids of all findings
 	pods     []imageSecPod
 	// podsRead is false when the page reads no pods (the user may not list them): the header then
 	// counts no running images.
@@ -117,9 +119,10 @@ func newImageSecBuild(context string, reports, pods []*unstructured.Unstructured
 			continue
 		}
 		ref, workload := trivyWorkloadRef(context, r)
-		parsed = append(parsed, imageSecReport{r: r, ref: ref, workload: workload, image: r.Image()})
+		parsed = append(parsed, imageSecReport{r: r, ref: ref, workload: workload, image: r.Image(), id: imageIdentity(r)})
 		lists = append(lists, model.NestedSlice(obj.Object, "report", "vulnerabilities"))
 	}
+	imageSecNames(parsed)
 	order := make([]int, len(parsed))
 	for i := range order {
 		order[i] = i
@@ -129,6 +132,7 @@ func newImageSecBuild(context string, reports, pods []*unstructured.Unstructured
 		return cmp.Or(cmp.Compare(x.r.Namespace, y.r.Namespace), cmp.Compare(x.workload, y.workload),
 			cmp.Compare(x.r.Container, y.r.Container), cmp.Compare(x.r.Name, y.r.Name))
 	})
+	cves := map[string]struct{}{}
 	for _, i := range order {
 		rep := parsed[i]
 		rep.from = len(fb.findings)
@@ -137,6 +141,7 @@ func newImageSecBuild(context string, reports, pods []*unstructured.Unstructured
 			if f, ok := parseFinding(v); ok {
 				f.report = idx
 				fb.findings = append(fb.findings, f)
+				cves[f.cve] = struct{}{}
 			}
 		}
 		rep.to = len(fb.findings)
@@ -146,6 +151,7 @@ func newImageSecBuild(context string, reports, pods []*unstructured.Unstructured
 		})
 		fb.reports = append(fb.reports, rep)
 	}
+	fb.cves = len(cves)
 	if podsRead {
 		idx, _ := newTrivyReportIndex(reports)
 		fb.pods = runningPodImages(idx, pods)
@@ -183,6 +189,46 @@ func imageKey(image string) string {
 	return repo + ":" + tag
 }
 
+// imageIdentity is what makes two reports' images one image for the page's counts (D-new, the
+// owner's): the digest Trivy Operator wrote (report.artifact.digest), else the repository and tag
+// (imageKey). The same image in several workloads or namespaces is one image; a tag pushed again
+// while pods still run the old one is two, each with its own findings; one digest under two names
+// (a mirror) is one.
+func imageIdentity(r model.VulnerabilityReport) string {
+	if r.Digest != "" {
+		return r.Digest
+	}
+	return imageKey(r.Image())
+}
+
+// shortDigest is the start of a digest that tells images apart on screen: "sha256:1a2b3c4d5e6f".
+func shortDigest(d string) string {
+	const keep = len("sha256:") + 12
+	if len(d) > keep {
+		return d[:keep]
+	}
+	return d
+}
+
+// imageSecNames writes the digest after an image's name where two images (identities) share the
+// name, so that their rows and card entries tell them apart: "shop/api:2.4@sha256:1a2b3c4d5e6f".
+func imageSecNames(reports []imageSecReport) {
+	ids := map[string]map[string]struct{}{}
+	for i := range reports {
+		r := &reports[i]
+		if ids[r.image] == nil {
+			ids[r.image] = map[string]struct{}{}
+		}
+		ids[r.image][r.id] = struct{}{}
+	}
+	for i := range reports {
+		r := &reports[i]
+		if len(ids[r.image]) > 1 && r.r.Digest != "" && r.r.Tag != "" {
+			r.image += "@" + shortDigest(r.r.Digest)
+		}
+	}
+}
+
 // runningPodImages is every running pod's images, each marked scanned when a report covers it
 // (the Trivy integration's own matching, trivyReportIndex.podImages).
 func runningPodImages(idx trivyReportIndex, pods []*unstructured.Unstructured) []imageSecPod {
@@ -193,7 +239,11 @@ func runningPodImages(idx trivyReportIndex, pods []*unstructured.Unstructured) [
 		}
 		p := imageSecPod{namespace: pod.GetNamespace()}
 		for _, im := range idx.podImages(pod) {
-			p.images = append(p.images, imageSecPodImage{key: imageKey(im.image), scanned: im.report != nil})
+			key := imageKey(im.image)
+			if im.report != nil {
+				key = imageIdentity(*im.report) // as the cards count it
+			}
+			p.images = append(p.images, imageSecPodImage{key: key, scanned: im.report != nil})
 		}
 		out = append(out, p)
 	}
@@ -412,17 +462,18 @@ const (
 	isColumnFixed     = "fixed"
 )
 
-// imageSecProfile is the profile of the page's table: one row per finding, rows of the workloads'
-// kinds (MixedKinds). Its key is the page's, so that no kind is mistaken for it.
+// imageSecProfile is the profile of the findings table: one row per finding, rows of the
+// workloads' kinds (MixedKinds). Its key is the page's with that table, so that no kind is
+// mistaken for it.
 var imageSecProfile = &model.KindProfile{
-	Key: ImageSecurity, Title: imageSecTableTitle, Namespaced: true,
+	Key: ImageSecurityFindings, Title: imageSecTableTitle, Namespaced: true,
 	Columns: []model.Column{
 		{ID: columnNamespace, Title: titleNamespace, Type: model.ColumnText, Width: 96},
 		{ID: isColumnWorkload, Title: "Workload", Type: model.ColumnText, Width: 160},
 		{ID: isColumnContainer, Title: "Container", Type: model.ColumnText, Width: 90},
 		{ID: isColumnImage, Title: isTitleImage, Type: model.ColumnText, Width: 170},
-		{ID: isColumnCVE, Title: "CVE", Type: model.ColumnText, Width: 126},
-		{ID: isColumnSeverity, Title: "Severity", Type: model.ColumnNumber, Width: 84},
+		{ID: isColumnCVE, Title: titleCVE, Type: model.ColumnText, Width: 126},
+		{ID: isColumnSeverity, Title: titleSeverity, Type: model.ColumnNumber, Width: 84},
 		{ID: isColumnScore, Title: "Score", Type: model.ColumnNumber, Width: 56},
 		{ID: isColumnPackage, Title: "Package", Type: model.ColumnText, Width: 150},
 		{ID: isColumnInstalled, Title: "Installed", Type: model.ColumnText, Width: 100},
@@ -467,9 +518,18 @@ func findingRow(f *imageSecFinding, r *imageSecReport) model.Row {
 	}
 }
 
-// imageSecTable is the page's table: the findings in the namespaces that the search keeps, sorted.
-// Total counts every finding.
-func imageSecTable(context string, fb *imageSecBuild, p viewParams) *TableSnapshot {
+// imageSecTable is the page's table the view names: the CVEs (ImageSecurity, imageSecCVETable) or
+// the findings (ImageSecurityFindings).
+func imageSecTable(context, view string, fb *imageSecBuild, p viewParams) *TableSnapshot {
+	if view == ImageSecurityFindings {
+		return imageSecFindingsTable(context, fb, p)
+	}
+	return imageSecCVETable(context, fb, p)
+}
+
+// imageSecFindingsTable is the findings table: the findings in the namespaces that the search
+// keeps, sorted. Total counts every finding.
+func imageSecFindingsTable(context string, fb *imageSecBuild, p viewParams) *TableSnapshot {
 	nsSet := setOf(p.namespaces)
 	q := parseFindingQuery(p.filter)
 	textParams := p
@@ -496,9 +556,9 @@ func imageSecTable(context string, fb *imageSecBuild, p viewParams) *TableSnapsh
 		}
 		rows = append(rows, row)
 	}
-	sortFindings(rows, p.sort)
+	sortImageSecRows(imageSecProfile, rows, p.sort)
 	snap := &TableSnapshot{
-		View: ImageSecurity, Context: context, Title: ImageSecurityTitle, Namespaced: true,
+		View: ImageSecurityFindings, Context: context, Title: ImageSecurityTitle, Namespaced: true,
 		Columns: ColumnsShown(imageSecProfile.Columns, p.hidden, p.hiddenSet), Order: ColumnOrder(imageSecProfile.Columns, p.order),
 		Rows: rows, Sort: p.sort,
 		Namespaces: slices.Clone(p.namespaces), Filter: p.filter, FilterOptions: p.filterOpts, FilterError: filterErr,
@@ -510,15 +570,20 @@ func imageSecTable(context string, fb *imageSecBuild, p viewParams) *TableSnapsh
 	return snap
 }
 
-// sortFindings sorts the rows by the column, ties by the workload, then as the build ordered them
-// (namespace, workload, container, the worst severity first): stable, so that rows do not change
-// places between two builds.
-func sortFindings(rows []model.Row, spec SortSpec) {
-	ci := imageSecProfile.ColumnIndex(spec.Column)
+// sortImageSecRows sorts a table's rows by the column: stable, so that rows do not change places
+// between two builds. Findings' ties go by their workload, then as the build ordered them
+// (namespace, workload, container, the worst severity first); CVEs' ties as collectCVEs ordered
+// them (the most images, then the most containers).
+func sortImageSecRows(prof *model.KindProfile, rows []model.Row, spec SortSpec) {
+	ci := prof.ColumnIndex(spec.Column)
 	if ci < 0 {
 		return
 	}
-	typ := imageSecProfile.Columns[ci].Type
+	typ := prof.Columns[ci].Type
+	if prof == imageSecCVEProfile { // a CVE's row names no object: ties keep the worst first
+		slices.SortStableFunc(rows, func(a, b model.Row) int { return compareCells(&a, &b, ci, typ, spec.Desc) })
+		return
+	}
 	slices.SortStableFunc(rows, func(a, b model.Row) int { return compareRows(&a, &b, ci, typ, spec.Desc) })
 }
 
@@ -530,8 +595,9 @@ type ImageSecurityModel struct {
 	// PodsRead is false when the page reads no pods (the user may not list them): Running, Scanned
 	// and NotScanned are then 0 and mean nothing.
 	PodsRead bool `json:"podsRead"`
-	// Running counts the distinct images (repository and tag) of the running pods' containers,
-	// Scanned those of them a report covers, NotScanned the others.
+	// Running counts the distinct images of the running pods' containers (a scanned one by its
+	// report's digest, else by repository and tag), Scanned those of them a report covers,
+	// NotScanned the others.
 	Running    int `json:"running"`
 	Scanned    int `json:"scanned"`
 	NotScanned int `json:"notScanned"`
@@ -546,11 +612,15 @@ type ImageSecurityModel struct {
 	Severities []ImageSecuritySeverity `json:"severities"`
 	// TopImages are the five worst images: by grade (D-113), then Critical, then High.
 	TopImages []ImageSecurityImage `json:"topImages"`
-	// TopCVEs are the five worst CVEs: by severity, then by the images they affect, then by id.
+	// TopCVEs are the five worst CVEs: by severity, then by the images they affect, then by the
+	// containers, then by id.
 	TopCVEs []ImageSecurityCVE `json:"topCves"`
 	// TopNamespaces are the five worst namespaces: by their worst image's grade, then Critical,
 	// then High.
 	TopNamespaces []ImageSecurityNamespace `json:"topNamespaces"`
+	// Trend is the findings curve from Prometheus (imagesecurity_trend.go); nil where there is no
+	// Prometheus to ask or an integration is off.
+	Trend *ImageSecurityTrend `json:"trend,omitempty"`
 	// Synced is false while the reports or the pods are still being listed.
 	Synced bool `json:"synced"`
 	// Error says why the page shows nothing (the integration off, the reports not served), or what
@@ -582,8 +652,12 @@ type ImageSecurityCVE struct {
 	ID       string       `json:"id"`
 	Severity string       `json:"severity"`
 	Status   model.Status `json:"status,omitempty"`
-	Images   int          `json:"images"`
-	Token    string       `json:"token"`
+	// Images counts the distinct images it is found in (by digest, else repository and tag;
+	// replicas and the same image in several workloads count once), Containers the workloads'
+	// containers that run them.
+	Images     int    `json:"images"`
+	Containers int    `json:"containers"`
+	Token      string `json:"token"`
 }
 
 // ImageSecurityNamespace is one entry of Top namespaces: its worst image's grade, and its distinct
@@ -599,17 +673,20 @@ type ImageSecurityNamespace struct {
 // imageSecTop is how many entries a card lists.
 const imageSecTop = 5
 
-// cveTally is what the cards count of one CVE id.
+// cveTally is what the cards count of one CVE id: its images (imageIdentity) and its containers
+// (imageSecReport.placeKey).
 type cveTally struct {
-	sev     int
-	fixable bool
-	images  map[string]struct{}
+	sev        int
+	fixable    bool
+	images     map[string]struct{}
+	containers map[string]struct{}
 }
 
-// imageTally is one image of Top images: its worst report.
+// imageTally is one image of Top images: its worst report, and its name as the rows write it.
 type imageTally struct {
 	r    model.VulnerabilityReport
 	rank int64
+	name string
 }
 
 // nsTally is one namespace of Top namespaces.
@@ -683,8 +760,8 @@ func countRunning(pods []imageSecPod, in func(string) bool) (running, scanned in
 // tallyReport adds a report and its findings to the cards' tallies.
 func tallyReport(r *imageSecReport, findings []imageSecFinding, cves map[string]*cveTally, images map[string]*imageTally, spaces map[string]*nsTally) {
 	rank := reportRank(r.r)
-	if cur := images[r.image]; cur == nil || worseReport(r.r, cur.r) {
-		images[r.image] = &imageTally{r: r.r, rank: rank}
+	if cur := images[r.id]; cur == nil || worseReport(r.r, cur.r) {
+		images[r.id] = &imageTally{r: r.r, rank: rank, name: r.image}
 	}
 	ns := spaces[r.r.Namespace]
 	if ns == nil {
@@ -698,12 +775,13 @@ func tallyReport(r *imageSecReport, findings []imageSecFinding, cves map[string]
 		f := &findings[i]
 		t := cves[f.cve]
 		if t == nil {
-			t = &cveTally{sev: f.sev, images: map[string]struct{}{}}
+			t = &cveTally{sev: f.sev, images: map[string]struct{}{}, containers: map[string]struct{}{}}
 			cves[f.cve] = t
 		}
 		t.sev = max(t.sev, f.sev)
 		t.fixable = t.fixable || f.fixed != ""
-		t.images[r.image] = struct{}{}
+		t.images[r.id] = struct{}{}
+		t.containers[r.placeKey()] = struct{}{}
 		ns.cves[f.cve] = struct{}{}
 	}
 }
@@ -730,24 +808,30 @@ func severityCounts(cves map[string]*cveTally) ([]ImageSecuritySeverity, int) {
 }
 
 func topImages(images map[string]*imageTally) []ImageSecurityImage {
-	out := make([]ImageSecurityImage, 0, len(images))
-	for key, t := range images {
-		out = append(out, ImageSecurityImage{Image: key, Grade: t.r.Grade(), Critical: t.r.Counts.Critical, High: t.r.Counts.High, Token: tokenImage + key})
+	ranked := make([]*imageTally, 0, len(images))
+	for _, t := range images {
+		ranked = append(ranked, t)
 	}
-	slices.SortFunc(out, func(a, b ImageSecurityImage) int {
-		return cmp.Or(cmp.Compare(images[b.Image].rank, images[a.Image].rank), cmp.Compare(b.Critical, a.Critical),
-			cmp.Compare(b.High, a.High), cmp.Compare(a.Image, b.Image))
+	slices.SortFunc(ranked, func(a, b *imageTally) int {
+		return cmp.Or(cmp.Compare(b.rank, a.rank), cmp.Compare(b.r.Counts.Critical, a.r.Counts.Critical),
+			cmp.Compare(b.r.Counts.High, a.r.Counts.High), cmp.Compare(a.name, b.name))
 	})
-	return out[:min(len(out), imageSecTop)]
+	out := make([]ImageSecurityImage, 0, min(len(ranked), imageSecTop))
+	for _, t := range ranked[:min(len(ranked), imageSecTop)] {
+		out = append(out, ImageSecurityImage{Image: t.name, Grade: t.r.Grade(), Critical: t.r.Counts.Critical, High: t.r.Counts.High, Token: tokenImage + t.name})
+	}
+	return out
 }
 
 func topCVEs(cves map[string]*cveTally) []ImageSecurityCVE {
 	out := make([]ImageSecurityCVE, 0, len(cves))
 	for id, t := range cves {
-		out = append(out, ImageSecurityCVE{ID: id, Severity: trivySeverities[t.sev], Status: severityStatus(t.sev), Images: len(t.images), Token: tokenCVE + id})
+		out = append(out, ImageSecurityCVE{ID: id, Severity: trivySeverities[t.sev], Status: severityStatus(t.sev), Images: len(t.images),
+			Containers: len(t.containers), Token: tokenCVE + id})
 	}
 	slices.SortFunc(out, func(a, b ImageSecurityCVE) int {
-		return cmp.Or(cmp.Compare(cves[b.ID].sev, cves[a.ID].sev), cmp.Compare(b.Images, a.Images), cmp.Compare(a.ID, b.ID))
+		return cmp.Or(cmp.Compare(cves[b.ID].sev, cves[a.ID].sev), cmp.Compare(b.Images, a.Images), cmp.Compare(b.Containers, a.Containers),
+			cmp.Compare(a.ID, b.ID))
 	})
 	return out[:min(len(out), imageSecTop)]
 }

@@ -23,8 +23,19 @@ import (
 // them without their vulnerability lists, trivy.go) and the pods, for the images that run. Both
 // are released when the page closes. The model and the table are imagesecurity_model.go's.
 
-// ImageSecurity is the page key of the Image Security page.
-const ImageSecurity = "trivy/image-security"
+// ImageSecurity is the page key of the Image Security page with its CVEs table, one row per CVE;
+// ImageSecurityFindings the same page with its findings table, one row per CVE, workload and
+// container. Both are one page: the same header, cards and reading; the key says which table it
+// shows, so that each table keeps its own sort and columns and Back returns from one to the other.
+const (
+	ImageSecurity         = "trivy/image-security"
+	ImageSecurityFindings = "trivy/image-security/findings"
+)
+
+// IsImageSecurity reports whether a view is the Image Security page, with either table.
+func IsImageSecurity(view string) bool {
+	return view == ImageSecurity || view == ImageSecurityFindings
+}
 
 // ImageSecurityTitle is the page's title in its header, its tab and the navigator.
 const ImageSecurityTitle = "Image Security"
@@ -51,7 +62,9 @@ var pageFilters = map[string]string{}
 
 func init() {
 	pageTitles[ImageSecurity] = ImageSecurityTitle
+	pageTitles[ImageSecurityFindings] = ImageSecurityTitle
 	pageFilters[ImageSecurity] = ImageSecurityDefaultFilter
+	pageFilters[ImageSecurityFindings] = ImageSecurityDefaultFilter
 	cache.RegisterTrim(trivyFindingsTrim, trimVulnerabilityFindings)
 }
 
@@ -252,6 +265,7 @@ type imageSecWorker struct {
 
 	mu       sync.Mutex
 	params   viewParams
+	view     string // the table shown: ImageSecurity (the CVEs) or ImageSecurityFindings
 	builtGen uint64 // the source's gen the build was made at; the loop's alone
 
 	snap     atomic.Pointer[TableSnapshot]
@@ -263,8 +277,8 @@ type imageSecWorker struct {
 }
 
 // startImageSecurity starts the page's worker; the first build runs at once.
-func (s *Session) startImageSecurity(b *Backend, reason string, params viewParams) *imageSecWorker {
-	w := &imageSecWorker{s: s, backend: b, params: params, wake: make(chan struct{}, 1), quit: make(chan struct{})}
+func (s *Session) startImageSecurity(b *Backend, reason, view string, params viewParams) *imageSecWorker {
+	w := &imageSecWorker{s: s, backend: b, params: params, view: view, wake: make(chan struct{}, 1), quit: make(chan struct{})}
 	w.refused.startAt(b.ns.refusalsGen())
 	wake := w.wake
 	w.src = newImageSecSource(b, reason, b.acquireForPage, func() { signal(wake) }) // nothing while a plan is pending
@@ -275,10 +289,10 @@ func (s *Session) startImageSecurity(b *Backend, reason string, params viewParam
 	return w
 }
 
-func (w *imageSecWorker) setParams(p viewParams) {
+func (w *imageSecWorker) setParams(view string, p viewParams) {
 	w.mu.Lock()
-	changed := !w.params.equal(p)
-	w.params = p
+	changed := !w.params.equal(p) || w.view != view
+	w.params, w.view = p, view
 	w.mu.Unlock()
 	if changed {
 		signal(w.wake)
@@ -315,31 +329,32 @@ func (w *imageSecWorker) rebuild() {
 		}
 	}()
 	w.mu.Lock()
-	p := w.params
+	p, view := w.params, w.view
 	w.mu.Unlock()
 	fb := w.build.Load()
 	if gen := w.src.gen.Load(); fb == nil || gen != w.builtGen || w.unsettled() {
 		w.builtGen = gen // before the list: an event during the build builds it again
 		fb = w.src.build(w.backend.Context)
 	}
-	snap := imageSecTable(w.backend.Context, fb, p)
+	snap := imageSecTable(w.backend.Context, view, fb, p)
 	snap.Revision = w.s.state.snapshots.Add(1)
 	if w.stopped.Load() {
 		return
 	}
 	w.build.Store(fb)
 	w.snap.Store(snap)
-	w.s.emit(Event{Type: EventTable, View: ImageSecurity, Revision: snap.Revision})
+	w.s.emit(Event{Type: EventTable, View: view, Revision: snap.Revision})
 }
 
 // ImageSecurity returns the page's model for the given namespaces (nil: the namespace filter the
-// user has set) and, with findings, its table for a search (nil: the page's default,
-// ImageSecurityDefaultFilter). While the page is open on the cluster it is built from the page's
+// user has set) and, with table (ImageSecurity for the CVEs, ImageSecurityFindings for the
+// findings; "" none), that table for a search (nil: the page's default,
+// ImageSecurityDefaultFilter) in its default order. While the page is open on the cluster it is built from the page's
 // latest reading; otherwise from a reading of its own: the page's handles are held for the call,
 // which waits (bounded by ctx and 15 seconds) for their initial lists, and released after. It
 // fails while the Trivy integration is off for the cluster or the cluster does not serve the
 // reports.
-func (s *Session) ImageSecurity(ctx context.Context, contextID string, namespaces []string, filter *string, findings bool) (*ImageSecurityModel, *TableSnapshot, error) {
+func (s *Session) ImageSecurity(ctx context.Context, contextID string, namespaces []string, filter *string, table string) (*ImageSecurityModel, *TableSnapshot, error) {
 	b, err := s.TargetBackend(contextID) // the context's cluster, "" the shown one (D-69)
 	if err != nil {
 		return nil, nil, err
@@ -352,9 +367,30 @@ func (s *Session) ImageSecurity(ctx context.Context, contextID string, namespace
 		namespaces = s.windowNamespaces(b)
 	}
 	params := viewParams{namespaces: slices.Clone(namespaces), filter: ImageSecurityDefaultFilter, sort: imageSecSort}
+	if table == ImageSecurity {
+		params.sort = imageSecCVESort
+	}
 	if filter != nil {
 		params.filter = *filter
 	}
+	fb, err := s.imageSecReading(ctx, b, &u)
+	if err != nil {
+		return nil, nil, err
+	}
+	var snap *TableSnapshot
+	if IsImageSecurity(table) {
+		snap = imageSecTable(b.Context, table, fb, params)
+	}
+	m := imageSecModel(fb, namespaces)
+	m.Trend = s.imageSecurityTrend(b, u)
+	return m, snap, nil
+}
+
+// imageSecReading is the page's latest reading while it is open on the backend's cluster;
+// otherwise a reading of its own: the page's handles held for the call, which waits (bounded by
+// ctx and 15 seconds) for their initial lists, and released after. It fails where the page reads
+// nothing (the reports not served).
+func (s *Session) imageSecReading(ctx context.Context, b *Backend, u *UIState) (*imageSecBuild, error) {
 	s.state.mu.Lock()
 	page := s.state.imageSec
 	s.state.mu.Unlock()
@@ -366,7 +402,7 @@ func (s *Session) ImageSecurity(ctx context.Context, contextID string, namespace
 		wctx, cancel := context.WithTimeout(ctx, syncTimeout)
 		defer cancel()
 		waitCustomKindsSettled(wctx, b) // before, the reports' kind may not be known yet
-		reason := imageSecReason(b, &u)
+		reason := imageSecReason(b, u)
 		src := openFollowing(wctx, b, []string{trivyReportsKind, logKindPods}, func() (*imageSecSource, []kindHandle) {
 			src := newImageSecSource(b, reason, b.Acquire, nil)
 			return src, src.kindHandles()
@@ -376,13 +412,9 @@ func (s *Session) ImageSecurity(ctx context.Context, contextID string, namespace
 		fb = src.build(b.Context)
 	}
 	if fb.reason != "" {
-		return nil, nil, fmt.Errorf("%w: %s", ErrNotApplicable, fb.reason)
+		return nil, fmt.Errorf("%w: %s", ErrNotApplicable, fb.reason)
 	}
-	var snap *TableSnapshot
-	if findings {
-		snap = imageSecTable(b.Context, fb, params)
-	}
-	return imageSecModel(fb, namespaces), snap, nil
+	return fb, nil
 }
 
 // imageSecPlanKey is how the open page reads: why it reads nothing, else the reports' version
@@ -403,7 +435,7 @@ func (b *Backend) imageSecPlanKey(reason string) string {
 // read given back as refused. The page's sort is remembered
 // as a view's is.
 func (st *state) reconcileImageSecPageLocked(b *Backend, now UIState) {
-	want := b != nil && now.View == ImageSecurity
+	want := b != nil && IsImageSecurity(now.View)
 	var key, reason string
 	if want {
 		reason = imageSecReason(b, &now)
@@ -415,12 +447,12 @@ func (st *state) reconcileImageSecPageLocked(b *Backend, now UIState) {
 	}
 	switch {
 	case want && st.imageSec == nil:
-		st.imageSec = st.s.startImageSecurity(b, reason, paramsOf(now))
+		st.imageSec = st.s.startImageSecurity(b, reason, now.View, paramsOf(now))
 		st.imageSec.planKey = key
 	case st.imageSec != nil:
-		st.imageSec.setParams(paramsOf(now))
+		st.imageSec.setParams(now.View, paramsOf(now))
 	}
-	if st.imageSec != nil && imageSecProfile.ColumnIndex(now.Sort.Column) >= 0 {
+	if st.imageSec != nil && imageSecProfileOf(now.View).ColumnIndex(now.Sort.Column) >= 0 {
 		st.sorts[now.View] = now.Sort
 	}
 }
@@ -433,13 +465,16 @@ func (st *state) detachImageSecLocked() {
 	}
 }
 
-// imageSecTableOf returns the open page's latest snapshot, or nil.
-func (st *state) imageSecTableOf() *TableSnapshot {
+// imageSecTableOf returns the open page's latest snapshot of the view's table, or nil.
+func (st *state) imageSecTableOf(view string) *TableSnapshot {
 	st.mu.Lock()
 	w := st.imageSec
 	st.mu.Unlock()
 	if w == nil {
 		return nil
 	}
-	return w.snap.Load()
+	if snap := w.snap.Load(); snap != nil && snap.View == view {
+		return snap
+	}
+	return nil
 }

@@ -101,10 +101,11 @@ func TestImageSecurityInTheNavigator(t *testing.T) {
 	q.until(t, "the entry to go with the reports' kind", func() bool { return side.titles[engine.ImageSecurity] == "" })
 }
 
-// TestImageSecurityPageInTheWindow: the header line counts the running images, the cards show the
-// model, a card's entry narrows the table through the search, the table's rows are the findings
-// coloured by D-calm (Critical red, High amber, the rest grey, no pill), and a row opens its
-// workload's drawer asking for its container's section.
+// TestImageSecurityPageInTheWindow: the header line counts the running images; the band, the
+// cards and the CVEs table show the model; a card's entry and a band's segment narrow the table
+// through the search; a CVE's row has no checkbox and shows the CVE's findings; the findings are
+// coloured by D-calm (Critical red, High amber, the rest grey, no pill), and a finding opens its
+// workload's drawer asking for its container's section; the switch returns to the CVEs.
 func TestImageSecurityPageInTheWindow(t *testing.T) {
 	sh, q, _, _ := trivyMemoryShell(t)
 	tv := sh.view
@@ -112,11 +113,14 @@ func TestImageSecurityPageInTheWindow(t *testing.T) {
 	q.until(t, "the first view's rows", func() bool { return tv.snap != nil && tv.snap.Synced && len(tv.snap.Rows) > 0 })
 	q.drain()
 	sh.side.activate(engine.ImageSecurity)
-	q.until(t, "the cards and the findings", func() bool {
-		return tv.imageSec.data != nil && len(tv.imageSec.data.TopImages) == 3 && tv.snap != nil && tv.snap.View == engine.ImageSecurity && len(tv.snap.Rows) == 8
+	q.until(t, "the cards and the CVEs", func() bool {
+		return tv.imageSec.data != nil && len(tv.imageSec.data.TopImages) == 3 && tv.snap != nil && tv.snap.View == engine.ImageSecurity && len(tv.snap.Rows) == 5
 	})
-	if tv.title.text != "Image Security" || tv.eventsTitle.text != "Findings" || tv.search.PlaceHolder != "CVE, package, image…" {
-		t.Errorf("page %q, table %q, search %q", tv.title.text, tv.eventsTitle.text, tv.search.PlaceHolder)
+	if tv.title.text != "Image Security" || tv.eventsHeading.Objects[0] != tv.imageSec.tables.root || tv.search.PlaceHolder != "CVE, package, image…" {
+		t.Errorf("page %q, table heading %T, search %q", tv.title.text, tv.eventsHeading.Objects[0], tv.search.PlaceHolder)
+	}
+	if tv.imageSec.tables.seg.lay.chosen != 0 {
+		t.Errorf("the switch chose %d", tv.imageSec.tables.seg.lay.chosen)
 	}
 	if got := tv.imageSec.sub.text; !strings.HasPrefix(got, "4 images running · 3 scanned · 1 not scanned · newest scan ") {
 		t.Errorf("header line %q", got)
@@ -125,10 +129,13 @@ func TestImageSecurityPageInTheWindow(t *testing.T) {
 		t.Error("the header line is not beside the title, or the status filter shows")
 	}
 	texts := visibleTexts(tv.imageSec.root)
-	for _, want := range []string{"Vulnerabilities", "7 CVEs · 3 fixable", "Top images", "shop/api:2.4.1", "Top CVEs", "CVE-2024-0001", "Top namespaces", "team"} {
+	for _, want := range []string{"Critical", "Unknown", "7 CVEs · 3 fixable", "Top images", "shop/api:2.4.1", "Top CVEs", "CVE-2024-0001", "Top namespaces", "team"} {
 		if !slices.Contains(texts, want) {
-			t.Errorf("the cards lack %q: %q", want, texts)
+			t.Errorf("the band or the cards lack %q: %q", want, texts)
 		}
+	}
+	if slices.Contains(texts, "Vulnerabilities") {
+		t.Error("the Vulnerabilities card shows beside the band")
 	}
 	q.drain()
 	settle(sh.win)
@@ -137,19 +144,47 @@ func TestImageSecurityPageInTheWindow(t *testing.T) {
 	if len(badges) != 5 || !badges[0].calm {
 		t.Errorf("%d calm shields", len(badges))
 	}
+	// A CVE is no object: no checkbox, no menu, no selection.
+	if tv.rowsAreObjects() {
+		t.Error("the CVEs' rows are taken for objects")
+	}
+	for _, c := range findAll[*tableCell](tv.table) {
+		if c.Visible() && c.row >= 0 && (c.content.kind == cellCheck || c.content.kind == cellMenu) {
+			t.Errorf("a checkbox or menu in row %d, column %d", c.row, c.col)
+		}
+	}
 
-	// A namespace's entry: the table narrows to it, the search keeps its sev token.
+	// The band's four segments (no Medium), then the entries: a namespace's narrows the table, the
+	// search keeps its sev token; a segment replaces it.
 	taps := findAll[*tapTarget](tv.imageSec.root)
-	if len(taps) != 3+5+2 {
+	if len(taps) != 4+3+5+2 {
 		t.Fatalf("%d entries", len(taps))
 	}
 	taps[len(taps)-1].Tapped(nil) // team
-	q.until(t, "the namespace's findings", func() bool { return sh.ui.Filter == "sev>=high ns:team" && len(tv.snap.Rows) == 2 })
+	q.until(t, "the namespace's CVEs", func() bool { return sh.ui.Filter == "sev>=high ns:team" && len(tv.snap.Rows) == 2 })
 	if tv.search.Text != "sev>=high ns:team" {
 		t.Errorf("the search field shows %q", tv.search.Text)
 	}
+	taps[0].Tapped(nil) // Critical
+	q.until(t, "team's Critical CVEs", func() bool { return sh.ui.Filter == "ns:team sev:critical" && len(tv.snap.Rows) == 0 })
+	sh.dispatch("ui.setFilter", filterParams{Filter: "sev>=high ns:team"}, nil)
+	q.until(t, "the namespace's CVEs", func() bool { return len(tv.snap.Rows) == 2 })
 
-	// The table's colours: the severity in its calm colour, the installed version grey, no pill.
+	// A CVE's row: its findings.
+	cve := tv.snap.Rows[0].Ref.Name
+	tv.rowTapped(widget.TableCellID{Row: 0, Col: firstDataColumn})
+	q.until(t, "the CVE's findings", func() bool {
+		return sh.ui.View == engine.ImageSecurityFindings && sh.ui.Filter == "sev>=high ns:team cve:"+cve && tv.snap != nil && tv.snap.View == engine.ImageSecurityFindings &&
+			len(tv.snap.Rows) == 1
+	})
+	if sh.side.marked != engine.ImageSecurity {
+		t.Errorf("the navigator marks %q", sh.side.marked)
+	}
+	if tv.imageSec.tables.seg.lay.chosen != 1 || !tv.rowsAreObjects() {
+		t.Errorf("the switch chose %d; rows are objects: %v", tv.imageSec.tables.seg.lay.chosen, tv.rowsAreObjects())
+	}
+
+	// The findings' colours: the severity in its calm colour, the installed version grey, no pill.
 	sev := slices.IndexFunc(tv.snap.Columns, func(c model.Column) bool { return c.ID == "severity" })
 	inst := slices.IndexFunc(tv.snap.Columns, func(c model.Column) bool { return c.ID == "installed" })
 	if imageSecTone(&tv.snap.Columns[sev], model.Cell{Status: model.StatusError}) != colorStatusError ||
@@ -167,13 +202,33 @@ func TestImageSecurityPageInTheWindow(t *testing.T) {
 		}
 	}
 
-	// A row opens its workload's drawer and asks for the container's section.
+	// A finding opens its workload's drawer and asks for the container's section.
 	tv.rowTapped(widget.TableCellID{Row: 0, Col: firstDataColumn})
 	ref := model.ObjectRef{Context: "kind-trivy", Kind: "pods", Namespace: "team", Name: "bare"}
 	q.until(t, "the drawer", func() bool { return sh.ui.Drawer != nil && *sh.ui.Drawer == ref })
 	if w := sh.drawer.want; w != nil && (w.ref != ref || w.section != "shell") {
 		t.Errorf("asked for %+v", *w)
 	}
+
+	// Export PDF: the report of the page's search, saved where the user says.
+	var saved string
+	var savedCVEs int
+	var savedDoc []byte
+	sh.saveReport = func(name string, cves int, data []byte) { saved, savedCVEs, savedDoc = name, cves, data }
+	if !slices.Contains(tv.tools.Objects, fyne.CanvasObject(tv.imageSec.pdf)) {
+		t.Error("Export PDF is not in the page's header")
+	}
+	tv.imageSec.pdf.OnTapped()
+	q.until(t, "the report saved", func() bool { return saved != "" })
+	if !strings.HasPrefix(saved, "image-security-kind-trivy-") || savedCVEs != 1 || !strings.HasPrefix(string(savedDoc), "%PDF") {
+		t.Errorf("saved %q with %d CVEs", saved, savedCVEs)
+	}
+
+	// The switch: the CVEs again, without the CVE's token.
+	tv.imageSec.tables.cves.OnTapped()
+	q.until(t, "the CVEs", func() bool {
+		return sh.ui.View == engine.ImageSecurity && sh.ui.Filter == "sev>=high ns:team" && tv.snap != nil && tv.snap.View == engine.ImageSecurity && len(tv.snap.Rows) == 2
+	})
 }
 
 func renderImageSecurity(t *testing.T, mode ThemeMode, name string) {
@@ -183,20 +238,28 @@ func renderImageSecurity(t *testing.T, mode ThemeMode, name string) {
 	conn := demoConnector(t, demoSize{Pods: 1200, Deployments: 90, NoChurn: true, Seed: 11})
 	sh, w, q, _ := imageSecShell(t, mode, conn, engine.DemoContext)
 	sh.side.activate(engine.ImageSecurity)
-	q.until(t, "the cards and the findings", func() bool {
+	q.until(t, "the cards and the CVEs", func() bool {
 		tv := sh.view
 		return tv.imageSec.data != nil && len(tv.imageSec.data.TopImages) == 5 && tv.snap != nil && tv.snap.View == engine.ImageSecurity &&
 			tv.snap.Synced && len(tv.snap.Rows) > 20
 	})
 	q.drain()
 	settle(w)
-	savePNG(t, w, name)
+	savePNG(t, w, name+".png")
+	sh.view.imageSec.tables.findings.OnTapped()
+	q.until(t, "the findings", func() bool {
+		tv := sh.view
+		return tv.snap != nil && tv.snap.View == engine.ImageSecurityFindings && tv.snap.Synced && len(tv.snap.Rows) > 20
+	})
+	q.drain()
+	settle(w)
+	savePNG(t, w, name+"_findings.png")
 }
 
 func TestRenderImageSecurityDark(t *testing.T) {
-	renderImageSecurity(t, ThemeDark, "image_security_dark.png")
+	renderImageSecurity(t, ThemeDark, "image_security_dark")
 }
 
 func TestRenderImageSecurityLight(t *testing.T) {
-	renderImageSecurity(t, ThemeLight, "image_security_light.png")
+	renderImageSecurity(t, ThemeLight, "image_security_light")
 }

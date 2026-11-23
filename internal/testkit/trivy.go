@@ -1,6 +1,8 @@
 package testkit
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -55,7 +57,7 @@ func VulnReport(namespace, kind, workload, container, repo, tag string, counts [
 			"ownerReferences": []any{map[string]any{"apiVersion": group, "kind": kind, "name": workload, "uid": "u", "controller": true}},
 		},
 		"report": map[string]any{
-			"artifact": map[string]any{"repository": repo, "tag": tag, "digest": "sha256:0272"},
+			"artifact": map[string]any{"repository": repo, "tag": tag, "digest": ImageDigest(repo + ":" + tag)},
 			"registry": map[string]any{"server": "index.docker.io"},
 			"scanner":  map[string]any{"name": "Trivy", "vendor": "Aqua Security", "version": "0.75.0"},
 			"summary": map[string]any{
@@ -127,4 +129,16 @@ func ImageSecuritySource() *MemorySource {
 		src.Set(VulnReportsGVR, r)
 	}
 	return src
+}
+
+// ImageDigest is the synthetic digest of an image reference, one per reference: "sha256:<64 hex>".
+func ImageDigest(ref string) string {
+	sum := sha256.Sum256([]byte(ref))
+	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+// WithDigest sets a report's image digest, for an image whose tag was pushed again.
+func WithDigest(report *unstructured.Unstructured, digest string) *unstructured.Unstructured {
+	_ = unstructured.SetNestedField(report.Object, digest, "report", "artifact", "digest")
+	return report
 }
