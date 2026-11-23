@@ -35,7 +35,7 @@ func findingCells(t *TableSnapshot) []string {
 	return out
 }
 
-// The page's model (D-new): the header counts the distinct images of the running pods and those a
+// The page's model (D-178): the header counts the distinct images of the running pods and those a
 // report covers; Vulnerabilities counts distinct CVE ids under the worst severity a finding gives
 // them and those with a fix; Top images ranks by grade, then Critical, then High; Top CVEs by
 // severity, then the images affected; Top namespaces by the worst grade; each entry names its token.

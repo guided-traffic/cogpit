@@ -468,7 +468,7 @@ Nothing open.
   [G21](#g21-built-in-agent) and [G17](#g17-mcp-control). Cogpit reads Trivy Operator's reports
   for pods' image ratings
   ([D-78](../developer/decisions.md#d-78-trivy-operators-image-ratings)) and its own Image
-  Security page ([D-new](../developer/decisions.md#d-new-the-image-security-page)), not Lens's
+  Security page ([D-178](../developer/decisions.md#d-178-the-image-security-page)), not Lens's
   Security Center.
 - **Impact:** high for users of Lens's paid plans, none for the mainstream audience; after the
   beta, counted toward the full target only

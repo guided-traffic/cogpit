@@ -51,7 +51,7 @@ const (
 type rgb struct{ r, g, b uint8 }
 
 // The palette, made for white paper: the text in near-black, secondary text in a mid grey, rules
-// faint. Red and amber are the calm colours' two steps of urgency (D-calm); the other severities
+// faint. Red and amber are the calm colours' two steps of urgency (D-180); the other severities
 // are greys of falling weight.
 var (
 	colText      = rgb{33, 37, 41}

@@ -14,7 +14,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit/enginekit"
 )
 
-// The integrations' pages of a user who may not list their kinds (D-177, D-new), with the models
+// The integrations' pages of a user who may not list their kinds (D-177, D-178, D-179), with the models
 // the engine builds for that user (TestBudgetImageSecurityRefusedReports,
 // TestBudgetVeleroRefusedKinds): what could not be read shows no count, the refusal is said once.
 

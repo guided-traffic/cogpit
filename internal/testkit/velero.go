@@ -7,7 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// Velero fixtures (the Velero page, D-new): its definitions as Velero names them, served at
+// Velero fixtures (the Velero page, D-179): its definitions as Velero names them, served at
 // velero.io/v1 with a permissive schema (no Velero is installed), and objects of its kinds.
 
 // VeleroNamespace is where the fixtures' Velero lives.

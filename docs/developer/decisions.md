@@ -186,9 +186,9 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-175](#d-175-a-nodes-memory-is-the-kubelets-working-set) | A node's memory is the kubelet's working set | built: node-exporter's node memory is `AnonPages + Cached + Buffers − Inactive(file)`, the root cgroup's working set the kubelet and the Metrics Server report |
 | [D-176](#d-176-two-update-runs-write-the-same-pictures) | Two `-update` runs write the same pictures | built: a picture waits for the window's reads; the demo's own clock; the churning demo's pictures with `-live` |
 | [D-177](#d-177-a-refused-read-is-given-back-and-shown) | A refused read is given back and shown | built: views, pages, drawers, related reads and the Trivy and Kyverno integrations give a refused read back, name it once, show "—" for what was not read; Refresh Access reads again |
-| [D-new](#d-new-the-image-security-page) | The Image Security page | built: under Integrations while Trivy is on; an image counted by its digest; severity band, three cards, a findings curve from Prometheus; CVEs or findings with search tokens, opens on sev>=high; Export PDF; the reports trimmed to the shown fields while it is open |
-| [D-new](#d-new-the-velero-page) | The Velero page | built: under Integrations while the cluster serves Velero's Backups; tiles, Needs attention, Failed volume backups, Schedules, Outside every schedule; read-only, from the cache |
-| [D-calm](#d-calm-calm-colours-on-the-integrations-pages) | Calm colours on the integrations' pages | built: grey ground, red to act now, amber to check, good states without colour; Image Security and Velero |
+| [D-178](#d-178-the-image-security-page) | The Image Security page | built: under Integrations while Trivy is on; an image counted by its digest; severity band, three cards, a findings curve from Prometheus; CVEs or findings with search tokens, opens on sev>=high; Export PDF; the reports trimmed to the shown fields while it is open |
+| [D-179](#d-179-the-velero-page) | The Velero page | built: under Integrations while the cluster serves Velero's Backups; tiles, Needs attention, Failed volume backups, Schedules, Outside every schedule; read-only, from the cache |
+| [D-180](#d-180-calm-colours-on-the-integrations-pages) | Calm colours on the integrations' pages | built: grey ground, red to act now, amber to check, good states without colour; Image Security and Velero |
 
 ## D-1: UI toolkit
 
@@ -6226,8 +6226,8 @@ and the heading "integrations" in small bold lower case in the muted colour, wit
 (the owner: "ohne diesen Balken und nur in Grau"). Under it the Flux CD and Argo CD groups, each top-level, with
 its icon, folding as any group does, each only while the cluster serves it, then the Image Security
 page while the Trivy integration is on and the cluster serves its reports
-([D-new](#d-new-the-image-security-page)), and the Velero page while the cluster serves Velero's
-Backups ([D-new](#d-new-the-velero-page)). The heading shows while one of them does. It is only a heading: no click, no hover, no fold, and no key reaches it
+([D-178](#d-178-the-image-security-page)), and the Velero page while the cluster serves Velero's
+Backups ([D-179](#d-179-the-velero-page)). The heading shows while one of them does. It is only a heading: no click, no hover, no fold, and no key reaches it
 (`ui.setNavigatorRow` names no heading). The search keeps it while it keeps one of its items, and a
 search for its name keeps all of them. Helm stays after Events.
 
@@ -7510,10 +7510,10 @@ such a kind (a node's Pods, a workload's Pods table) show what they show without
 `TestRenderArgoDashboardMayNotListDark`, `TestRenderWorkloadsOverviewMayNotListDark`,
 `TestRenderKyvernoMayNotListDark`, `TestFluxTileOfARefusedKind`
 
-## D-new: The Image Security page
+## D-178: The Image Security page
 
 **Status:** built · **By:** owner (the page under Integrations, the layout of cards over a findings
-search, its texts, the calm colours D-calm, the reports' vulnerability lists read while the page is
+search, its texts, the calm colours D-180, the reports' vulnerability lists read while the page is
 open; an image counted once by its digest with its containers beside, the switchable CVEs and
 findings tables, the severity band over the cards, the curve from Prometheus, the PDF report of
 the data), lead (open to revision) the rest
@@ -7621,7 +7621,7 @@ state of Cogpit's own.
   asks for the container's section ([D-150](#d-150-one-signals-column-for-every-mark)'s
   `openAt`): a bare pod's drawer scrolls there; a workload's drawer has no container sections and
   opens at its top. A workload's rows share its object, so they mark together as the drawer's.
-- **Colours (D-calm):** grey is the ground; the Severity word Critical in the error colour, High
+- **Colours (D-180):** grey is the ground; the Severity word Critical in the error colour, High
   in the warning colour, the others and the installed version muted; no pill, no row status; in
   the cards Critical and High bold in their colours; the band, the curve, their legend and the
   PDF's band and curve in the drawer's severity bar colours (the owner's: one count, one look; the
@@ -7713,7 +7713,7 @@ running pod's drawer (the row names the workload); counting findings in the seve
 `TestRenderImageSecurityDark`, `TestRenderImageSecurityLight`, `TestDemoVulnerabilityReports`,
 `TestBudgetImageSecurityRefusedReports`, `TestRenderImageSecurityMayNotListDark`
 
-## D-new: The Velero page
+## D-179: The Velero page
 
 **Status:** built · **By:** owner (the layout "Velero · A" at the colour level "Ruhig": header,
 Status tiles, Needs attention, Schedules with the last runs as dots, Outside every schedule marked
@@ -7725,7 +7725,7 @@ A page `velero/dashboard`, titled Velero, a top-level entry under the navigator'
 Argo CD ([D-149](#d-149-the-navigators-integrations-heading)), with Fyne's save icon, shown while
 the cluster serves `backups.velero.io`. Everything comes from the cache; the page holds its handles
 only while it is shown, and builds again on every change and every 30 seconds (a run comes due
-without an event). Colours follow D-calm: red to act now, amber to check, the rest grey.
+without an event). Colours follow D-180: red to act now, amber to check, the rest grey.
 
 - **Reads:** Velero's Schedules, Backups, Restores, BackupStorageLocations, VolumeSnapshotLocations,
   BackupRepositories, PodVolumeBackups and DataUploads, and Namespaces, PVCs, Deployments,
@@ -7852,13 +7852,13 @@ storage (the owner: no access to S3).
 `TestVeleroPageClicks`, `TestVeleroNavigatorEntry`,
 `TestBudgetVeleroRefusedKinds`, `TestRenderVeleroMayNotListDark`
 
-## D-calm: Calm colours on the integrations' pages
+## D-180: Calm colours on the integrations' pages
 
 **Status:** built · **By:** owner (the rule and its two colours), lead (open to revision) the
 helpers
 
-On the Image Security page ([D-new](#d-new-the-image-security-page)) and the Velero page
-([D-new](#d-new-the-velero-page)) colour marks only what needs action: grey is the ground; the
+On the Image Security page ([D-178](#d-178-the-image-security-page)) and the Velero page
+([D-179](#d-179-the-velero-page)) colour marks only what needs action: grey is the ground; the
 error colour means act now (Critical, an E grade, Failed, Overdue, Unavailable, a failed
 validation), the warning colour means check (High, a D grade, Partially failed, a failed
 maintenance); everything else, good states included (Completed, Enabled, Available, Medium, Low,

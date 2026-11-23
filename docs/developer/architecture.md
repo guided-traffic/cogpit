@@ -504,8 +504,8 @@ A view key with a slash is a page (`engine.IsPage`,
 [D-34](decisions.md#d-34-the-flux-dashboard)), `argocd/dashboard`
 ([`argocd_dashboard.go`](../../internal/engine/argocd_dashboard.go)), `trivy/image-security` and
 `trivy/image-security/findings` (one page, its two tables; [`imagesecurity.go`](../../internal/engine/imagesecurity.go),
-[D-new](decisions.md#d-new-the-image-security-page)), `alerts/board`, `velero/dashboard`
-([`velero.go`](../../internal/engine/velero.go), [D-new](decisions.md#d-new-the-velero-page)). An
+[D-178](decisions.md#d-178-the-image-security-page)), `alerts/board`, `velero/dashboard`
+([`velero.go`](../../internal/engine/velero.go), [D-179](decisions.md#d-179-the-velero-page)). An
 open page runs its own worker in place of a view worker (`state.page`, `state.cluster`,
 `state.flux`, `state.argo`, `state.imageSec`, `state.velero`), with cache handles on the kinds it
 reads; an agent's read of a page that is not open (`flux.dashboard`, `trivy.imageSecurity`,

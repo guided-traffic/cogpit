@@ -16,7 +16,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The Velero page (D-new): a page under the navigator's Integrations, shown while the cluster
+// The Velero page (D-179): a page under the navigator's Integrations, shown while the cluster
 // serves Velero's Backups, read-only and from the cache alone (D-151: no DownloadRequest, no
 // ServerStatusRequest, nothing created). Its header names Velero's version, namespace, server and
 // node agents and plugins (Velero's Deployment and node-agent DaemonSet); its tiles count the

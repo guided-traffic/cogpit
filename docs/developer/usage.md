@@ -1582,7 +1582,7 @@ a report names with a violation
 
 While the Trivy integration is on and the cluster serves Trivy Operator's VulnerabilityReports,
 Integrations › Image Security shows what the reports say about the images the cluster runs
-([D-new](decisions.md#d-new-the-image-security-page)). Read only; the namespace filter at the
+([D-178](decisions.md#d-178-the-image-security-page)). Read only; the namespace filter at the
 right applies to the whole page.
 
 - **Header:** "93 images running · 81 scanned · 12 not scanned · newest scan 6m ago" # example:
@@ -1654,7 +1654,7 @@ right applies to the whole page.
 
 While the cluster serves Velero's Backups, Integrations › Velero shows how its backups stand, read
 from the cache and nothing else: no action, no request to Velero, nothing created in the cluster
-([D-new](decisions.md#d-new-the-velero-page)). Grey is the ground; red means act now, amber check.
+([D-179](decisions.md#d-179-the-velero-page)). Grey is the ground; red means act now, amber check.
 
 - **Header:** "1.17.1 · namespace velero · server 1/1 · node agents 6/6 · plugins aws 1.13.0", from
   Velero's Deployment and node-agent DaemonSet (a part you may not read is left out), and the

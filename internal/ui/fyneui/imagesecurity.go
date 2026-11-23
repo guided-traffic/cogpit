@@ -15,14 +15,14 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The Image Security page's upper part (D-new): a line beside the page's title that counts the
+// The Image Security page's upper part (D-178): a line beside the page's title that counts the
 // running images and those Trivy scanned; the severity band, one segment per severity as wide as
 // its share of the CVE ids, its count on it (a click keeps that severity's rows); three cards in a
 // row: Top images, Top CVEs and Top namespaces (a click on an entry narrows the table to it,
 // through the page's search: ui.setFilter with the entry's token). The table below is the page's
 // table, which the table view shows as it shows any view's; its heading switches between the CVEs
 // and the findings (trivy.imageSecurityTable), and a click on a CVE shows its findings. Colours
-// follow D-calm: red and amber for Critical and High and for the grades E and D, everything else
+// follow D-180: red and amber for Critical and High and for the grades E and D, everything else
 // grey (calmStatusColor, the calm grade badge). The data is the engine's (trivy.imageSecurity).
 
 // imageSecNav is the page's entry under the navigator's heading Integrations: shown while the
@@ -555,7 +555,7 @@ func (tv *tableView) searchHint() string {
 	return "Search " + tv.rowNoun() + "…"
 }
 
-// imageSecTone is a findings cell's colour on the page (D-calm), "" for the text colour: the
+// imageSecTone is a findings cell's colour on the page (D-180), "" for the text colour: the
 // Severity cell Critical's and High's colours and grey for the others, the installed version grey.
 // No cell of the page is a pill.
 func imageSecTone(col *model.Column, cell model.Cell) fyne.ThemeColorName {

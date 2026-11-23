@@ -6,7 +6,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// calmStatusColor is a status's colour on the integrations' pages (D-calm): an error's and a
+// calmStatusColor is a status's colour on the integrations' pages (D-180): an error's and a
 // warning's own colour, every other status the muted text colour, so that colour marks only what
 // needs action (red: act now, amber: check).
 func calmStatusColor(s model.Status) fyne.ThemeColorName {

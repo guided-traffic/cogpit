@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// The demo cluster's Velero (the Velero page, D-new): Velero's definitions, its server and node
+// The demo cluster's Velero (the Velero page, D-179): Velero's definitions, its server and node
 // agents in the namespace velero, two storage locations (one unavailable), a snapshot location,
 // five schedules with two weeks of their backups (nightly-all overdue while its last backup still
 // runs, shop-volumes' latest partially failed, monitoring-config paused, hourly-db hourly), a

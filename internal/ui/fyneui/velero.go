@@ -19,12 +19,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The Velero page in the window (D-new): a page under the navigator's Integrations, shown while the
+// The Velero page in the window (D-179): a page under the navigator's Integrations, shown while the
 // cluster serves Velero's Backups (veleroNav). Its header is the title, a muted line of what the
 // cache tells of Velero and the namespace filter; its body replaces the table, as the alert board's
 // does: the Status tiles, Needs attention, Failed volume backups (while there are any), Schedules and
 // Outside every schedule, each under a muted section label, the tables drawn by the page itself
-// (velero_tables.go), read-only. Colour only where action is needed (D-calm, calmStatusColor): red
+// (velero_tables.go), read-only. Colour only where action is needed (D-180, calmStatusColor): red
 // to act now, amber to check, everything else grey. The model is the engine's (velero.dashboard),
 // the same an agent reads.
 

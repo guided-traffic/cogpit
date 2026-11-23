@@ -6,7 +6,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The Velero page's read (D-new): agents read what the page shows; ui.openView "velero/dashboard"
+// The Velero page's read (D-179): agents read what the page shows; ui.openView "velero/dashboard"
 // shows it to the user. Nothing is written, nothing created (D-151).
 
 type veleroDashboardParams struct {

@@ -43,7 +43,7 @@ func severityLevel(word string) (int, bool) {
 	return sevUnknown, false
 }
 
-// severityStatus is a severity's status token, the colour the page gives it (D-calm): Critical
+// severityStatus is a severity's status token, the colour the page gives it (D-180): Critical
 // the error's, High the warning's, the others none.
 func severityStatus(level int) model.Status {
 	switch level {
@@ -189,7 +189,7 @@ func imageKey(image string) string {
 	return repo + ":" + tag
 }
 
-// imageIdentity is what makes two reports' images one image for the page's counts (D-new, the
+// imageIdentity is what makes two reports' images one image for the page's counts (D-178, the
 // owner's): the digest Trivy Operator wrote (report.artifact.digest), else the repository and tag
 // (imageKey). The same image in several workloads or namespaces is one image; a tag pushed again
 // while pods still run the old one is two, each with its own findings; one digest under two names
@@ -520,7 +520,7 @@ var imageSecSort = SortSpec{Column: isColumnSeverity, Desc: true}
 const noScore = "—"
 
 // findingRow is a finding as a row of the table. The row names the workload (a click opens its
-// drawer); only the Severity cell carries a status, Critical's and High's (D-calm); the row none.
+// drawer); only the Severity cell carries a status, Critical's and High's (D-180); the row none.
 func findingRow(f *imageSecFinding, r *imageSecReport) model.Row {
 	score := model.Cell{Text: noScore, Num: -1}
 	if f.hasScore {
@@ -657,7 +657,7 @@ type ImageSecurityModel struct {
 type ImageSecuritySeverity struct {
 	Severity string `json:"severity"` // "Critical"
 	Count    int    `json:"count"`
-	// Status is the severity's colour (D-calm): error for Critical, warning for High, none else.
+	// Status is the severity's colour (D-180): error for Critical, warning for High, none else.
 	Status model.Status `json:"status,omitempty"`
 }
 

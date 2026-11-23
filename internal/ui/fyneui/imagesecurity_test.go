@@ -104,7 +104,7 @@ func TestImageSecurityInTheNavigator(t *testing.T) {
 // TestImageSecurityPageInTheWindow: the header line counts the running images; the band, the
 // cards and the CVEs table show the model; a card's entry and a band's segment narrow the table
 // through the search; a CVE's row has no checkbox and shows the CVE's findings; the findings are
-// coloured by D-calm (Critical red, High amber, the rest grey, no pill), and a finding opens its
+// coloured by D-180 (Critical red, High amber, the rest grey, no pill), and a finding opens its
 // workload's drawer asking for its container's section; the switch returns to the CVEs.
 func TestImageSecurityPageInTheWindow(t *testing.T) {
 	sh, q, _, _ := trivyMemoryShell(t)

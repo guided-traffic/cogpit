@@ -147,7 +147,7 @@ func collectCVEs(fb *imageSecBuild, nsSet map[string]struct{}, q *findingQuery) 
 	return out
 }
 
-// cveRow is a CVE as a row of the CVEs table. Only the Severity cell carries a status (D-calm).
+// cveRow is a CVE as a row of the CVEs table. Only the Severity cell carries a status (D-180).
 func cveRow(context string, c *imageSecCVE, fb *imageSecBuild) model.Row {
 	score := model.Cell{Text: noScore, Num: -1}
 	if c.hasScore {

@@ -22,7 +22,7 @@ func cveCells(t *TableSnapshot) []string {
 	return out
 }
 
-// The CVEs table (D-new): one row per CVE id among the findings the search keeps, the worst
+// The CVEs table (D-178): one row per CVE id among the findings the search keeps, the worst
 // severity a finding gives it, its highest score, its packages and fixed versions, how many images
 // (by digest) and containers it is found in and which; the worst first; no row is an object of a
 // kind.

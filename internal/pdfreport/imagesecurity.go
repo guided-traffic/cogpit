@@ -41,7 +41,7 @@ type ImageSecurity struct {
 	CVEs []CVE
 }
 
-// Level is how urgent a value is, which picks its colour (D-calm): Critical red, High amber, the
+// Level is how urgent a value is, which picks its colour (D-180): Critical red, High amber, the
 // rest grey.
 type Level int
 

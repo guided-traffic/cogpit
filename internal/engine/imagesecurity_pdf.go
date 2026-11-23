@@ -11,7 +11,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/pdfreport"
 )
 
-// The Image Security page as a PDF (D-new, the owner's): a text report of what the page shows for
+// The Image Security page as a PDF (D-178, the owner's): a text report of what the page shows for
 // the window's namespaces and search: the header line, the severity band, the three cards, the
 // findings curve where Prometheus has one, then every CVE the search keeps, each with all the
 // containers it runs in. pdfreport draws it; this file fills its input from the page's reading
@@ -184,7 +184,7 @@ func pdfLevel(sev string) pdfreport.Level {
 	return pdfreport.LevelUnknown
 }
 
-// gradeLevel colours a grade in the report as the page does (D-calm): E red, D amber, the rest
+// gradeLevel colours a grade in the report as the page does (D-180): E red, D amber, the rest
 // plain.
 func gradeLevel(g model.ImageGrade) pdfreport.Level {
 	switch g {

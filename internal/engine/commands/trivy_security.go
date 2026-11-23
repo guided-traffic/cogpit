@@ -9,7 +9,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// trivy.imageSecurity: the Image Security page's read for agents (D-new). Agents read what the
+// trivy.imageSecurity: the Image Security page's read for agents (D-178). Agents read what the
 // page shows: the header's counts, the cards and, with table, the CVEs or the findings for a search;
 // ui.openView "trivy/image-security" shows the page to the user, trivy.imageSecurityTable switches
 // its table. It reads Cogpit's cache only.

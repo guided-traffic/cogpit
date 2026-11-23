@@ -236,7 +236,7 @@ func newTableView(sh *shell) *tableView {
 }
 
 // placePageSearch puts the search into a page's table header: at the right, as a view has it, or,
-// on Image Security, whose search is its main tool, across the row's free width (D-new).
+// on Image Security, whose search is its main tool, across the row's free width (D-178).
 func (tv *tableView) placePageSearch(view string) {
 	if engine.IsImageSecurity(view) {
 		tv.eventsTools.Objects = []fyne.CanvasObject{tv.states.box}
@@ -824,7 +824,7 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 		if col.Type == model.ColumnGrade {
 			content.kind, content.grade = cellGrade, cell.Grade // the shield; the text is its tooltip (gradebadge.go)
 		}
-		if engine.IsImageSecurity(tv.snap.View) { // D-calm: coloured words, no pill (imagesecurity.go)
+		if engine.IsImageSecurity(tv.snap.View) { // D-180: coloured words, no pill (imagesecurity.go)
 			content.tone, content.pill = imageSecTone(col, cell), false
 		}
 	}

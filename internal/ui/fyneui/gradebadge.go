@@ -50,7 +50,7 @@ const (
 	colorSevUnknown      fyne.ThemeColorName = "cogpit.sevUnknown" // Unknown's hatching, its two stripes
 	colorSevUnknownLight fyne.ThemeColorName = "cogpit.sevUnknownLight"
 	colorSevInkDark      fyne.ThemeColorName = "cogpit.sevInkDark" // a count on Medium and Low
-	// colorGradeCalm is the crest of S to C on the integrations' pages (D-calm): grey, the letter in
+	// colorGradeCalm is the crest of S to C on the integrations' pages (D-180): grey, the letter in
 	// the text colour; only D and E keep their colours there.
 	colorGradeCalm fyne.ThemeColorName = "cogpit.gradeCalm"
 )
@@ -159,7 +159,7 @@ var shields = struct {
 	m map[shieldKey]*image.RGBA
 }{m: map[shieldKey]*image.RGBA{}}
 
-// calmGrey reports whether a calm crest draws a grade grey: S to C (D-calm); D, E and N/A keep
+// calmGrey reports whether a calm crest draws a grade grey: S to C (D-180); D, E and N/A keep
 // their own.
 func calmGrey(g model.ImageGrade) bool { return g >= model.GradeS && g <= model.GradeC }
 
@@ -240,7 +240,7 @@ func lerpNRGBA(a, b color.NRGBA, t float64) color.NRGBA {
 }
 
 // gradeBadge draws a grade as its crest and letter, side points square; GradeNone draws nothing.
-// A calm badge is the integrations' pages' (D-calm): S to C grey with the letter in the text
+// A calm badge is the integrations' pages' (D-180): S to C grey with the letter in the text
 // colour, D and E in their colours, N/A as everywhere.
 type gradeBadge struct {
 	widget.BaseWidget

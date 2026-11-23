@@ -219,14 +219,14 @@ var wantCommands = map[string]engine.Danger{
 	"argocd.application.refresh": engine.DangerMutating, "argocd.application.refreshMany": engine.DangerMutating,
 	"argocd.dashboard": engine.DangerRead,     // the Dashboard for agents (TestArgoDashboard)
 	"argocd.openUI":    engine.DangerMutating, // a port forward to argocd-server (TestArgoOpenUIFindsTheServer)
-	// The Image Security page for agents, from the cache (D-new) (TestImageSecurityCommand).
+	// The Image Security page for agents, from the cache (D-178) (TestImageSecurityCommand).
 	"trivy.imageSecurity":          engine.DangerRead,
 	"trivy.imageSecurityTable":     engine.DangerUI,
 	"trivy.exportImageSecurityPdf": engine.DangerRead,
 	"trivy.showImage":              engine.DangerUI,
 	// Its findings curve's range, UI state (TestImageSecurityTrendRange).
 	"trivy.setTrendRange": engine.DangerUI,
-	// The Velero page (D-new), read from the cache (TestVeleroDashboardCommand).
+	// The Velero page (D-179), read from the cache (TestVeleroDashboardCommand).
 	"velero.dashboard": engine.DangerRead,
 	// What the dock's tabs show, for agents (G17, D-44); a terminal's switch is GUI-only.
 	"dock.read": engine.DangerRead, "dock.allowAgentRead": engine.DangerUI,

@@ -16,7 +16,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The Image Security page (D-new): the Trivy integration's page under the navigator's heading
+// The Image Security page (D-178): the Trivy integration's page under the navigator's heading
 // Integrations, shown while the integration is on for the cluster and the cluster serves Trivy
 // Operator's VulnerabilityReports. While it is open its worker holds two handles: the reports in a
 // scope trimmed to the fields the page shows (trivyFindingsTrim; the integration's own read keeps
@@ -71,7 +71,7 @@ func init() {
 // trimVulnerabilityFindings keeps of each vulnerability what the page shows (findingFields), in a
 // map of its own: a map does not shrink when keys are deleted, and the kept six fit the smallest
 // (on synthetic reports shaped as a real cluster's, 23,059 findings: 26.9 MB decoded, 23.5 MB with
-// nine fields deleted in place, 12.0 MB with six kept in their own maps; D-new). The rest of the
+// nine fields deleted in place, 12.0 MB with six kept in their own maps; D-178). The rest of the
 // report stays as it is.
 func trimVulnerabilityFindings(u *unstructured.Unstructured) {
 	report, ok := u.Object["report"].(map[string]any)
