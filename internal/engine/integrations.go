@@ -76,7 +76,7 @@ var Integrations = []IntegrationInfo{
 	{IntAlertmanager, IntegrationAlertmanager, "Alertmanager",
 		"The alerts pill in the title bar and the alert board"},
 	{IntTrivy, IntegrationTrivy, "Trivy Operator",
-		"The worst image rating of every pod, and each image's in the pod's details"},
+		"The worst image rating of every pod, each image's in the pod's details, and the Image Security page"},
 	{IntKyverno, IntegrationKyverno, "Kyverno",
 		"Marks the objects that violate a policy, in the lists and the details"},
 }

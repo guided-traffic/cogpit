@@ -32,13 +32,20 @@ type DemoOptions = demo.Options
 // for a real cluster: a kind the demo has no objects for is not offered, rather than shown as an
 // error. Helm's releases follow as for a real cluster (Connect): the demo's Secrets and ConfigMaps
 // are Helm's release records, and each call makes a releases profile with its own memo, one per
-// backend.
+// backend. Its custom kinds (Trivy Operator's reports, Velero's kinds) come from the definitions it
+// serves, at connect as discovery gives a real cluster's, and again through the custom kinds watch.
 func demoProfiles() []*model.KindProfile {
 	served := map[schema.GroupVersionResource]bool{}
 	for _, gvr := range demo.Resources() {
 		served[gvr] = true
 	}
-	return withHelmReleases(servedProfiles(kinds.Builtin(), served))
+	out := withHelmReleases(servedProfiles(kinds.Builtin(), served))
+	for _, crd := range demo.CustomResourceDefinitions() {
+		if k, err := kinds.ParseCRD(crd); err == nil {
+			out = append(out, kinds.ProfileFor(k))
+		}
+	}
+	return out
 }
 
 // connectDemo builds the synthetic cluster and starts its churn.
@@ -61,7 +68,8 @@ func (c *ClusterConnector) connectDemo() (*Backend, error) {
 	}()
 	var once sync.Once
 	return &Backend{
-		Context: DemoContext, Namespace: "default", Cache: ch, Profiles: demoProfiles(), Names: demo.Names(), Demo: true,
+		// The demo's definitions (Velero's, demo/velero.go) are watched as a cluster's.
+		Context: DemoContext, Namespace: "default", Cache: ch, Profiles: demoProfiles(), Names: demo.Names(), Demo: true, CustomResources: true,
 		Metrics:   metrics.NewHub(metrics.Fixed(dc.Metrics()), c.metricsOptions()),
 		DemoStats: func() any { return dc.Stats() },
 		Version:   demo.ServerVersion, // its kube-apiserver's (D-91)

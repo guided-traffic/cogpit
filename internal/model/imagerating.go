@@ -235,6 +235,9 @@ type GradeCard struct {
 	EOSL    bool                 `json:"eosl,omitempty"`
 	Scanned string               `json:"scanned,omitempty"`
 	Report  *ObjectRef           `json:"report,omitempty"`
+	// Image is the image as the Image Security page names it ("shop/api:2.4.1"), for the card's
+	// link to the page; empty for N/A.
+	Image string `json:"image,omitempty"`
 }
 
 // VulnerabilityReport is what Cogpit reads of one Trivy Operator VulnerabilityReport: the workload

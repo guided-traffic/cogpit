@@ -384,3 +384,23 @@ func FormatAge(d time.Duration) string {
 		return strconv.Itoa(int(d/(365*24*time.Hour))) + "y"
 	}
 }
+
+// FormatCount formats n with thousands separators: 10000 → "10,000".
+func FormatCount(n int64) string {
+	s := strconv.FormatInt(n, 10)
+	neg := strings.HasPrefix(s, "-")
+	if neg {
+		s = s[1:]
+	}
+	var b strings.Builder
+	if neg {
+		b.WriteByte('-')
+	}
+	for i, r := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			b.WriteByte(',')
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}

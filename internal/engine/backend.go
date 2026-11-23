@@ -112,6 +112,9 @@ type Backend struct {
 	// history polls the cluster's Prometheus for the alert board's history while the board is
 	// shown (alerts_history.go).
 	history historySource
+	// secTrend polls the cluster's Prometheus for the Image Security page's curve while the page is
+	// shown (imagesecurity_trend.go).
+	secTrend trendSource
 	// owners indexes the cached pods' controllers for the alert board (alerts_owner.go).
 	owners podOwnerIndex
 	// acceptedNodes is the Nodes profile for the node conditions this cluster's settings accept;
@@ -192,6 +195,7 @@ func (b *Backend) close(log *slog.Logger) {
 	// The Alertmanager's polls (alerts.go), before the connection closes.
 	b.alerts.stop()
 	b.history.stop()
+	b.secTrend.stop()
 	b.overlays.close() // the integrations' reads (overlay.go)
 	b.local.close()
 	if b.Metrics != nil {

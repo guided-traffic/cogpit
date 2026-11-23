@@ -44,6 +44,9 @@ type navEntry struct {
 	items []navEntry // a group's entries, in Lens's order
 	page  bool       // a page (engine.IsPage), shown while a cluster is connected
 	needs string     // a page shown only while the cluster serves this kind (the Argo CD Dashboard)
+	// integration, when set, shows a page only while that integration is on for the cluster (Image
+	// Security, imagesecurity.go).
+	integration engine.Integration
 }
 
 // page is a page of the navigator, titled as the engine titles it.
@@ -93,7 +96,8 @@ const (
 // Dashboard; a group whose kinds the cluster serves none of is left out with its pages (the Flux CD
 // group without Flux). Listener Sets are listed under both groups Gateway API releases used for
 // them. Last, under the heading Integrations (the owner), the views of the tools a cluster runs:
-// Flux CD and Argo CD, each while the cluster serves it; the heading shows with either.
+// Flux CD, Argo CD and the Velero page, each while the cluster serves it; the heading shows with any
+// of them.
 var navLayout = []navEntry{
 	page(engine.ClusterOverview),
 	{id: "nodes"},
@@ -134,6 +138,8 @@ var navLayout = []navEntry{
 	navHeading("integrations", "Integrations",
 		fluxNav,      // fluxnav.go
 		argoNavGroup, // while the cluster serves Argo CD's Applications (argocd.go)
+		imageSecNav,  // while the Trivy integration is on and the cluster serves its reports (imagesecurity.go)
+		veleroNav,    // while the cluster serves Velero's Backups (velero.go)
 	),
 }
 
@@ -454,6 +460,9 @@ func (s *sidebar) build(n navEntry, parent string, have map[string]kindInfo, pla
 		if _, served := have[n.needs]; n.needs != "" && !served {
 			return "" // a section's page without its kinds (argocd.go)
 		}
+		if n.integration != "" && !s.sh.ui.IntegrationOn(s.sh.ui.Context, n.integration) {
+			return "" // an integration's page while it is off (imagesecurity.go)
+		}
 		return s.leaf(n.id, n.title, parent)
 	default:
 		k, ok := have[n.id]
@@ -574,6 +583,9 @@ func customTitle(k kindInfo) string {
 // branches above it open, so that a view an agent opened inside a closed API group is visible, and
 // the keyboard moves to it. A view the tree leaves out (an outdated kind) is marked nowhere.
 func (s *sidebar) selectView(view string) {
+	if view == engine.ImageSecurityFindings {
+		view = engine.ImageSecurity // one page, one entry: its findings table too (imagesecurity.go)
+	}
 	if view == "" || s.titles[view] == "" || s.outdatedHidden(view) {
 		s.revealed, s.marked = "", ""
 		s.tree.rebuild()

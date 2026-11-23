@@ -35,6 +35,19 @@ const (
 	kindDaemonSets
 	kindJobs
 	kindCronJobs
+
+	kindVulnerabilityReports // Trivy Operator's (trivy.go)
+	// Velero (velero.go): its definitions, the PVCs of some namespaces, its kinds; its node agents
+	// are a DaemonSet.
+	kindCRDs
+	kindPVCs
+	kindVeleroSchedules
+	kindVeleroBackups
+	kindVeleroRestores
+	kindVeleroLocations
+	kindVeleroSnapshotLocations
+	kindVeleroRepositories
+	kindVeleroPodVolumeBackups
 	numKinds
 )
 
@@ -58,6 +71,25 @@ var kindInfo = [numKinds]struct {
 	kindDaemonSets:  {schema.GroupVersionResource{Group: groupApps, Version: "v1", Resource: "daemonsets"}, apiApps, "DaemonSet", true, []string{"ds"}},
 	kindJobs:        {schema.GroupVersionResource{Group: groupBatch, Version: "v1", Resource: "jobs"}, apiBatch, "Job", true, nil},
 	kindCronJobs:    {schema.GroupVersionResource{Group: groupBatch, Version: "v1", Resource: "cronjobs"}, apiBatch, "CronJob", true, []string{"cj"}},
+
+	kindVulnerabilityReports: {vulnReportsGVR, trivyAPIVersion, trivyKind, true, nil},
+	kindCRDs: {schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"},
+		"apiextensions.k8s.io/v1", "CustomResourceDefinition", false, []string{"crd", "crds"}},
+	kindPVCs:                    {schema.GroupVersionResource{Version: "v1", Resource: "persistentvolumeclaims"}, "v1", "PersistentVolumeClaim", true, []string{"pvc"}},
+	kindVeleroSchedules:         {veleroGVR("schedules"), veleroAPI, "Schedule", true, nil},
+	kindVeleroBackups:           {veleroGVR("backups"), veleroAPI, veleroBackupKind, true, nil},
+	kindVeleroRestores:          {veleroGVR("restores"), veleroAPI, "Restore", true, nil},
+	kindVeleroLocations:         {veleroGVR("backupstoragelocations"), veleroAPI, "BackupStorageLocation", true, nil},
+	kindVeleroSnapshotLocations: {veleroGVR("volumesnapshotlocations"), veleroAPI, "VolumeSnapshotLocation", true, nil},
+	kindVeleroRepositories:      {veleroGVR("backuprepositories"), veleroAPI, "BackupRepository", true, nil},
+	kindVeleroPodVolumeBackups:  {veleroGVR("podvolumebackups"), veleroAPI, "PodVolumeBackup", true, nil},
+}
+
+// veleroAPI is Velero's API version, and veleroGVR one of its resources.
+const veleroAPI = "velero.io/v1"
+
+func veleroGVR(resource string) schema.GroupVersionResource {
+	return schema.GroupVersionResource{Group: "velero.io", Version: "v1", Resource: resource}
 }
 
 // kindOf returns the kind serving gvr.

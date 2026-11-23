@@ -174,6 +174,9 @@ type UIState struct {
 	// AlertBoard is the alert board's folding (alerts.fold): the severity groups and alert cards
 	// folded, the alerts whose description is unfolded.
 	AlertBoard AlertBoardState `json:"alertBoard,omitzero"`
+	// ImageSecurity is the Image Security page's choices: the findings curve's range
+	// (imagesecurity_trend.go, trivy.setTrendRange).
+	ImageSecurity ImageSecurityState `json:"imageSecurity,omitzero"`
 	// Tabs are the tab bar's tabs in their order, each a view of one cluster with its own state
 	// (tabs.go); ActiveTab is the shown one's id, empty when none is shown. View, Namespaces,
 	// Groups, Filter, FilterOptions, States, Sort, Selected and Drawer above are the active tab's.

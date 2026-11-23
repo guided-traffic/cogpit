@@ -17,7 +17,7 @@ of the checklist that holds its evidence. The status is the row's first word the
 | Interface rows, free plan | 123 | 120 | 6 | 114 | 3 |
 | Interface rows, paid plans | 10 | 8 | 0 | 8 | 2 |
 | Platform rows (packages, authentication, versions, tools, display) | 35 | 21 | 0 | 21 | 14 |
-| Beyond Lens (not in feature breadth) | 90 | 89 | 78 | 11 | 1 |
+| Beyond Lens (not in feature breadth) | 92 | 91 | 78 | 13 | 1 |
 
 Not counted: 12 interface rows that are not a target, 8 platform rows that are paid or have nothing to build.
 
@@ -382,8 +382,10 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | The question can be shown again after it was answered | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | A pod's drawer grades each container's image from Trivy Operator's reports, in the container's own section, as a symbol and a detail view,… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | Every pod in the Pods list shows the worst image grade of its containers as a symbol only, in a narrow column without a title after Contain… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
+| A page of the cluster's image vulnerabilities from Trivy Operator's reports: the running images and how many are scanned, the CVEs by sever… | partial | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | Kyverno: the objects that violate a policy show it, in their lists and their drawer: an Audit policy's fail, and an Enforce policy's on an… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | Agents read every policy violation of a cluster in one call, with each object's reference, from the cache (D-79) | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
+| Velero: a page of how the cluster's backups stand, while it serves Velero's Backups: Velero's version, server, node agents and plugins; Sch… | partial | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | The title bar's alerts pill shows the shown cluster's active alerts while the Alertmanager integration is on: red from a critical alert, or… | done | [Alerts](beyond-lens.md#alerts) |
 | An alert board like karma's, tidier: the alerts grouped by severity and alertname with their counts, each with its summary, its description… | done | [Alerts](beyond-lens.md#alerts) |
 | How often each alert started firing in each of the last 24 hours, from the cluster's Prometheus | done | [Alerts](beyond-lens.md#alerts) |

@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"runtime"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -64,6 +63,9 @@ type shell struct {
 	now     func() time.Time
 	// saveFile asks where to save a file and writes it (a file save dialog; tests record it).
 	saveFile func(name string, rows int, data []byte)
+	// saveReport asks where to save a PDF report and writes it (Image Security's Export PDF; tests
+	// record it).
+	saveReport func(name string, cves int, data []byte)
 	// files shows the system's file panels (filepicker.go): none until Run puts macOS's in place,
 	// a recorder in tests. bookmarks keeps what the panels grant for later runs (Options.Bookmarks).
 	files     filePicker
@@ -222,6 +224,7 @@ func newShell(eng Engine, a fyne.App, w fyne.Window, opts Options, do func(func(
 	sh.ctx, sh.cancel = context.WithCancel(context.Background())
 	sh.files, sh.bookmarks = noPanels{}, opts.Bookmarks
 	sh.saveFile = sh.saveTable // the system's save panel, else Fyne's dialog (filepicker_choosers.go)
+	sh.saveReport = sh.savePDF // likewise
 	sh.titlebar = newTitlebar(sh)
 	sh.loadWidths() // before the drawer, which wraps its values to the width it will have
 
@@ -562,6 +565,8 @@ func (sh *shell) applyUIState(st engine.UIState) {
 	}
 	sh.clustersChanged(st, old, first) // the other connected clusters' marks (clustermarks.go, D-69)
 	sh.side.userChanged(st, old)       // a renewed login's user (clusteruser.go, D-68)
+	// An integration's page in the navigator (imagesecurity.go).
+	sh.side.integrationsChanged(st, old)
 	if !first && (st.ActiveTab != old.ActiveTab || st.View != old.View) {
 		sh.view.dropSearch() // a search typed for one tab or view stays out of the next (tableview.go)
 	}
@@ -1301,25 +1306,8 @@ func decodeKinds(res any) ([]kindInfo, error) {
 	return wrapped.Kinds, nil
 }
 
-// formatCount formats n with thousands separators: 10000 → "10,000".
-func formatCount(n int64) string {
-	s := strconv.FormatInt(n, 10)
-	neg := strings.HasPrefix(s, "-")
-	if neg {
-		s = s[1:]
-	}
-	var b strings.Builder
-	if neg {
-		b.WriteByte('-')
-	}
-	for i, r := range s {
-		if i > 0 && (len(s)-i)%3 == 0 {
-			b.WriteByte(',')
-		}
-		b.WriteRune(r)
-	}
-	return b.String()
-}
+// formatCount formats n with thousands separators: 10000 → "10,000" (model.FormatCount).
+func formatCount(n int64) string { return model.FormatCount(n) }
 
 func sameRef(a, b *model.ObjectRef) bool {
 	if a == nil || b == nil {

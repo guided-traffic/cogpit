@@ -466,9 +466,10 @@ Nothing open.
   ([checklist](resource-parity.md#paid-lens-desktop-views)); Lens's Flux CD and Argo CD views are
   [G23](#g23-flux-cd-and-argo-cd-views), its Ask AI and MCP server
   [G21](#g21-built-in-agent) and [G17](#g17-mcp-control). Cogpit reads Trivy Operator's reports
-  only for pods' image ratings
-  ([D-78](../developer/decisions.md#d-78-trivy-operators-image-ratings)), the index a Security
-  Center page would build on.
+  for pods' image ratings
+  ([D-78](../developer/decisions.md#d-78-trivy-operators-image-ratings)) and its own Image
+  Security page ([D-178](../developer/decisions.md#d-178-the-image-security-page)), not Lens's
+  Security Center.
 - **Impact:** high for users of Lens's paid plans, none for the mainstream audience; after the
   beta, counted toward the full target only
   ([D-9](../developer/decisions.md#d-9-scope-against-lenss-paid-and-vendor-features)).

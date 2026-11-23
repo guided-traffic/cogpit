@@ -162,7 +162,7 @@ func (tv *tableView) ringValid() bool { return tv.kbRow >= 0 && tv.kbRow < tv.ro
 
 // ringTarget is the target of a row key typed in the table: the keyboard's row, and the marked rows.
 func (tv *tableView) ringTarget() (keyTarget, bool) {
-	if !tv.ringValid() {
+	if !tv.ringValid() || !tv.rowsAreObjects() {
 		return keyTarget{}, false
 	}
 	return keyTarget{ref: tv.snap.Rows[tv.kbRow].Ref, sel: slices.Clone(tv.selected), row: tv.kbRow}, true

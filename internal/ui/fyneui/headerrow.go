@@ -30,6 +30,12 @@ func (headerRowLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	}
 	heading, tools := objs[0], objs[1]
 	hm := heading.MinSize()
+	hw := hm.Width // a heading that gives way (the Velero page's line, velero.go) would like more
+	if h, ok := heading.(*fyne.Container); ok {
+		if l, ok := h.Layout.(*shrinkRowLayout); ok {
+			hw = l.full(h.Objects)
+		}
+	}
 	full := tools.MinSize().Width
 	if t, ok := tools.(*fyne.Container); ok {
 		if l, ok := t.Layout.(*shrinkRowLayout); ok {
@@ -42,7 +48,7 @@ func (headerRowLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	tools.Move(fyne.NewPos(x, 0))
 	tools.Resize(fyne.NewSize(min(w, size.Width), size.Height))
 	heading.Move(fyne.NewPos(0, 0))
-	heading.Resize(fyne.NewSize(min(hm.Width, max(0, x-headerGap())), size.Height))
+	heading.Resize(fyne.NewSize(min(hw, max(0, x-headerGap())), size.Height))
 }
 
 func headerGap() float32 {

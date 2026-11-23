@@ -143,7 +143,10 @@ an `engine.Integration`: [architecture §4.7](architecture.md#47-integrations-d-
    ([`fluxnav.go`](../../internal/ui/fyneui/fluxnav.go); Argo CD's in
    [`argocd.go`](../../internal/ui/fyneui/argocd.go)), one line in `navLayout`
    ([`sidebar.go`](../../internal/ui/fyneui/sidebar.go)). A group whose kinds the cluster does not
-   serve is left out with its pages.
+   serve is left out with its pages. A page of an `engine.Integration` sets its entry's `needs`
+   and `integration`, so that it shows only while the cluster serves the kind and the integration
+   is on ([`imagesecurity.go`](../../internal/ui/fyneui/imagesecurity.go)); its worker reads
+   nothing while the integration is off.
 
 ## Adding a built-in kind profile
 

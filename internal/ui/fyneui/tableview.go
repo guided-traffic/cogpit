@@ -62,10 +62,13 @@ type tableView struct {
 	cluster                    *clusterPanel
 	flux                       *fluxPanel      // the Flux dashboard's tiles (fluxdashboard.go)
 	argo                       *argoPanel      // the Argo CD Dashboard's strip, cards and activity (argocd_dashboard.go)
+	imageSec                   *imageSecPanel  // the Image Security page's header line and cards (imagesecurity.go)
 	alerts                     *alertBoard     // the alert board, over the table while its page is open (alertboard.go, D-77)
+	velero                     *veleroPanel    // the Velero page, over the table while it is open (velero.go)
 	pageTop                    *fyne.Container // the open page's part
 	eventsTitle                *textLine
 	eventsHeading, eventsTools *fyne.Container
+	eventsWide                 *fyne.Container // the row's free width: Image Security's search (placePageSearch)
 	pageBox                    *fyne.Container
 	pageMode                   bool
 	pageView                   string // the page the layout is set up for
@@ -209,18 +212,20 @@ func newTableView(sh *shell) *tableView {
 	tv.cluster = newClusterPanel(sh)
 	tv.flux = newFluxPanel(sh)
 	tv.argo = newArgoPanel(sh)
+	tv.imageSec = newImageSecPanel(sh)
 	tv.alerts = newAlertBoard(sh)
+	tv.velero = newVeleroPanel(sh)
 	tv.pageTop = container.NewStack(tv.overview.root)
 	tv.eventsTitle = newTextLine("Events", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
-	tv.eventsHeading, tv.eventsTools = container.NewHBox(), container.NewHBox()
+	tv.eventsHeading, tv.eventsTools, tv.eventsWide = container.NewHBox(), container.NewHBox(), container.NewStack()
 	tv.pageBox = container.NewVBox(tv.pageTop, newDivider(false),
 		container.NewStack(newSurface(theme.ColorNameBackground),
 			inset(theme.SizeNameInnerPadding, theme.SizeNamePadding,
-				container.NewBorder(nil, nil, tv.eventsHeading, tv.eventsTools))))
+				container.NewBorder(nil, nil, tv.eventsHeading, tv.eventsTools, tv.eventsWide))))
 	tv.pageBox.Hide()
 	frame := box(&stretchLayout{tv: tv}, tv.table)
 	tv.create = newCreateButton(sh)
-	body := container.NewStack(newSurface(theme.ColorNameBackground), frame, tv.order.layer, tv.copyIcon.layer, tv.placeholder, tv.alerts.root)
+	body := container.NewStack(newSurface(theme.ColorNameBackground), frame, tv.order.layer, tv.copyIcon.layer, tv.placeholder, tv.alerts.root, tv.velero.root)
 	tv.root = container.NewBorder(
 		// The light strip right under the header, above the page's part and the table's header (the
 		// owner's walk, LS20: "Das ist der Platz für den Lichtstreifen").
@@ -228,6 +233,20 @@ func newTableView(sh *shell) *tableView {
 		nil, nil, nil, body)
 	tv.updatePlaceholder()
 	return tv
+}
+
+// placePageSearch puts the search into a page's table header: at the right, as a view has it, or,
+// on Image Security, whose search is its main tool, across the row's free width (D-178).
+func (tv *tableView) placePageSearch(view string) {
+	if engine.IsImageSecurity(view) {
+		tv.eventsTools.Objects = []fyne.CanvasObject{tv.states.box}
+		tv.eventsWide.Objects = []fyne.CanvasObject{tv.searchBox}
+	} else {
+		tv.eventsTools.Objects = []fyne.CanvasObject{tv.states.box, tv.searchBox}
+		tv.eventsWide.Objects = nil
+	}
+	tv.eventsTools.Refresh()
+	tv.eventsWide.Refresh()
 }
 
 // showHeadingCount shows the item count and the CSV button while the view has a snapshot and no
@@ -261,17 +280,22 @@ func (tv *tableView) setPageLayout(view string) {
 	// The alert board's header is a view's: its title and count, the namespace filter and the
 	// search; its body replaces the table (alertboard.go, D-77).
 	board := view == engine.AlertBoard || view == engine.AlertSilences // the silences page shows in the board's place (silences.go)
+	velero := view == engine.VeleroDashboard                           // its header and body are its own (velero.go)
 	shown := ""
 	if board {
 		shown = view
 	}
 	tv.alerts.setShown(shown)
-	if board { // its groups are the severities: no status filter
+	tv.velero.setShown(velero)
+	// No status filter: the board's groups are the severities, Image Security's search has sev tokens,
+	// the Velero page has no table.
+	if board || velero || engine.IsImageSecurity(view) {
 		tv.states.box.Hide()
 	} else {
 		tv.states.box.Show()
 	}
-	page := engine.IsPage(view) && !board
+	page := engine.IsPage(view) && !board && !velero
+	tv.veleroHeading(velero)
 	if page && view != tv.pageView {
 		tv.pageView = view
 		top, title := tv.overview.root, "Events"
@@ -284,29 +308,43 @@ func (tv *tableView) setPageLayout(view string) {
 		if view == engine.ArgoCDDashboard {
 			top, title = tv.argo.root, "Needs Attention"
 		}
+		if engine.IsImageSecurity(view) {
+			top, title = tv.imageSec.root, ""
+		}
 		tv.pageTop.Objects = []fyne.CanvasObject{top}
 		tv.pageTop.Refresh()
 		tv.eventsTitle.SetText(title)
+		tv.imageSec.tables.choose(view) // the table's heading is its switch (imagesecurity.go)
+		if tv.pageMode {                // from another page: the heading and the search follow (imagesecurity.go)
+			tv.heading.Objects = tv.pageHeading(view)
+			tv.heading.Refresh()
+			tv.placePageSearch(view)
+			tv.eventsHeading.Objects[0] = tv.tableHeading(view)
+			tv.eventsHeading.Refresh()
+			tv.tools.Objects = tv.pageTools(view)
+			tv.tools.Refresh()
+		}
 	}
 	if page == tv.pageMode {
 		return
 	}
 	tv.pageMode = page
 	if page {
-		tv.heading.Objects = []fyne.CanvasObject{tv.title}
-		tv.tools.Objects = []fyne.CanvasObject{tv.nsBox}
-		tv.eventsHeading.Objects = []fyne.CanvasObject{tv.eventsTitle, tv.count, tv.csvButton, tv.syncing, tv.check.bar.root}
-		tv.eventsTools.Objects = []fyne.CanvasObject{tv.states.box, tv.searchBox} // the status filter filters the table only
+		tv.heading.Objects = tv.pageHeading(view)
+		tv.tools.Objects = tv.pageTools(view)
+		tv.eventsHeading.Objects = []fyne.CanvasObject{tv.tableHeading(view), tv.count, tv.csvButton, tv.syncing, tv.check.bar.root}
+		tv.placePageSearch(view) // the status filter filters the table only
 		tv.pageBox.Show()
 	} else {
-		tv.eventsHeading.Objects, tv.eventsTools.Objects = nil, nil
+		tv.eventsHeading.Objects, tv.eventsTools.Objects, tv.eventsWide.Objects = nil, nil, nil
 		tv.heading.Objects = []fyne.CanvasObject{tv.title, tv.count, tv.csvButton, tv.syncing, tv.check.bar.root}
 		tv.tools.Objects = []fyne.CanvasObject{tv.nsBox, tv.states.box, tv.searchBox}
 		tv.pageBox.Hide()
 	}
-	for _, c := range []*fyne.Container{tv.heading, tv.tools, tv.eventsHeading, tv.eventsTools} {
+	for _, c := range []*fyne.Container{tv.heading, tv.tools, tv.eventsHeading, tv.eventsTools, tv.eventsWide} {
 		c.Refresh()
 	}
+	tv.veleroHeading(velero)
 }
 
 // viewChanged follows a change of the open view: titles, placeholder, search hint.
@@ -336,8 +374,12 @@ func (tv *tableView) requestPage() {
 		tv.flux.request()
 	case view == engine.ArgoCDDashboard:
 		tv.argo.request()
+	case engine.IsImageSecurity(view):
+		tv.imageSec.request()
 	case view == engine.AlertBoard, view == engine.AlertSilences:
 		tv.alerts.request()
+	case view == engine.VeleroDashboard:
+		tv.velero.request()
 	case engine.IsPage(view):
 		tv.overview.request()
 	}
@@ -355,6 +397,9 @@ func (tv *tableView) rowNoun() string {
 	if tv.sh.ui.View == engine.ArgoCDDashboard {
 		return argoRowNoun(tv.sh) // argocd.go
 	}
+	if engine.IsImageSecurity(tv.sh.ui.View) {
+		return imageSecRowNoun(tv.sh.ui.View) // imagesecurity.go
+	}
 	if tv.sh.ui.View == engine.AlertBoard {
 		return "alerts"
 	}
@@ -370,7 +415,7 @@ func (tv *tableView) rowNoun() string {
 // updateTitle shows the view's title and item count, "Pods 18 items", and names the view in the
 // search hint; kinds.list may bring the title after the view opened.
 func (tv *tableView) updateTitle() {
-	tv.search.SetPlaceHolder("Search " + tv.rowNoun() + "…")
+	tv.search.SetPlaceHolder(tv.searchHint()) // imagesecurity.go
 	title := tv.sh.kindTitle(tv.sh.ui.View)
 	if tv.snap != nil && tv.snap.Title != "" {
 		title = tv.snap.Title
@@ -738,10 +783,12 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 		return
 	}
 	var content cellContent
-	switch id.Col {
-	case tv.menuColumn():
+	switch {
+	case !tv.rowsAreObjects() && (id.Col == tv.menuColumn() || id.Col == checkColumn):
+		// A CVE is no object: no menu, no checkbox (imagesecurity.go).
+	case id.Col == tv.menuColumn():
 		content.kind = cellMenu
-	case checkColumn:
+	case id.Col == checkColumn:
 		content.kind = cellCheck
 	default:
 		row := &tv.snap.Rows[id.Row]
@@ -776,6 +823,9 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 		}
 		if col.Type == model.ColumnGrade {
 			content.kind, content.grade = cellGrade, cell.Grade // the shield; the text is its tooltip (gradebadge.go)
+		}
+		if engine.IsImageSecurity(tv.snap.View) { // D-180: coloured words, no pill (imagesecurity.go)
+			content.tone, content.pill = imageSecTone(col, cell), false
 		}
 	}
 	content.row = tv.snap.Rows[id.Row].Status
@@ -833,7 +883,11 @@ func (tv *tableView) updateHeader(id widget.TableCellID, o fyne.CanvasObject) {
 		tv.headers = append(tv.headers, h)
 	}
 	if id.Row == -1 && tv.snap != nil && id.Col == checkColumn {
-		h.setFixed(false)      // a cell Fyne used for a fixed column before keeps its divider here
+		h.setFixed(false) // a cell Fyne used for a fixed column before keeps its divider here
+		if !tv.rowsAreObjects() {
+			h.setMenu(id.Col, false) // no checkbox over rows that are no objects
+			return
+		}
 		tv.check.showHeader(h) // the header's checkbox: every row shown, or none
 		return
 	}
@@ -897,6 +951,10 @@ func (tv *tableView) rowTapped(id widget.TableCellID) {
 	tv.updateKeyboardCell()
 	tv.setHoverCell(id.Row, id.Col)
 	tv.sh.tip.hide()
+	if !tv.rowsAreObjects() {
+		tv.imageSecCVETapped(id.Row) // a CVE: its findings (imagesecurity.go)
+		return
+	}
 	if id.Col == checkColumn { // Space or ↵ with the keyboard on a checkbox: ⇧ is the key's
 		tv.checkTapped(id.Row, keyEventModifiers())
 		return
@@ -904,6 +962,7 @@ func (tv *tableView) rowTapped(id widget.TableCellID) {
 	ref := tv.snap.Rows[id.Row].Ref
 	tv.check.anchor = &ref // ⇧-click selects from here (tablecheck.go)
 	tv.sh.openDetails(ref)
+	tv.imageSecRowTapped(id.Row) // a finding's container (imagesecurity.go)
 }
 
 // setHover moves the row highlight that follows the pointer and the keyboard.
@@ -1392,6 +1451,8 @@ type cellContent struct {
 	kind    cellKind
 	row     model.Status // the row's status: its spine and tint (list_rows.go)
 	pill    bool         // a status cell: a healthy word with a dot, an abnormal one in a pill
+	// tone is the text's colour in place of the status's; "": the status's (imagesecurity.go).
+	tone fyne.ThemeColorName
 }
 
 // tableCell is one body cell: text in the cell's status colour (a link in the link colour, a cell
@@ -1695,6 +1756,9 @@ func (c *tableCell) apply() {
 	c.bg.FillColor = c.rowPlate(th)
 	size := th.Size(theme.SizeNameText)
 	fg := statusColorName(c.content.status)
+	if c.content.tone != "" {
+		fg = c.content.tone
+	}
 	if c.pillShows() && !abnormalStatus(c.content.status) {
 		fg = theme.ColorNameForeground // a healthy word is quiet; its dot carries the colour
 	}

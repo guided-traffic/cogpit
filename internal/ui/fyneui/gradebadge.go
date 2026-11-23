@@ -8,6 +8,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/srwiley/rasterx"
@@ -49,6 +50,9 @@ const (
 	colorSevUnknown      fyne.ThemeColorName = "cogpit.sevUnknown" // Unknown's hatching, its two stripes
 	colorSevUnknownLight fyne.ThemeColorName = "cogpit.sevUnknownLight"
 	colorSevInkDark      fyne.ThemeColorName = "cogpit.sevInkDark" // a count on Medium and Low
+	// colorGradeCalm is the crest of S to C on the integrations' pages (D-180): grey, the letter in
+	// the text colour; only D and E keep their colours there.
+	colorGradeCalm fyne.ThemeColorName = "cogpit.gradeCalm"
 )
 
 func init() {
@@ -69,6 +73,8 @@ func init() {
 		p.fyne[colorSevLow] = hex(0xf5d68e)
 		p.fyne[colorSevInkDark] = hex(0x1c1204)
 	}
+	darkPalette.fyne[colorGradeCalm] = hex(0x3a4455)
+	lightPalette.fyne[colorGradeCalm] = hex(0xc3cad5)
 	// N/A between the list's background and its text, at 1.5:1 and 4:1 to the background (the lab's
 	// rule, computed for each theme's stage).
 	darkPalette.fyne[colorGradeNA] = hex(0x2f343d)
@@ -139,11 +145,13 @@ func crestPath(p rasterx.Adder, k float64) {
 	p.Stop(true)
 }
 
-// shieldKey names a crest's image: its grade, its pixel size and its colours.
+// shieldKey names a crest's image: its grade, its pixel size and its colours; flat draws it in
+// one colour without a rim (N/A, and a calm crest's grey).
 type shieldKey struct {
 	g         model.ImageGrade
 	w, h      int
 	fill, rim color.NRGBA
+	flat      bool
 }
 
 var shields = struct {
@@ -151,14 +159,22 @@ var shields = struct {
 	m map[shieldKey]*image.RGBA
 }{m: map[shieldKey]*image.RGBA{}}
 
+// calmGrey reports whether a calm crest draws a grade grey: S to C (D-180); D, E and N/A keep
+// their own.
+func calmGrey(g model.ImageGrade) bool { return g >= model.GradeS && g <= model.GradeC }
+
 // shieldImage returns the crest of a grade at w × h pixels in the theme's colours, drawn once per
-// grade, size and colours and shared after (it is never written again).
-func shieldImage(th fyne.Theme, g model.ImageGrade, w, h int) image.Image {
+// grade, size and colours and shared after (it is never written again); with calm, the
+// integrations' pages' crest (calmGrey).
+func shieldImage(th fyne.Theme, g model.ImageGrade, w, h int, calm bool) image.Image {
 	if w <= 0 || h <= 0 {
 		return image.NewRGBA(image.Rectangle{})
 	}
-	key := shieldKey{g: g, w: w, h: h, fill: nrgba(themeColor(th, gradeFill(g)))}
-	if g == model.GradeS {
+	key := shieldKey{g: g, w: w, h: h, fill: nrgba(themeColor(th, gradeFill(g))), flat: g == model.GradeNA || g == model.GradeNone}
+	switch {
+	case calm && calmGrey(g):
+		key.fill, key.flat = nrgba(themeColor(th, colorGradeCalm)), true
+	case g == model.GradeS:
 		key.rim = nrgba(themeColor(th, colorGradeRim))
 	}
 	shields.Lock()
@@ -176,7 +192,7 @@ func drawShield(key shieldKey) *image.RGBA {
 	img := image.NewRGBA(image.Rect(0, 0, key.w, key.h))
 	scan := rasterx.NewScannerGV(key.w, key.h, img, img.Bounds())
 	k := float64(min(key.w, key.h)) / 100
-	if key.g == model.GradeNA || key.g == model.GradeNone {
+	if key.flat {
 		scan.SetColor(key.fill)
 	} else {
 		top, bottom := shade(key.fill, crestShade), shade(key.fill, -crestShade)
@@ -187,7 +203,7 @@ func drawShield(key shieldKey) *image.RGBA {
 	f := rasterx.NewFiller(key.w, key.h, scan)
 	crestPath(f, k)
 	f.Draw()
-	if key.g == model.GradeS {
+	if key.g == model.GradeS && !key.flat {
 		scan.Clear()
 		light, dark := shade(key.rim, 0.35), shade(key.rim, -0.3)
 		scan.SetColor(rasterx.ColorFunc(func(x, y int) color.Color {
@@ -224,14 +240,24 @@ func lerpNRGBA(a, b color.NRGBA, t float64) color.NRGBA {
 }
 
 // gradeBadge draws a grade as its crest and letter, side points square; GradeNone draws nothing.
+// A calm badge is the integrations' pages' (D-180): S to C grey with the letter in the text
+// colour, D and E in their colours, N/A as everywhere.
 type gradeBadge struct {
 	widget.BaseWidget
 	grade model.ImageGrade
 	side  float32
+	calm  bool
 }
 
 func newGradeBadge(side float32, g model.ImageGrade) *gradeBadge {
 	b := &gradeBadge{grade: g, side: side}
+	b.ExtendBaseWidget(b)
+	return b
+}
+
+// newCalmGradeBadge is a calm gradeBadge.
+func newCalmGradeBadge(side float32, g model.ImageGrade) *gradeBadge {
+	b := &gradeBadge{grade: g, side: side, calm: true}
 	b.ExtendBaseWidget(b)
 	return b
 }
@@ -252,7 +278,7 @@ func (b *gradeBadge) CreateRenderer() fyne.WidgetRenderer {
 		if b.grade == model.GradeNone {
 			return image.NewRGBA(image.Rectangle{})
 		}
-		return shieldImage(b.Theme(), b.grade, w, h)
+		return shieldImage(b.Theme(), b.grade, w, h, b.calm)
 	})
 	r.objs = []fyne.CanvasObject{r.raster, r.text}
 	r.Refresh()
@@ -285,6 +311,9 @@ func (r *gradeBadgeRenderer) Refresh() {
 	th := b.Theme()
 	r.text.Text = b.grade.String()
 	r.text.Color = themeColor(th, gradeInk(b.grade))
+	if b.calm && calmGrey(b.grade) {
+		r.text.Color = themeColor(th, theme.ColorNameForeground)
+	}
 	r.text.TextSize = b.side * crestLetterSize
 	if b.grade == model.GradeNA {
 		r.text.TextSize *= crestNASize
@@ -300,10 +329,35 @@ func (r *gradeBadgeRenderer) Destroy()                     {}
 // severityBar draws an image's counts as five segments, Critical to Unknown, each as wide as its
 // share of the vulnerabilities (at least a sliver, and room for its number), its count inside, in
 // Docker Scout's colours; Unknown hatched; a severity without vulnerabilities faint (the owner's pick
-// in the lab: "Anteilig", Scout's colours).
+// in the lab: "Anteilig", Scout's colours). The drawer's image card and the Image Security page's
+// band draw it alike; with onTap a click on a segment names its severity (0 Critical … 4 Unknown).
 type severityBar struct {
 	widget.BaseWidget
 	counts model.VulnerabilityCounts
+	onTap  func(sev int)
+	r      *severityBarRenderer
+}
+
+// Tapped implements fyne.Tappable: the segment under the click, while the bar takes clicks.
+func (b *severityBar) Tapped(e *fyne.PointEvent) {
+	if b.onTap == nil || b.r == nil {
+		return
+	}
+	for i := range b.r.segs {
+		s := &b.r.segs[i]
+		if x := s.fill.Position().X; e.Position.X >= x && e.Position.X < x+s.fill.Size().Width+sevBarGap {
+			b.onTap(i)
+			return
+		}
+	}
+}
+
+// Cursor implements desktop.Cursorable: a hand while the bar takes clicks.
+func (b *severityBar) Cursor() desktop.Cursor {
+	if b.onTap != nil {
+		return desktop.PointerCursor
+	}
+	return desktop.DefaultCursor
 }
 
 func newSeverityBar(c model.VulnerabilityCounts) *severityBar {
@@ -325,6 +379,7 @@ const (
 
 func (b *severityBar) CreateRenderer() fyne.WidgetRenderer {
 	r := &severityBarRenderer{b: b}
+	b.r = r
 	for i := range r.segs {
 		s := &r.segs[i]
 		s.fill = canvas.NewRectangle(color.Transparent)
@@ -435,10 +490,16 @@ func (r *severityBarRenderer) Layout(size fyne.Size) {
 	}
 }
 
+// severityFills and severityInks are the severities' colours, Critical to Unknown, and those of a
+// count on them: the bar's, and the Image Security page's curve and legend.
+var (
+	severityFills = [5]fyne.ThemeColorName{colorSevCritical, colorSevHigh, colorSevMedium, colorSevLow, colorSevUnknown}
+	severityInks  = [5]fyne.ThemeColorName{colorGradeInkOnDark, colorGradeInkOnDark, colorSevInkDark, colorSevInkDark, theme.ColorNameForeground}
+)
+
 func (r *severityBarRenderer) Refresh() {
 	th := r.b.Theme()
-	fills := [5]fyne.ThemeColorName{colorSevCritical, colorSevHigh, colorSevMedium, colorSevLow, colorSevUnknown}
-	inks := [5]fyne.ThemeColorName{colorGradeInkOnDark, colorGradeInkOnDark, colorSevInkDark, colorSevInkDark, theme.ColorNameForeground}
+	fills, inks := severityFills, severityInks
 	size := th.Size(theme.SizeNameCaptionText)
 	for i, v := range r.counts() {
 		s := &r.segs[i]

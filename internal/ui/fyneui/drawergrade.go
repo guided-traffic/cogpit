@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
@@ -39,7 +40,13 @@ func (d *drawer) gradeCard(ref model.ObjectRef, card *model.GradeCard) fyne.Canv
 		&widget.TextSegment{Text: card.Reason, Style: widget.RichTextStyle{ColorName: colorMuted, SizeName: theme.SizeNameCaptionText}},
 	)
 	head.Wrapping = fyne.TextWrapWord
-	body := []fyne.CanvasObject{head}
+	var top fyne.CanvasObject = head
+	if card.Image != "" && d.sh.side.titles[engine.ImageSecurity] != "" { // the page is in the navigator
+		image := card.Image
+		link := widget.NewRichText(&widget.HyperlinkSegment{Text: imageSecLinkText, OnTapped: func() { d.showInImageSecurity(image) }})
+		top = container.NewBorder(nil, nil, nil, container.NewVBox(link), head)
+	}
+	body := []fyne.CanvasObject{top}
 	if card.Counts != nil {
 		pad := d.sh.app.Settings().Theme().Size(theme.SizeNameInnerPadding)
 		body = append(body, container.New(layout.NewCustomPaddedLayout(0, 0, pad, pad), newSeverityBar(*card.Counts)),
@@ -47,6 +54,17 @@ func (d *drawer) gradeCard(ref model.ObjectRef, card *model.GradeCard) fyne.Canv
 	}
 	return container.NewBorder(nil, nil, container.NewCenter(newGradeBadge(gradeCardSide, card.Grade)), nil,
 		container.NewVBox(body...))
+}
+
+// imageSecLinkText is the grade card's link, at its top right, to the image's CVEs on the Image
+// Security page (the owner's place and word).
+const imageSecLinkText = "Details"
+
+// showInImageSecurity opens the Image Security page searched for the image (trivy.showImage).
+func (d *drawer) showInImageSecurity(image string) {
+	d.sh.dispatch("trivy.showImage", struct {
+		Image string `json:"image"`
+	}{image}, func(_ any, err error) { d.sh.showError(err) })
 }
 
 // gradeMeta is the card's last line, wrapped as the drawer is wide: "OS alpine 3.20.10 · end of

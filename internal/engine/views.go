@@ -57,6 +57,8 @@ type state struct {
 	cluster    *clusterOverviewWorker // the cluster Overview's worker (clusteroverview.go); nil unless it is open
 	flux       *fluxDashboardWorker   // the Flux dashboard's worker (fluxdashboard.go); nil unless it is open
 	argo       *argoDashWorker        // the Argo CD Dashboard's worker (argocd_dashboard.go); nil unless it is open
+	imageSec   *imageSecWorker        // the Image Security page's worker (imagesecurity.go); nil unless it is open
+	velero     *veleroWorker          // the Velero page's worker (velero.go); nil unless it is open
 	vanished   *TableSnapshot         // the open view after the cluster stopped serving its kind (customkinds.go)
 	drawer     *drawerWatch
 	drawerSort map[string]SortSpec  // the drawer tables' order last applied (UIState.DrawerSort)
@@ -143,6 +145,8 @@ func (st *state) reconcileLocked(now UIState) {
 	st.reconcileClusterPageLocked(b, now)
 	st.reconcileFluxPageLocked(b, now)
 	st.reconcileArgoPageLocked(b, now)
+	st.reconcileImageSecPageLocked(b, now)
+	st.reconcileVeleroPageLocked(b, now)
 
 	// The drawer: a watch on its object and on the events. A custom kind's profile changes with its
 	// definition (another version, or gone), and the drawer follows it.
@@ -430,6 +434,12 @@ func defaultSort(p *model.KindProfile) SortSpec {
 	if p == fluxIssuesProfile { // the Flux dashboard's objects, the latest change first (fluxdashboard.go)
 		return fluxIssuesSort
 	}
+	if p == imageSecProfile { // the Image Security page's findings, the worst severity first (imagesecurity.go)
+		return imageSecSort
+	}
+	if p == imageSecCVEProfile { // its CVEs, likewise (imagesecurity_cves.go)
+		return imageSecCVESort
+	}
 	if p != nil && p.Key == eventsKind && p.ColumnIndex(lastSeenColumn) >= 0 {
 		return SortSpec{Column: lastSeenColumn, Desc: true}
 	}
@@ -458,6 +468,12 @@ func (s *Session) Table(view string) *TableSnapshot {
 	}
 	if view == ArgoCDDashboard {
 		return s.state.argoTable()
+	}
+	if IsImageSecurity(view) {
+		return s.state.imageSecTableOf(view)
+	}
+	if view == VeleroDashboard {
+		return s.state.veleroTable()
 	}
 	if w == nil || w.profile.Key != view {
 		if gone != nil && gone.View == view {

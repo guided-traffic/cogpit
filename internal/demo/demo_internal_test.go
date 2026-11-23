@@ -96,13 +96,34 @@ const (
 	helmConfigMaps = 3
 )
 
+// The demo's Velero (velero.go) with every namespace of the default cluster: its namespace and
+// server besides the world's, and its own kinds.
+var veleroCounts = map[kind]int{
+	kindCRDs: 7, kindDaemonSets: 1, kindPVCs: 10, kindVeleroSchedules: 5, kindVeleroBackups: 14 + 28 + 72 + 2 + 3 + 1,
+	kindVeleroRestores: 3, kindVeleroLocations: 2, kindVeleroSnapshotLocations: 1, kindVeleroRepositories: 8,
+	kindVeleroPodVolumeBackups: 6, // shop-volumes' newest backup's: four failed, two completed
+}
+
+// veleroObjects counts them all, its Namespace and Deployment included.
+func veleroObjects() int {
+	n := 2
+	for _, c := range veleroCounts {
+		n += c
+	}
+	return n
+}
+
 func TestBuildSizesAndVariety(t *testing.T) {
 	c := newTestCluster(t, Options{Seed: 1})
 	want := map[kind]int{
-		kindPods: DefaultPods, kindNodes: DefaultNodes, kindNamespaces: DefaultNamespaces,
-		kindDeployments: DefaultDeployments, kindServices: DefaultServices, kindEvents: DefaultEvents,
-		kindSecrets: helmSecrets, kindConfigMaps: helmConfigMaps,
+		kindPods: DefaultPods, kindNodes: DefaultNodes, kindNamespaces: DefaultNamespaces + 1,
+		kindDeployments: DefaultDeployments + 1, kindServices: DefaultServices, kindEvents: DefaultEvents,
+		kindSecrets: helmSecrets, kindConfigMaps: helmConfigMaps, kindDaemonSets: len(c.w.daemonSets),
 	}
+	for k, n := range veleroCounts {
+		want[k] += n // Velero's node agents beside the cluster's DaemonSets
+	}
+	want[kindCRDs]++ // Trivy Operator's definition (trivy.go)
 	for k, n := range want {
 		if got := len(c.store[k]); got != n {
 			t.Errorf("%s: %d objects, want %d", kindInfo[k].kind, got, n)
@@ -552,8 +573,9 @@ func TestStatsCountsObjectsAndEvents(t *testing.T) {
 	for _, cj := range c.w.cronJobs {
 		controllers += len(cj.jobs)
 	}
-	if st.Objects != 500+DefaultNodes+DefaultNamespaces+40+20+50+helmSecrets+helmConfigMaps+40+stuck+controllers {
-		t.Errorf("Objects = %d", st.Objects)
+	reports := len(c.store[kindVulnerabilityReports])                                                                                                        // trivy_test.go checks them
+	if reports == 0 || st.Objects != 500+DefaultNodes+DefaultNamespaces+40+20+50+helmSecrets+helmConfigMaps+40+stuck+controllers+reports+1+veleroObjects() { // +1: Trivy's definition
+		t.Errorf("Objects = %d, %d reports", st.Objects, reports)
 	}
 	n := c.stepLocked(100)
 	if got := c.Stats().EventsSent; got != int64(n) {

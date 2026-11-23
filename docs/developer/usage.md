@@ -83,7 +83,8 @@ Ctrl on Windows and Linux.
   states and a namespace filter with its own search; a filtered namespace being deleted shows red.
   A click below the rows closes the drawer.
 - The navigator lists the Kubernetes kinds the cluster serves, then, under the heading
-  Integrations, Flux CD and Argo CD while the cluster runs them
+  Integrations, Flux CD, Argo CD and the [Velero page](#the-velero-page) while the cluster runs them
+  and Image Security while the Trivy integration is on
   ([D-149](decisions.md#d-149-the-navigators-integrations-heading)). View › Hide Outdated Objects
   (on by default) leaves Replication Controllers and Endpoints out of the navigator; its search,
   ⌘⇧P and links still find them ([D-148](decisions.md#d-148-hide-outdated-objects)).
@@ -138,9 +139,11 @@ Ctrl on Windows and Linux.
   Low or Unknown, at most 10; B Medium, or more than 10 Low or Unknown; C High, or an OS at its end
   of life; D 1 to 5 Critical; E more; N/A no report. The Pods list shows each pod's worst grade in
   its Signals column ([Signals](#the-signals-column)), a pod's drawer each container's with its
-  counts; nothing is read while the integration is off. Reports you may not list show no grade and
+  counts and, while the navigator has Image Security, "Details" at the card's top right: that
+  image's CVEs there (every severity); nothing is read while the integration is off. Reports you may not list show no grade and
   "No permission" in Cluster Settings › Integrations › Trivy, and are not asked for again until
-  Refresh Access Reviews or the cluster is shown again.
+  Refresh Access Reviews or the cluster is shown again. The Image Security page sums them up for
+  the cluster and searches the findings ([details](#image-security)).
 
 **Workloads at run time**
 
@@ -930,7 +933,8 @@ Integrations are tools the cluster runs that Cogpit finds and reads with your id
 installing or writing to them
 ([D-76](decisions.md#d-76-integrations-per-cluster-and-the-question-at-a-new-clusters-first-connect)):
 the Metrics Server (`metrics-server`) and Prometheus (`prometheus`) for metrics, Alertmanager
-(`alertmanager`) for the alerts pill and board, the Trivy Operator (`trivy`) for image ratings,
+(`alertmanager`) for the alerts pill and board, the Trivy Operator (`trivy`) for image ratings and
+the Image Security page,
 Kyverno (`kyverno`) for policy violations. Nothing is looked for until you choose for the cluster
 ([D-82](decisions.md#d-82-a-pre-choice-before-any-integration-is-looked-for-and-ask-again)), not
 even in the background; Alertmanager, Trivy and Kyverno are read only while the cluster is shown.
@@ -1573,6 +1577,118 @@ a report names with a violation
   for again until Refresh Access Reviews or the next connect; a namespace refused while others are
   read is left out the same way. Off: nothing is read or shown. Not read: Kyverno's
   `openreports.io` reports, other engines'.
+
+### Image Security
+
+While the Trivy integration is on and the cluster serves Trivy Operator's VulnerabilityReports,
+Integrations › Image Security shows what the reports say about the images the cluster runs
+([D-178](decisions.md#d-178-the-image-security-page)). Read only; the namespace filter at the
+right applies to the whole page.
+
+- **Header:** "93 images running · 81 scanned · 12 not scanned · newest scan 6m ago" # example:
+  the distinct images of running pods, those a report covers, the latest scan.
+- **Counting:** an image is its digest (Trivy's `report.artifact.digest`, else repository and tag):
+  replicas and the same image in several workloads or namespaces count once; a tag pushed again
+  while pods still run the old image counts twice, its name then followed by the digest's start
+  ("shop/api:2.4.1@sha256:1a2b3c4d5e6f" # example). A container is a workload's container
+  ("shop/api/server": namespace, workload, container).
+- **Severity band:** the distinct CVE ids by severity (each under its worst), one segment per
+  severity as wide as its share, its count on it; under it the legend and "188 CVEs · 119
+  fixable" # example. A click on a segment keeps that severity (`sev:critical` in place of the
+  search's severity tokens).
+- **Cards:** Top images (grade shield, image, Critical and High), Top CVEs (severity, id, images
+  and containers it is found in), Top namespaces (worst grade, Critical and High). A click on an
+  entry narrows the table to it by adding its token to the search.
+- **Search:** the field across the table's header row; plain words search every cell (Aa and `.*`
+  as in any view), and these words narrow the rows:
+
+  | Token | Keeps |
+  |---|---|
+  | `sev>=high` # default | High and Critical; also `critical`, `medium`, `low`, `unknown` |
+  | `sev:low` # example | that severity only |
+  | `fixable` | findings with a fixed version |
+  | `ns:shop` # example | that namespace |
+  | `image:shop/api` # example | images that contain it; a tag ends the match (`image:shop/api:2.4.1` keeps 2.4.1, not 2.4.10) |
+  | `pkg:openssl` # example | packages that contain it |
+  | `cve:CVE-2024-45337` # example | that CVE |
+
+  The same token twice means either (`sev:low sev:unknown`). The page opens with `sev>=high`;
+  clear the field for every row. On the CVEs the tokens pick the findings a CVE is counted from:
+  `ns:shop` counts its images and containers in shop alone.
+- **CVEs** (the table the page opens with): one row per CVE: Severity, CVE, Score (the highest),
+  Package, Fixed (every fixed version, empty: no fix), Images, Containers, Runs in (the
+  containers, all of them in its tooltip up to 30); the worst first, then the most images, then
+  the most containers; sortable, downloadable as CSV. A CVE is no object: no checkbox, no menu; a
+  click shows its findings.
+- **Findings:** the switch in the table's heading (CVEs | Findings), or a click on a CVE (its
+  `cve:` token added; back to the CVEs drops it; ⌘[ returns as well). One row per CVE, workload and
+  container: Namespace, Workload ("Deployment api"), Container, Image, CVE, Severity, Score,
+  Package, Installed, Fixed; the worst first, sortable, downloadable as CSV. A click opens the
+  workload's drawer (a bare pod's at the container).
+- **Findings over time** (while the Prometheus integration is on and the cluster has a Prometheus):
+  a stacked bar per day (every 6 hours for 7 days) of the findings by severity, read from Trivy
+  Operator's metric `trivy_image_vulnerabilities`, a CVE counted once per image (its digest, else
+  repository and tag); 7, 30 # default or 90 days; for the window's namespaces. Asked when the page
+  opens, the range or the namespaces change, and every 15 minutes while it shows. Where Prometheus
+  does not scrape Trivy Operator the card says so; a time Prometheus has nothing for has no bar.
+  The demo cluster draws a curve of its own ("Demo data").
+- **Export PDF** (the page's header): a report of the page as it stands, A4 landscape: the header
+  line, the band, the three cards, the curve, then every CVE the search keeps, each with all the
+  containers it runs in (namespace, workload, container, image, installed → fixed version). Saved
+  where you pick, named "image-security-<cluster>-<date>.pdf" # example.
+- **Colours:** red for Critical and the E shield, amber for High and D, everything else grey.
+- **Agents:** `trivy_imageSecurity {context?, namespaces?, table?, filter?, limit?}` reads the
+  page (its curve included), with `table` `cves` or `findings` one of its tables;
+  `trivy_imageSecurityTable {table, cve?}` switches the shown table; `trivy_showImage {image}` opens
+  the CVEs of one image; `trivy_setTrendRange {days}`
+  sets the curve's range; `trivy_exportImageSecurityPdf {context?}` returns the report;
+  `ui_setFilter` sets its search. No vulnerability's title or description is read.
+- **Reads:** the reports, without the fields the page does not show, and the pods, only while the
+  page is open; for the curve, two queries of the cluster's Prometheus through the API server's
+  service proxy, with your identity, while the page shows. Off: no entry, nothing read. Reports you may not list: the error line says so
+  ("Cogpit may not list vulnerabilityreports.aquasecurity.github.io", or the cluster's refusal),
+  without cards or counts, and they are not asked for again until Refresh Access Reviews or the
+  page is opened again.
+
+### The Velero page
+
+While the cluster serves Velero's Backups, Integrations › Velero shows how its backups stand, read
+from the cache and nothing else: no action, no request to Velero, nothing created in the cluster
+([D-179](decisions.md#d-179-the-velero-page)). Grey is the ground; red means act now, amber check.
+
+- **Header:** "1.17.1 · namespace velero · server 1/1 · node agents 6/6 · plugins aws 1.13.0", from
+  Velero's Deployment and node-agent DaemonSet (a part you may not read is left out), and the
+  namespace filter, which narrows the page to the schedules, backups and restores whose scope takes
+  those namespaces in, their repositories and their rows below.
+- **Status:** Schedules, Backups, Restores and Storage counted by state, each with a thin bar; a
+  tile's title opens its kind's list.
+- **Needs attention:** Problem, Object, Scope, Since, Detail: a storage location unavailable (its
+  message), no default location, a schedule overdue ("due 02:00, no backup created; … still
+  InProgress": Velero creates no run while one of the schedule is under way) or failing validation,
+  a schedule's latest backup failed or partly failed (its counts of errors and warnings, how many of
+  them are failed volume backups: "28 errors · 28 volume backups failed", "49 errors · 28 volume
+  backups failed · 21 counted only"; the text of the rest is in Velero's logs, which Cogpit does not
+  fetch), a backup made by hand that failed in the last week, a repository not ready or its
+  maintenance failed, node agents not ready. A click opens the object's drawer beside the page.
+- **Failed volume backups** (while those backups have any): Namespace, Volumes, Pods, Node,
+  Message, a row for the volumes of one namespace that failed the same way (their messages alike but
+  for their own pod, volume and paths), most volumes first; the message whole in its tooltip. A
+  click opens the first one's PodVolumeBackup or DataUpload beside the page.
+- **Schedules:** When (the cron in words, its zone named where yours shows another time), Next run,
+  Last runs (the last seven, oldest left: grey completed, amber partially failed, red failed, a ring
+  running, a red ring a run cron expected that was never created), Last completed, Duration, Scope,
+  TTL, Location, State.
+- **Outside every schedule** (inferred): the namespaces no enabled schedule takes in full, those
+  with PVCs first, with their workloads, Flux CD or Argo CD where their labels name it, and why:
+  excluded, partly in scope (a selector, a resource filter that leaves out PVCs, PVs, pods, Secrets
+  or ConfigMaps or takes only some kinds, the Namespace labelled
+  `velero.io/exclude-from-backup`, which leaves only the Namespace object out), in scope of a paused
+  schedule only. "In scope" is read from the schedules, never proof of a backup.
+- **Agents:** `velero_dashboard {context?, namespaces?}` returns the same page.
+- **Reads:** Velero's kinds, the namespaces, PVCs and workloads, only while the page is open. A kind
+  you may not list counts "—" in its tile, which names it ("Cogpit may not list backups.velero.io",
+  or the cluster's refusal); the sections built from it count "—" and claim nothing. It is not asked
+  for again until Refresh Access Reviews or the page is opened again.
 
 ### A volume's usage
 

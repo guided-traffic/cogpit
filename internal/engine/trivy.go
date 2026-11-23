@@ -586,6 +586,7 @@ func gradeCard(r *model.VulnerabilityReport, now time.Time) *model.GradeCard {
 		Grade: g, Text: model.GradeText(g, counts, r.EOSL), Reason: model.GradeReason(g, counts, r.EOSL),
 		Counts: &counts, OS: r.OS(), EOSL: r.EOSL,
 		Report: &model.ObjectRef{Kind: trivyReportsKind, Namespace: r.Namespace, Name: r.Name},
+		Image:  r.Image(),
 	}
 	if !r.Scanned.IsZero() {
 		card.Scanned = model.FormatAge(now.Sub(r.Scanned)) + " ago (" + model.MarkTime(r.Scanned) + ")"

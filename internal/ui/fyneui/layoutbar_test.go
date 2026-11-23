@@ -414,6 +414,16 @@ func layoutScene(t *testing.T, mode ThemeMode, u engine.Updater) (*shell, fyne.W
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)
 	}
+	// Trivy's grades off: whether their first reading comes before or after the Pods' first
+	// snapshot depends on the scheduler, and the dock's Connection Diagnostics counts the snapshots.
+	s.UpdateUI(func(u *engine.UIState) {
+		cs := u.ClusterSettings[engine.DemoContext]
+		cs.SetIntegrations(0, 0, engine.IntTrivy)
+		if u.ClusterSettings == nil {
+			u.ClusterSettings = map[string]engine.ClusterSettings{}
+		}
+		u.ClusterSettings[engine.DemoContext] = cs
+	})
 	ch := newFakeChat()
 	ch.conns = []engine.ChatConnection{lmStudio()}
 	ch.notify = s.NotifyChat

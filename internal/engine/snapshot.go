@@ -418,6 +418,14 @@ func SortRows(rows []model.Row, cols []model.Column, spec SortSpec) {
 }
 
 func compareRows(a, b *model.Row, ci int, typ model.ColumnType, desc bool) int {
+	if c := compareCells(a, b, ci, typ, desc); c != 0 {
+		return c
+	}
+	return compareRefs(a, b)
+}
+
+// compareCells orders two rows by one column as compareRows does, 0 for a tie.
+func compareCells(a, b *model.Row, ci int, typ model.ColumnType, desc bool) int {
 	ca, cb := cellAt(a, ci), cellAt(b, ci)
 	ea, eb := emptyCell(typ, ca), emptyCell(typ, cb)
 	if ea != eb {
@@ -437,11 +445,9 @@ func compareRows(a, b *model.Row, ci int, typ model.ColumnType, desc bool) int {
 		if desc {
 			c = -c
 		}
-		if c != 0 {
-			return c
-		}
+		return c
 	}
-	return compareRefs(a, b)
+	return 0
 }
 
 func compareRefs(a, b *model.Row) int {

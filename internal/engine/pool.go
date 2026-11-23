@@ -218,6 +218,8 @@ func (st *state) detachViewsLocked() {
 		st.flux = nil
 	}
 	st.detachArgoLocked()
+	st.detachImageSecLocked()
+	st.detachVeleroLocked()
 	if st.drawer != nil {
 		st.drawer.stop()
 		st.drawer = nil

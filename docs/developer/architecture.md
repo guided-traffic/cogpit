@@ -115,6 +115,7 @@ cogpit/
 │  │  └─ k8seol/      L0  Kubernetes' release table, built into each release
 │  ├─ kubeconfig/     L0  kubeconfig parsing from bytes, the per-terminal kubeconfig
 │  ├─ buildinfo/      L0  the version both binaries report
+│  ├─ pdfreport/      L0  reports as PDF documents, no I/O
 │  ├─ cluster/        L1  connections, auth, discovery, access reviews, direct calls (§6)
 │  ├─ cache/          L1  the only place that lists and watches (§5)
 │  ├─ terminal/       L1  local shell on a PTY (ConPTY on Windows), pod and node shells (§10)
@@ -150,6 +151,7 @@ Where each package's mechanisms are described, and what only this table states:
 | [`model`](../../internal/model/), [`model/kinds`](../../internal/model/kinds/), [`model/k8seol`](../../internal/model/k8seol/) | Pure values for [§4.4](#44-tables-details-editors-and-streams) and [§4.5](#45-kind-keys): rows and cells, status tokens, panic-free accessors, Secret redaction, an object's YAML in the Kubernetes order (`ObjectYAML`, [D-86](decisions.md#d-86-the-order-of-an-objects-yaml)), byte amounts in binary units ([`bytes.go`](../../internal/model/bytes.go), [D-32](decisions.md#d-32-every-byte-amount-in-binary-units-with-one-decimal)), usage values (`PodUsage`, `NodeUsage` in [`usage.go`](../../internal/model/usage.go)), image grades ([`imagerating.go`](../../internal/model/imagerating.go)). `kinds`: one file per profile; a custom kind's generic profile comes from its definition's printer columns ([`customresources.go`](../../internal/model/kinds/customresources.go)); a kind without a profile (a built-in kind without one, an aggregated API's) has no view. `k8seol`: upstream's release table, embedded and refreshed by `make k8s-eol` at release build; nothing is fetched at run time ([H-130](../security/updates.md#h-130-the-releases-kubernetes-release-table-is-fetched-unreviewed)). |
 | [`kubeconfig`](../../internal/kubeconfig/) | No I/O: contexts from bytes, errors without credentials (`SafeError`), which files of a sync folder are read and how large (`SyncCandidate`, `MaxFileSize` in [`source.go`](../../internal/kubeconfig/source.go)), the per-terminal kubeconfig, a credential plugin's fingerprint ([`exec.go`](../../internal/kubeconfig/exec.go)), a client certificate's dates, its key never read ([`clientcert.go`](../../internal/kubeconfig/clientcert.go)). |
 | [`buildinfo`](../../internal/buildinfo/) | The version both binaries report ([`buildinfo.go`](../../internal/buildinfo/buildinfo.go)): the release's from the linker, else `dev` and the commit; the window shows it beside the wordmark ([`buildlabel.go`](../../internal/ui/fyneui/buildlabel.go)). |
+| [`pdfreport`](../../internal/pdfreport/) | Reports as PDF documents: the engine converts a page's model into the package's input, `Render` returns the bytes. A4 landscape, text in the embedded Go fonts (searchable), each cell measured with the font's advances and cut with "…", a rune the fonts lack drawn as "?"; the footer's "page n of m" written once every page exists. The Image Security report ([`imagesecurity.go`](../../internal/pdfreport/imagesecurity.go)): heading, severity band, the three top cards, the findings curve when there is one, then every CVE of the search with each container it runs in, the table's header repeated on every page. Built on [gopdf](https://github.com/signintech/gopdf) (MIT). |
 | [`cluster`](../../internal/cluster/) | [§6](#6-cluster-connections-internalcluster). Client-go's loading rules without implicit kubeconfig writes: no migration rules, no persisted auth configuration ([`cluster.go`](../../internal/cluster/cluster.go)). One kubeconfig file read on its own (`InspectFile`), sync folder listings and the credential plugin policy ([`sources.go`](../../internal/cluster/sources.go)). Writes through the dynamic client (field manager `cogpit`): update with a `resourceVersion` precondition, create (both optionally a server-side dry run), delete with a UID precondition ([`objects.go`](../../internal/cluster/objects.go)). Patches for Argo CD's Sync and Refresh ([`argocd.go`](../../internal/cluster/argocd.go), [D-36](decisions.md#d-36-how-argo-cds-sync-writes-the-operation)), for a removal of finalizers (`FinalizersPatch`: tests the UID and the confirmed finalizers; never a namespace's, never `/finalize`) and for a debug container (`AddEphemeralContainer`: the pod's `ephemeralcontainers` subresource, bound to its UID). Port-forward tunnels on loopback listeners Cogpit owns across reconnects ([`portforward.go`](../../internal/cluster/portforward.go)). |
 | [`cache`](../../internal/cache/) | The only place that lists and watches: [§5](#5-cache). |
 | [`terminal`](../../internal/terminal/) | [§10](#10-terminal-internalterminal). Pod shells over exec, WebSocket with a SPDY fallback ([`exec.go`](../../internal/terminal/exec.go)); attach waits through the cache for a starting container (`StartPodAttachAfter`); a node shell runs `nsenter` through a pod's exec ([`nodeshell.go`](../../internal/terminal/nodeshell.go), [D-37](decisions.md#d-37-the-node-shell)). |
@@ -177,7 +179,7 @@ Where each package's mechanisms are described, and what only this table states:
  L3  engine (and engine/commands)
  L2  helm · metrics · alerting · demo
  L1  cluster · cache · terminal · kubectl · locale
- L0  model · kubeconfig · buildinfo
+ L0  model · kubeconfig · buildinfo · pdfreport
 ```
 
 `make lint` enforces it with the `depguard` rules in [`.golangci.yml`](../../.golangci.yml):
@@ -185,8 +187,9 @@ Where each package's mechanisms are described, and what only this table states:
 1. No package imports a higher layer; L1 packages do not import each other, nor do `ui`, `mcp`,
    `agent`, `update` and `app`.
 2. **Only `internal/ui/...` imports Fyne.**
-3. **`model`, `kubeconfig` and `buildinfo` do no I/O** (no client-go clients, `net/http`, `os` or
-   `os/exec`): bytes and unstructured content in, values out, which keeps them fuzzable.
+3. **`model`, `kubeconfig`, `buildinfo` and `pdfreport` do no I/O** (no client-go clients,
+   `net/http`, `os` or `os/exec`): bytes and unstructured content in, values out, which keeps them
+   fuzzable; `pdfreport` imports no Cogpit package.
 4. **Only `cluster`, `cache`, `terminal`, `helm`, `metrics` and `alerting` talk to the API server.**
    The UI uses `helm`'s, `metrics`' and `terminal`'s types but never `cluster`, `cache`, `demo`,
    `kubectl` or client-go; `mcp` and `agent` only dispatch engine commands.
@@ -499,11 +502,25 @@ A view key with a slash is a page (`engine.IsPage`,
 ([`clusteroverview.go`](../../internal/engine/clusteroverview.go)), `flux/dashboard`
 ([`fluxdashboard.go`](../../internal/engine/fluxdashboard.go),
 [D-34](decisions.md#d-34-the-flux-dashboard)), `argocd/dashboard`
-([`argocd_dashboard.go`](../../internal/engine/argocd_dashboard.go)), `alerts/board`. An open page
-runs its own worker in place of a view worker (`state.page`, `state.cluster`, `state.flux`,
-`state.argo`), with cache handles on the kinds it reads. Its table's rows keep their kind keys, so
-selection, row menus and the drawer work (`engine.MixedKinds` where kinds mix), and
-`Session.ViewProfile` gives `ui.sort`, `ui.setColumns` and `table.exportCsv` its profile.
+([`argocd_dashboard.go`](../../internal/engine/argocd_dashboard.go)), `trivy/image-security` and
+`trivy/image-security/findings` (one page, its two tables; [`imagesecurity.go`](../../internal/engine/imagesecurity.go),
+[D-178](decisions.md#d-178-the-image-security-page)), `alerts/board`, `velero/dashboard`
+([`velero.go`](../../internal/engine/velero.go), [D-179](decisions.md#d-179-the-velero-page)). An
+open page runs its own worker in place of a view worker (`state.page`, `state.cluster`,
+`state.flux`, `state.argo`, `state.imageSec`, `state.velero`), with cache handles on the kinds it
+reads; an agent's read of a page that is not open (`flux.dashboard`, `trivy.imageSecurity`,
+`velero.dashboard`) takes the same handles for the call (`openFollowing`). A page may open with a
+search of its own (`pageFilters`: Image Security's `sev>=high`). Its table's rows keep their kind
+keys, so selection, row menus and the drawer work (`engine.MixedKinds` where kinds mix; Image
+Security's CVEs are no objects: their rows name the page's key, and the window gives them no
+checkbox, menu or drawer, `tableView.rowsAreObjects`), and
+`Session.ViewProfile` gives `ui.sort`, `ui.setColumns` and `table.exportCsv` its profile. The
+Velero page has no table of its own: its worker builds `VeleroDashboardModel`
+(`Session.VeleroDashboard`, `velero.dashboard`) from Velero's kinds (its PodVolumeBackups and
+DataUploads included, [`velero_volumes.go`](../../internal/engine/velero_volumes.go)), the
+namespaces, PVCs and workloads, on every change and every 30 seconds; its snapshot carries only the sync state and the
+error, and the window draws the model's tiles and tables over the table's place
+([`fyneui/velero.go`](../../internal/ui/fyneui/velero.go)), as the alert board does.
 
 #### Hotbar
 
@@ -1295,7 +1312,8 @@ retaken) is the waiting read's answer at once, after one list
 before a refusal never sends the refused read again (`TestBudgetAccessibleNamespaces`,
 `TestTargetReadsFollowARefusedClusterWideList`, `TestKindNamespaceLimitedUser`).
 Readers that hold their reads while shown (a list view and its related objects' reads, a drawer's
-reads, the Workloads and cluster Overviews, the Flux and Argo CD dashboards, the Trivy integration; [`pagerefusals.go`](../../internal/engine/pagerefusals.go))
+reads, the Workloads and cluster Overviews, the Flux and Argo CD dashboards, the Image Security and
+Velero pages, the Trivy integration; [`pagerefusals.go`](../../internal/engine/pagerefusals.go))
 give a read refused wholly back with its refusal kept, and of a read namespace by namespace each
 refused namespace (`Handle.ReleaseRefusedNamespaces`), at their loop's next look, and show the
 refusal; they start again, and read it again, once `cluster.refreshAccess` cleared the refusals
@@ -1310,7 +1328,8 @@ where a page would read it is named ("Cogpit may not list …", `mayNotList`)
 A scope may name a trim (`Scope.Trim`, `cache.RegisterTrim`,
 [`trim.go`](../../internal/cache/trim.go)) that the transform applies before the store:
 `kyverno-violations` keeps a policy report's violations, `trivy-summary` drops a vulnerability
-report's list. A trimmed scope is its own informer beside the kind's whole objects, so views, the
+report's list, `trivy-findings` keeps of each vulnerability only the fields the Image Security page
+shows (held while the page is open). A trimmed scope is its own informer beside the kind's whole objects, so views, the
 editor and agents never see a trimmed object; a trim never touches metadata (`TestTrimmedScope`).
 
 ## 6. Cluster connections (`internal/cluster`)

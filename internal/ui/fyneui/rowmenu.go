@@ -132,7 +132,7 @@ func (sh *shell) rowMenu(ref model.ObjectRef, acts []actionState) *fyne.Menu {
 // several objects opens the selection's menu instead, which acts on all of them (tablecheck.go);
 // the one checked row's menu ends with Clear Selection (N112).
 func (tv *tableView) openRowMenu(row int, pos fyne.Position) {
-	if tv.snap == nil || row < 0 || row >= len(tv.snap.Rows) {
+	if tv.snap == nil || row < 0 || row >= len(tv.snap.Rows) || !tv.rowsAreObjects() {
 		return
 	}
 	sh := tv.sh

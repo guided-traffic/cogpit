@@ -186,6 +186,9 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-175](#d-175-a-nodes-memory-is-the-kubelets-working-set) | A node's memory is the kubelet's working set | built: node-exporter's node memory is `AnonPages + Cached + Buffers − Inactive(file)`, the root cgroup's working set the kubelet and the Metrics Server report |
 | [D-176](#d-176-two-update-runs-write-the-same-pictures) | Two `-update` runs write the same pictures | built: a picture waits for the window's reads; the demo's own clock; the churning demo's pictures with `-live` |
 | [D-177](#d-177-a-refused-read-is-given-back-and-shown) | A refused read is given back and shown | built: views, pages, drawers, related reads and the Trivy and Kyverno integrations give a refused read back, name it once, show "—" for what was not read; Refresh Access reads again |
+| [D-178](#d-178-the-image-security-page) | The Image Security page | built: under Integrations while Trivy is on; an image counted by its digest; severity band, three cards, a findings curve from Prometheus; CVEs or findings with search tokens, opens on sev>=high; Export PDF; the reports trimmed to the shown fields while it is open |
+| [D-179](#d-179-the-velero-page) | The Velero page | built: under Integrations while the cluster serves Velero's Backups; tiles, Needs attention, Failed volume backups, Schedules, Outside every schedule; read-only, from the cache |
+| [D-180](#d-180-calm-colours-on-the-integrations-pages) | Calm colours on the integrations' pages | built: grey ground, red to act now, amber to check, good states without colour; Image Security and Velero |
 
 ## D-1: UI toolkit
 
@@ -6221,14 +6224,16 @@ its integrations
 ([D-87](#d-87-cluster-settings-the-integrations-under-a-divider-a-section-each-metrics-their-consumer))
 and the heading "integrations" in small bold lower case in the muted colour, without a bracket
 (the owner: "ohne diesen Balken und nur in Grau"). Under it the Flux CD and Argo CD groups, each top-level, with
-its icon, folding as any group does, each only while the cluster serves it. The heading shows while
-one of them does. It is only a heading: no click, no hover, no fold, and no key reaches it
+its icon, folding as any group does, each only while the cluster serves it, then the Image Security
+page while the Trivy integration is on and the cluster serves its reports
+([D-178](#d-178-the-image-security-page)), and the Velero page while the cluster serves Velero's
+Backups ([D-179](#d-179-the-velero-page)). The heading shows while one of them does. It is only a heading: no click, no hover, no fold, and no key reaches it
 (`ui.setNavigatorRow` names no heading). The search keeps it while it keeps one of its items, and a
 search for its name keeps all of them. Helm stays after Events.
 
 **Why:** the views of the tools a cluster runs belong together, below the Kubernetes kinds, and
 "Integrations" is what Cogpit calls them (Cluster Settings › Integrations); further such views
-(an image security overview, Velero's backups) join the heading when they are built.
+join the heading as they are built.
 
 **Not decided here:** whether Flux CD and Argo CD become `engine.Integration`s with a switch in
 Cluster Settings; today they show whenever the cluster serves their kinds.
@@ -7504,3 +7509,384 @@ such a kind (a node's Pods, a workload's Pods table) show what they show without
 `TestRenderClaimsMayNotListPodsDark`, `TestRenderFluxDashboardMayNotListDark`,
 `TestRenderArgoDashboardMayNotListDark`, `TestRenderWorkloadsOverviewMayNotListDark`,
 `TestRenderKyvernoMayNotListDark`, `TestFluxTileOfARefusedKind`
+
+## D-178: The Image Security page
+
+**Status:** built · **By:** owner (the page under Integrations, the layout of cards over a findings
+search, its texts, the calm colours D-180, the reports' vulnerability lists read while the page is
+open; an image counted once by its digest with its containers beside, the switchable CVEs and
+findings tables, the severity band over the cards, the curve from Prometheus, the PDF report of
+the data), lead (open to revision) the rest
+
+A page, `trivy/image-security` (its CVEs) and `trivy/image-security/findings` (its findings), titled
+Image Security: the whole cluster's vulnerability load from Trivy Operator's VulnerabilityReports,
+how often each CVE occurs and where, and a search over them. Read only, it writes nothing
+([D-151](#d-151-integrations-never-write-to-the-cluster)); no triage, which would be a write or
+state of Cogpit's own.
+
+- **Where:** a top-level entry under the navigator's Integrations heading
+  ([D-149](#d-149-the-navigators-integrations-heading)) after Argo CD, its icon a shield's outline
+  (the grades' shape, drawn for Cogpit), while the Trivy integration
+  is on for the cluster ([D-76](#d-76-integrations-per-cluster-and-the-question-at-a-new-clusters-first-connect))
+  and the cluster serves the reports' kind; switched off or not served, no entry and no read, and a
+  page left open says why in its error line.
+- **Reads while open:** the reports in a scope of the page's own, trimmed to what it shows
+  (`trivy-findings`: each vulnerability's id, package, installed and fixed version, severity and
+  score, copied into a map of its own, since a map does not shrink when keys are deleted; the
+  title, description, links, CVSS vectors, target, class, package type, path and PURL, and the
+  dates dropped), beside the integration's own scope without the lists
+  ([D-78](#d-78-trivy-operators-image-ratings)); and the pods, shared with the Pods view. Both are
+  held only while the page is open, as the Flux Dashboard's are, and follow the namespace plan.
+  Measured on a real cluster (154 reports of 103 images, 23,059 findings): the decoded reports take
+  26.2 MB of heap whole, 24.0 MB with nine fields kept in place, 0.9 MB in the integration's
+  summary scope; on synthetic reports of that shape and size 26.9 MB whole, 23.5 MB with nine
+  fields, 12.0 MB with the page's six in maps of their own (the six not measured on the real
+  cluster). The page needs the lists the summary scope drops, so whole or trimmed it adds one
+  watch while it is open; the trimmed scope adds another only while the reports' own view is open
+  beside it.
+- **A refusal** follows [D-177](#d-177-a-refused-read-is-given-back-and-shown): reports the access
+  reviews deny are not read and the error line says "Cogpit may not list
+  vulnerabilityreports.aquasecurity.github.io"; a read the API server refuses goes back, its refusal
+  stays in the error line; either way no cards, no header line and no count, and the pods refused
+  leave the running images out of the header.
+- **An image is its digest** (`report.artifact.digest`), else its repository and tag (the
+  registry and Docker Hub's `library/` left out): replicas and the same image in several workloads
+  or namespaces count once, a tag pushed again while pods still run the old image counts twice
+  (each has its own findings; its name then carries the digest's first 12 hex digits, as in
+  "shop/api:2.4.1@sha256:1a2b3c4d5e6f"), one digest under two names (a mirror) once. A
+  **container** is a workload's container (namespace, workload as the page names it, container),
+  so two reports of one Deployment's ReplicaSets are one.
+- **Header:** beside the title, "150 images running · 142 scanned · 8 not scanned · newest scan 2h
+  ago" # example: the distinct images of the pods in phase Running (a scanned one by its report's
+  identity, the others by repository and tag); scanned those a report covers in one of
+  them, by D-78's matching of a pod to its controller's report; the newest `report.updateTimestamp`.
+  A user who may not list pods gets only the newest scan.
+- **Severity band, for the selected namespaces** (the search narrows the table only): the
+  distinct CVE ids by severity, each under the worst severity a finding gives it, drawn by the
+  severity bar of a pod's drawer (D-113's image card: Critical to Unknown in Docker Scout's
+  colours, Unknown hatched, a severity without ids faint, each as wide as its share), its count
+  on it; a legend and "1,234 CVEs · 412 fixable" # example under it,
+  fixable an id with a fixed version in one of its findings. A click on a segment puts
+  `sev:<severity>` in place of the search's severity tokens.
+- **Cards, for the selected namespaces:** Top
+  images, the five worst by grade ([D-113](#d-113-image-grades-shields-from-trivys-reports)'s
+  rank), then Critical, then High, the counts the report's summary has (those the grade comes
+  from, as the Signals column and the drawer show them), an image's worst report where several
+  scan it; Top CVEs, the five worst by severity (Critical, High, Medium, Low, Unknown), then by
+  the images they are found in, then by the containers, then by id, each with both counts; Top
+  namespaces, the five whose worst image grades worst,
+  then by their distinct Critical and High ids.
+- **A click on an entry** narrows the table through the page's search, engine state
+  (`ui.setFilter`): `image:<repository:tag>`, `cve:<id>`, `ns:<namespace>`, in place of a token
+  of the same key.
+- **From a pod's drawer** (the owner's): a container's grade card ([D-113](#d-113-image-grades-shields-from-trivys-reports))
+  has "Details" at its top right, on its title's line, while the navigator has the page;
+  it opens the page's CVEs as the navigator does, the search `image:<repository:tag>` alone, every
+  severity, since one image's list is short (`trivy.showImage`). An `image:` value naming a tag
+  ends there: the name goes on with nothing or its digest, so `shop/api:2.4.1` does not take
+  2.4.10; without a tag it is contained. A namespace is a token, not the namespace filter, so the cards keep the
+  cluster's picture.
+- **Search:** the views' search field, across the free width of the findings' header row (the
+  page's main tool, where a view's search keeps its fixed width at the right), plain text; its words of the forms `sev>=<severity>`,
+  `sev:<severity>`, `fixable`, `ns:<name>` (exact), `image:<text>`, `pkg:<text>` (contained, any
+  case) and `cve:<id>` (exact, any case) are tokens, the other words the views' search (Aa and the
+  regular expression, its words then joined by single spaces). Tokens of different keys all hold,
+  several of one key are alternatives; a token without a value filters nothing (it is being
+  typed), a severity that is none filters nothing and says why in the field. The hint reads "CVE,
+  package, image…". No status filter: the severity tokens are the page's.
+- **Opens on `sev>=high`** whenever it opens afresh (a tab, the navigator), removable: unfiltered,
+  findings exceed the lists' 10,000-row budget ([testing](testing.md#performance-budgets));
+  measured on a real cluster, 23,059 findings of 1,819 distinct CVEs, 4,210 of them High or
+  Critical. Unknown is the largest severity there (13,661 findings), so the severity band
+  shows it whenever there is one.
+- **Two tables**, switched in the table's heading (CVEs | Findings, `trivy.imageSecurityTable`),
+  each its own page key so that each keeps its sort and columns and Back returns; the search
+  carries over, to the CVEs without its `cve:` tokens. The navigator marks the page's one entry for
+  both.
+- **Table "CVEs"** (the page opens on it): a row per CVE id among the findings the namespaces and
+  the search's tokens keep: Severity (the worst), CVE, Score (the highest), Package and Fixed
+  (each distinct value, in the findings' order; empty Fixed: no fix), Images, Containers, Runs in
+  ("shop/api/server, …", every container in its tooltip up to 30); the search's words match the
+  row's cells, so a workload's name finds the CVEs it runs. The worst first, then the most images,
+  then the most containers, then the id; a sort on a column keeps that order for ties. Total
+  counts every CVE id. A row is no object: its reference names the page's key and the CVE, the
+  window gives it no checkbox, menu or drawer, and a click shows the CVE's findings (the findings
+  table, `cve:<id>` in place of a `cve:` token).
+- **Table "Findings":** a row per vulnerability of a report: Namespace, Workload ("Deployment
+  api"), Container, Image, CVE, Severity, Score, Package, Installed, Fixed; Total counts every
+  finding. The worst severity first (sorted by level, not by word), ties by workload, then as read,
+  stable between builds; a score missing is "—". The row's object is the workload: a ReplicaSet
+  whose name ends in a pod template hash is its Deployment (by the name, as the CronJob of a Job
+  is found, D-78), a kind Cogpit has no view of the report itself. A click opens that drawer and
+  asks for the container's section ([D-150](#d-150-one-signals-column-for-every-mark)'s
+  `openAt`): a bare pod's drawer scrolls there; a workload's drawer has no container sections and
+  opens at its top. A workload's rows share its object, so they mark together as the drawer's.
+- **Colours (D-180):** grey is the ground; the Severity word Critical in the error colour, High
+  in the warning colour, the others and the installed version muted; no pill, no row status; in
+  the cards Critical and High bold in their colours; the band, the curve, their legend and the
+  PDF's band and curve in the drawer's severity bar colours (the owner's: one count, one look; the
+  PDF's Unknown solid grey, unhatched); the shields of S to C grey with the letter in the text colour, D and E in
+  their own, N/A as everywhere. The shield elsewhere stays as D-113 has it.
+- **Findings over time** (the owner's: from Prometheus, hidden where there is none): a card under
+  the others, while the Trivy and Prometheus integrations are on, of the findings (CVE × image)
+  by severity from Trivy Operator's `trivy_image_vulnerabilities` (labels checked in its
+  `pkg/metrics`: severity Critical, High, Medium, Low, Unknown; `namespace` the report's while the
+  chart's ServiceMonitor keeps `honorLabels: true`, its default): `sum by (severity) (max by
+  (image_digest, severity) (…{image_digest!=""}) or max by (image_repository, image_tag, severity)
+  (…{image_digest=""}))`, the window's namespaces as a quoted `namespace=~` matcher. A stacked bar
+  per point: 7 days a point every 6 hours, 30 # default and 90 days one a day, the last at the
+  current minute (`trivy.setTrendRange`, UI state); a time without series has no bar, not a zero.
+  Asked through the Prometheus the metrics hub found, when the page shows, when the range or the
+  namespaces change and every 15 minutes, a failure retried after 30 seconds doubling to 15
+  minutes with the last answer kept; nothing while the page is not shown. No series at all is told
+  apart from none in the namespaces by `count(trivy_image_vulnerabilities)`: "Prometheus does not
+  scrape Trivy Operator's metrics (trivy_image_vulnerabilities)". A query beyond 7 KiB of
+  namespaces is not sent. The demo cluster draws a deterministic curve ending at its reports'
+  findings ("Demo data").
+- **Export PDF** (the page's header, `trivy.exportImageSecurityPdf`): a text report rendered by
+  [`pdfreport`](../../internal/pdfreport/) with `github.com/signintech/gopdf` and the Go fonts
+  (embedded, subset): A4 landscape; the header line, the band, the three cards, the curve, then
+  every CVE the window's namespaces and search keep in the CVEs table's order (the page's default
+  search when it is not open), each with all its containers (namespace, workload, container,
+  image, installed → fixed); the table head repeated on each page, a CVE split across a page break
+  marked "(continued)", every text cut with "…" to its column, "page n of m" in the footer. Named
+  "image-security-<cluster>-<date>.pdf", saved in the system's save panel. 2,000 CVEs of 20
+  containers each render in about a second (1,049 pages, 2.4 MB, measured on an M1 Ultra).
+- **Agents:** `trivy.imageSecurity` {context, namespaces, table (`cves`, `findings`), filter
+  (default `sev>=high`, empty every row), limit (100, at most 1000)} returns the header's counts,
+  the band's and cards' data with their tokens, the curve, and with table that table cut at the
+  limit with the matched count; refused while the integration is off, not applicable where the
+  reports are not served. `trivy.exportImageSecurityPdf` returns the report in base64. It carries no
+  vulnerability's title or description (the trim drops them,
+  [H-11](../security/agents-and-mcp.md#h-11-instructions-hidden-in-cluster-data)).
+- **The demo cluster** serves synthetic reports (`internal/demo/trivy.go`): a report per
+  Deployment's current ReplicaSet and container, drawn from synthetic catalogues by a generator
+  of its own.
+
+**Why:** the owner's pick of the layout (cards and a findings search) and its calm colours: one
+look at the band and cards says where to act, the CVEs table answers "how often and where does
+this CVE run". An image counts once because it is the unit of a fix (one rebuild or version bump
+fixes it wherever it runs); by digest because a tag says nothing about content; the containers
+beside it say how far it spread. Distinct CVE ids, not findings, count the load, since one CVE in
+many images is one fix upstream;
+the images keep their summary counts, so that a shield's number is the same here as in the Pods
+list. A trimmed scope keeps memory to what is shown, since Trivy's opt-in fields can bring a report
+close to etcd's object limit, and leaves the third-party texts out of the agents' read.
+
+**Rejected:** counting an image by repository and tag (a tag pushed again while old pods run
+merges two images and their findings), once per namespace (Grafana 16337's; a base image in 40
+deployments would count 40 times though one rebuild fixes it) or per container as the headline;
+CVE rows as expandable folds (sort, CSV and the agents' rows per container lost); a curve from
+Cogpit's own history (empty at first, gaps on days without Cogpit) or none; `max_over_time` per
+point (its sample cost on a large cluster); `go-pdf/fpdf` (archived); a picture of the window as
+the PDF (only the rows on screen, not searchable); the reports' whole objects while the page is open (twice the trimmed heap for fields
+nobody sees, the shared informer only with the reports' own view, seldom open beside the page);
+Top CVEs ranked by the images they affect first (on the demo the card showed only Low and
+Medium CVEs, and on the real cluster, Unknown in 13,661 of 23,059 findings and old distribution
+CVEs everywhere, it would show noise: the card is to lead the eye to what needs action); the nine
+fields first proposed, deleted in place (8 % less heap, measured: the maps keep their
+size, and title, link and date are not shown); a namespace entry setting the namespace filter (the cards would follow it); chips
+for the tokens (a token editor Fyne lacks, for what plain text already does); reading the
+ReplicaSets to find their Deployment (one more watch for what the name tells); the row opening a
+running pod's drawer (the row names the workload); counting findings in the severity band.
+
+**Code:** [`engine/imagesecurity.go`](../../internal/engine/imagesecurity.go),
+[`engine/imagesecurity_model.go`](../../internal/engine/imagesecurity_model.go),
+[`engine/imagesecurity_cves.go`](../../internal/engine/imagesecurity_cves.go),
+[`engine/imagesecurity_trend.go`](../../internal/engine/imagesecurity_trend.go),
+[`engine/imagesecurity_pdf.go`](../../internal/engine/imagesecurity_pdf.go),
+[`metrics/promtrivy.go`](../../internal/metrics/promtrivy.go),
+[`pdfreport`](../../internal/pdfreport/),
+[`commands/trivy_security.go`](../../internal/engine/commands/trivy_security.go),
+[`commands/imagesecurity_trend.go`](../../internal/engine/commands/imagesecurity_trend.go),
+[`fyneui/imagesecurity.go`](../../internal/ui/fyneui/imagesecurity.go),
+[`fyneui/calmtone.go`](../../internal/ui/fyneui/calmtone.go),
+[`fyneui/gradebadge.go`](../../internal/ui/fyneui/gradebadge.go) `newCalmGradeBadge`,
+[`demo/trivy.go`](../../internal/demo/trivy.go) · **Tests:** `TestImageSecurityModel`,
+`TestImageSecurityFindings`, `TestImageSecurityCVEs`, `TestImageSecurityCountsByDigest`,
+`TestImageSecurityFilters`, `TestImageSecurityPDF`, `TestTrivyFindings`, `TestTrivyFindingsNotScraped`,
+`TestTrendPollerCadence`, `TestTrendPollerFailures`, `TestImageSecurityTrendOnThePage`, `TestDemoImageSecurityTrend`,
+`TestImageSecurityTrendRange`, `TestRenderSmall`, `TestRenderContinuedCVE`, `TestFitNeverOverflows`, `TestRenderLarge`,
+`TestImageSecurityPage`, `TestImageSecurityNotServed`,
+`TestTrivyWorkloadRef`, `TestTrimVulnerabilityFindings`, `TestImageSecurityCommand`,
+`TestImageSecurityInTheNavigator`, `TestImageSecurityPageInTheWindow`,
+`TestRenderImageSecurityDark`, `TestRenderImageSecurityLight`, `TestDemoVulnerabilityReports`,
+`TestBudgetImageSecurityRefusedReports`, `TestRenderImageSecurityMayNotListDark`
+
+## D-179: The Velero page
+
+**Status:** built · **By:** owner (the layout "Velero · A" at the colour level "Ruhig": header,
+Status tiles, Needs attention, Schedules with the last runs as dots, Outside every schedule marked
+inferred; its texts; shown only while the cluster serves Velero, without a switch; read-only, no
+actions; never a write to get data,
+[D-151](#d-151-integrations-never-write-to-the-cluster)), lead (open to revision) the rest
+
+A page `velero/dashboard`, titled Velero, a top-level entry under the navigator's Integrations after
+Argo CD ([D-149](#d-149-the-navigators-integrations-heading)), with Fyne's save icon, shown while
+the cluster serves `backups.velero.io`. Everything comes from the cache; the page holds its handles
+only while it is shown, and builds again on every change and every 30 seconds (a run comes due
+without an event). Colours follow D-180: red to act now, amber to check, the rest grey.
+
+- **Reads:** Velero's Schedules, Backups, Restores, BackupStorageLocations, VolumeSnapshotLocations,
+  BackupRepositories, PodVolumeBackups and DataUploads, and Namespaces, PVCs, Deployments,
+  StatefulSets and DaemonSets; a kind the user may not list is left out, a tile says why. A refusal
+  follows [D-177](#d-177-a-refused-read-is-given-back-and-shown): a read the API server refused goes
+  back, its tile keeps the refusal and counts "—"; the page's error line names only the kinds no
+  tile reads, so each refusal is said once; a section built from a kind not read (Needs attention
+  from any, Schedules and Outside every schedule from the Schedules) counts "—" without "Nothing
+  needs attention." or "No schedules." (`VeleroDashboardModel.Unread`). No
+  DownloadRequest, ServerStatusRequest or DeleteBackupRequest and nothing of the object storage (the
+  owner: no access to S3): a backup's own counts of errors and the messages its failed volume
+  backups carry, never the backup's error log.
+- **The window:** the header is the title, the page's line and the namespace filter (no search, no
+  status filter); the body replaces the table, as the alert board's does: one scrolled panel with the
+  tiles and three tables of the page's own (read-only: no search, sort, selection, columns or CSV;
+  a row lit under the pointer, a click opening its object's drawer beside the page through
+  `ui.select`'s mode open, a namespace row the namespace's, a row about a kind its view). Agents read
+  the same model through `velero.dashboard`.
+- **The namespace filter** narrows the page to what concerns those namespaces: a schedule, backup or
+  restore whose scope takes one of them in, a repository holding their volumes, their rows in Outside;
+  the locations and the header always show.
+- **Header:** Velero's namespace is its storage locations' (else its schedules', backups',
+  repositories', snapshot locations'); its server the Deployment named velero there, else one whose
+  container runs Velero's image (repository `…/velero`); the version its image tag without `v`; the
+  plugins its init containers' images, the name without `velero-plugin-for-`, the tag without `v`;
+  the node agents the DaemonSet `node-agent` (or `restic`), ready of desired. From the server's
+  arguments `--default-backup-ttl` and `--default-backup-storage-location` (else 30 days and
+  `default`), from its environment `TZ` (else UTC).
+- **Tiles:** Schedules: Enabled, Paused, Overdue, Failed validation, New. Backups: Completed,
+  Partially failed, Failed, Failed validation, In progress (every phase that is not final, the
+  queued and finalizing ones included), Deleting; Restores the same without Deleting. Storage:
+  locations available, unavailable, pending (not validated yet); snapshot locations, unavailable;
+  repositories ready, not ready, pending; singular or plural by count. The bar: a segment per line,
+  grey, the slot colour for paused and in progress, the problems in their colour. Zero counts left
+  out; a title opens its kind's view (Storage the BackupStorageLocations').
+- **Needs attention**, errors before warnings, each newest first, rows without a time last:
+  - a location Unavailable (error): its message; since its last sync, else its creation;
+  - no location marked default and none named as the server's default (error while an enabled
+    schedule names no location, else warning); the row opens the locations' view;
+  - a schedule failing validation (error): its validation errors;
+  - a schedule overdue (error): its next run by Velero's rule
+    (`cron.Next(max(lastBackup or creation, lastSkipped))`, schedule_controller.go at 1.17.1 and
+    1.18.4) more than 5 minutes past; Detail "due 02:00, no backup created", and the backup still in
+    New, InProgress or no phase that keeps Velero from creating it ("…; nightly-all-2026… still
+    InProgress"); since the due time;
+  - a schedule's latest finished backup Failed or Failed validation (error) or Partially failed
+    (warning): its errors and warnings, its failed volume backups and the errors they do not explain
+    ("28 errors · 28 volume backups failed", "49 errors · 28 volume backups failed · 21 counted
+    only": Velero counts a failed PodVolumeBackup and a failed DataUpload as an error each), its
+    volume snapshots that did not complete ("2 of 3 volume snapshots"), failed item operations,
+    failure reason or validation errors;
+  - a backup no schedule made that failed, failed validation or partly failed in the last 7 days,
+    unless a later one of the same scope completed;
+  - a repository NotReady (error), or whose newest maintenance failed (warning, since it ended);
+  - node agents not ready (warning): "not ready on 1 of 6 nodes".
+- **Failed volume backups,** after Needs attention while its backups have any: their
+  PodVolumeBackups and DataUploads in phase Failed (by the label `velero.io/backup-name`, an owner
+  Backup first), in the page's namespaces, a row per namespace and message: messages that read the
+  same once each one's own pod name (also `namespace/pod`), volume name (a DataUpload's PVC) and
+  every word that starts with "/" (a host path with the pod's UID) are masked. Namespace, Volumes,
+  Pods, Node (the first part of each node's name, three at most, then "+n"), Message (the first
+  member's as Velero wrote it, whole in the tooltip); most volumes first, then by namespace; a click
+  opens the first member's drawer. Neutral: the backup's row carries the colour. Agents get every
+  member's pod, volume, node and message.
+- **Schedules,** those that need action first, paused last, then by name. When: the cron in words
+  for its common shapes ("daily 02:00", "every 6 h", "hourly :05", "Sun 03:00", "Mon–Fri 01:30",
+  "monthly, day 1 04:00", descriptors), else as written; a time of day in the cron's own zone (its
+  `CRON_TZ=`/`TZ=` prefix, else the server's), the zone named where the user's zone shows another
+  time ("daily 02:00 UTC"), the overdue "due" time alike. Next run: Velero's, or the next time cron
+  names once that one is due and not created; none while paused or failing validation. Last runs: the
+  seven newest, oldest left; a backup's time the one in its name (`<schedule>-YYYYMMDDHHMMSS`,
+  Velero's clock at submission, which a backup synced from its location keeps), else its start, else
+  its creation; between two backups every time cron named but the last is a missed run (a red ring;
+  a `lastSkipped` inside the gap starts it), and so is every due run not created since the last.
+  Last completed and Duration: the newest Completed backup's. TTL and Location: the template's,
+  else the server's defaults. State: Failed validation, Paused, Overdue, the latest finished backup's
+  problem, New, Enabled, the first that holds.
+- **Outside every schedule** (inferred), every active namespace no schedule that makes backups (not
+  paused, not failing validation) takes in full, with Velero's own matching (gobwas globs: `*`, `?`,
+  `[a-z]`, `[!a]`, `{a,b}`; an empty include list or `*` every namespace; an exclude wins). A label
+  selector takes in part of it ("partly in scope: hourly-db selects app=postgres only"), and so does
+  a resource filter that leaves out part of its data: an include list of kinds ("takes only
+  persistentvolumeclaims") or an exclusion of PVCs, PVs, pods, Secrets or ConfigMaps ("leaves out
+  secrets"); one that leaves out only kinds without data (jobs, events) does not, and the
+  schedule's Scope column still names it. Rejected: every resource filter as partly in scope (a
+  schedule that leaves out `jobs.batch` put every namespace on the list). The label `velero.io/exclude-from-backup` on a Namespace leaves the
+  Namespace object out, its objects stay in scope (item_backupper.go): partly in scope. Reasons:
+  in scope of a paused or failing schedule only; excluded from a schedule; no schedule names it.
+  Workloads are its Deployments, StatefulSets and DaemonSets; Managed by is Flux CD where it or its
+  workloads or PVCs carry `kustomize.toolkit.fluxcd.io/name` or `helm.toolkit.fluxcd.io/name`, Argo CD
+  where they carry `argocd.argoproj.io/tracking-id` or `argocd.argoproj.io/instance`
+  (`app.kubernetes.io/instance` is Helm's too); with PVCs the reason adds "Git holds no volume
+  data", without PVCs and every workload managed "no volumes; rebuilt from Git". Order: with PVCs
+  first, then outside before partly, unmanaged before managed, then by name.
+
+**Why:** the owner's pick of the layouts, made calm; Velero's rules read from its controllers so that
+the page says what Velero will do, not what a cron alone suggests. Three tables and tiles do not fit
+the window's one table per page, and a table that cannot be sorted or searched still reads at a
+glance with the few rows these have.
+
+**Rejected:** the page's table through the window's list (one per page, the others then a panel
+above it that does not scroll); filtering by an object's own namespace (Velero's objects all live in
+one: any other emptied the page); the creation time as a run's time (a synced backup's is the
+sync's); the label on a Namespace as excluding its objects (Velero checks each item); paused
+schedules as covering; times of day in the user's zone (unlike the manifest's cron); errors' text
+(a DownloadRequest, [D-151](#d-151-integrations-never-write-to-the-cluster)); a row per failed
+volume backup (27 near-identical rows for one cause); the backup's results file in the object
+storage (the owner: no access to S3).
+
+**Code:** [`engine/velero.go`](../../internal/engine/velero.go),
+[`engine/velero_build.go`](../../internal/engine/velero_build.go),
+[`engine/velero_schedules.go`](../../internal/engine/velero_schedules.go),
+[`engine/velero_cron.go`](../../internal/engine/velero_cron.go),
+[`engine/velero_scope.go`](../../internal/engine/velero_scope.go),
+[`engine/velero_volumes.go`](../../internal/engine/velero_volumes.go),
+[`commands/velero.go`](../../internal/engine/commands/velero.go),
+[`fyneui/velero.go`](../../internal/ui/fyneui/velero.go),
+[`fyneui/velero_tables.go`](../../internal/ui/fyneui/velero_tables.go),
+[`demo/velero.go`](../../internal/demo/velero.go) · **Tests:** `TestVeleroCronWords`,
+`TestVeleroOverdue`, `TestVeleroLastRuns`, `TestVeleroGlobs`, `TestVeleroOutside`,
+`TestVeleroAttentionOrder`, `TestVeleroHeader`, `TestVeleroMaskVolumeMessage`, `TestVeleroFailedVolumes`,
+`TestVeleroPage`, `TestVeleroPageWithoutVelero`,
+`TestDemoVeleroPage`, `TestDemoVeleroStatesAllDay`, `TestVeleroDashboardCommand`, `TestRenderVeleroDark`, `TestRenderVeleroLight`,
+`TestVeleroPageClicks`, `TestVeleroNavigatorEntry`,
+`TestBudgetVeleroRefusedKinds`, `TestRenderVeleroMayNotListDark`
+
+## D-180: Calm colours on the integrations' pages
+
+**Status:** built · **By:** owner (the rule and its two colours), lead (open to revision) the
+helpers
+
+On the Image Security page ([D-178](#d-178-the-image-security-page)) and the Velero page
+([D-179](#d-179-the-velero-page)) colour marks only what needs action: grey is the ground; the
+error colour means act now (Critical, an E grade, Failed, Overdue, Unavailable, a failed
+validation), the warning colour means check (High, a D grade, Partially failed, a failed
+maintenance); everything else, good states included (Completed, Enabled, Available, Medium, Low,
+grades S to C), is drawn in the text or the muted colour.
+
+- **Form:** a state is a coloured word, never a filled pill; no row carries a coloured stripe or
+  spine; a row shows at most one colour. Card and tile titles are in the text colour, section
+  labels muted; bars are faint with only the error and warning segments coloured. Severity counts
+  as bars and areas are the exception (the owner's): Image Security's band, curve and PDF draw
+  them as the drawer's severity bar does ([D-113](#d-113-image-grades-shields-from-trivys-reports)),
+  so that one count has one look everywhere; the severity words stay calm.
+- **Grade shields:** on these pages D and E keep their colours and S to C are grey, the letter in
+  the text colour; N/A stays as D-113 draws it. The shields elsewhere (the Signals column, the
+  drawer's grade card) are unchanged.
+- **Helper:** `calmStatusColor` maps a status to the error or warning colour or the muted one.
+
+**Why:** with every state in its colour the eye finds no place to go. Two steps of urgency remain because both pages have two (Critical
+against High, Failed against Partially failed); with red alone a High CVE and a partly failed
+backup sink into the grey.
+
+**Rejected:** every state in its status colour; red alone with amber grey; filled pills and row
+stripes.
+
+**Not decided here:** whether the Flux CD and Argo CD dashboards and the Signals column take the
+same rule.
+
+**Code:** [`fyneui/calmtone.go`](../../internal/ui/fyneui/calmtone.go) `calmStatusColor`;
+[`fyneui/gradebadge.go`](../../internal/ui/fyneui/gradebadge.go) the calm crest;
+[`fyneui/imagesecurity.go`](../../internal/ui/fyneui/imagesecurity.go),
+[`fyneui/velero.go`](../../internal/ui/fyneui/velero.go) · **Tests:** `TestRenderImageSecurityDark`,
+`TestRenderVeleroDark`
