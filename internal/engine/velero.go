@@ -357,7 +357,9 @@ type veleroWorker struct {
 	build    atomic.Pointer[veleroBuild]
 	model    atomic.Pointer[VeleroDashboardModel]
 	snap     atomic.Pointer[TableSnapshot]
-	built    atomic.Int64 // when the last build ran, Unix nanoseconds
+	built    atomic.Int64  // when the last build ran, Unix nanoseconds
+	ready    chan struct{} // closed once the first build is stored
+	readyNow sync.Once
 	wake     chan struct{}
 	quit     chan struct{}
 	stopped  atomic.Bool
@@ -366,7 +368,7 @@ type veleroWorker struct {
 
 // startVeleroPage starts the page's worker; the first build runs at once.
 func (s *Session) startVeleroPage(b *Backend, namespaces []string) *veleroWorker {
-	w := &veleroWorker{s: s, backend: b, namespaces: slices.Clone(namespaces), wake: make(chan struct{}, 1), quit: make(chan struct{})}
+	w := &veleroWorker{s: s, backend: b, namespaces: slices.Clone(namespaces), ready: make(chan struct{}), wake: make(chan struct{}, 1), quit: make(chan struct{})}
 	w.refused.startAt(b.ns.refusalsGen())
 	wake := w.wake
 	w.src = newVeleroSource(b, b.acquireForPage, func() { signal(wake) }) // nothing while a plan is pending
@@ -439,6 +441,7 @@ func (w *veleroWorker) rebuild() {
 	w.build.Store(vb)
 	w.model.Store(m)
 	w.snap.Store(snap)
+	w.readyNow.Do(func() { close(w.ready) })
 	w.s.emit(Event{Type: EventTable, View: VeleroDashboard, Revision: snap.Revision})
 }
 
@@ -474,7 +477,16 @@ func (s *Session) VeleroDashboard(ctx context.Context, contextID string, namespa
 	s.state.mu.Lock()
 	page := s.state.velero
 	s.state.mu.Unlock()
+	wctx, cancel := context.WithTimeout(ctx, syncTimeout)
+	defer cancel()
 	if page != nil && page.backend == b {
+		// A page just started (or started again after a refusal) builds at once: its build, not a
+		// reading of the call's own, which would list the kinds a second time.
+		select {
+		case <-page.ready:
+		case <-page.quit:
+		case <-wctx.Done():
+		}
 		page.mu.Lock()
 		same := slices.Equal(page.namespaces, namespaces)
 		page.mu.Unlock()
@@ -485,8 +497,6 @@ func (s *Session) VeleroDashboard(ctx context.Context, contextID string, namespa
 			return s.veleroModel(b, vb, namespaces), nil
 		}
 	}
-	wctx, cancel := context.WithTimeout(ctx, syncTimeout)
-	defer cancel()
 	// Once the cluster's definitions are listed: before, Velero's kinds are not known yet.
 	waitCustomKindsSettled(wctx, b)
 	// Once the kinds' plans are decided, following a refusal in all namespaces
