@@ -15,7 +15,7 @@ and the table, and that output replaces the block's content, from its `<summary>
 blank line before `</details>`. How to run Cogpit and its flags are in [`usage.md`](usage.md).
 
 <details>
-<summary>All 249 commands</summary>
+<summary>All 250 commands</summary>
 
 | Command | MCP tool | Danger | Parameters | What it does |
 |---|---|---|---|---|
@@ -215,6 +215,7 @@ blank line before `</details>`. How to run Cogpit and its flags are in [`usage.m
 | `trivy.imageSecurity` | `trivy_imageSecurity` | read | `context`?, `filter`?, `limit`?, `namespaces`?, `table`? | Reads the Image Security page, from Trivy Operator's VulnerabilityReports and the pods in Cogpit's cache: the distinct images of the running pods, how many a report covers and how many not, the newest scan; the distinct CVE ids by severity (each under the worst severity a finding gives it) and how many have a fixed version; the five worst images (by grade S to E as the Pods list's Signals column shows it, then Critical, then High), the five worst CVEs (by severity, then images affected) and the five worst namespaces, each with the search token that narrows the table to it; with table cves, the CVEs the search keeps, each with its severity, score, packages, fixed versions, the distinct images it is found in (an image is its digest, else repository and tag: replicas and the same image in several workloads count once), the workloads' containers that run them and their names (namespace/workload/container); with table findings, the findings, each with its workload (ref: pass it to ui_navigate or object_get), container, image, CVE, severity, score, package and its installed and fixed version |
 | `trivy.imageSecurityTable` | `trivy_imageSecurityTable` | ui | `cve`?, `table` | Switches the open Image Security page between its tables, as its CVEs and Findings buttons and a click on a CVE do: cves, one row per CVE; findings, one row per CVE, workload and container, with cve the findings of that CVE |
 | `trivy.setTrendRange` | `trivy_setTrendRange` | ui | `days`? | Sets the range of the Image Security page's findings curve, as the page's range control does: 7, 30 or 90 days |
+| `trivy.showImage` | `trivy_showImage` | ui | `image` | Opens the Image Security page's CVEs searched for one image, every severity (image:<image>), as the link on a container's grade card in a pod's drawer does: the CVEs of that image, each with the containers that run it |
 | `ui.closeDrawer` | `ui_closeDrawer` | ui |  | Closes the detail drawer |
 | `ui.helm.revisions` | `ui_helm_revisions` | ui | `compare`?, `mode`?, `ref`, `revision`? | Opens a release's Revisions dock tab, or activates the one open on it: the release's revisions, one revision's values (user-supplied or all) or rendered manifest (its objects, or manifest.yaml), compared with another revision (by default the newest for an older revision) |
 | `ui.helm.revisions.set` | `ui_helm_revisions_set` | ui | `all`?, `compare`?, `id`, `lineDiff`?, `mode`?, `object`?, `raw`?, `revision`? | Changes what a Revisions dock tab shows: the revision, the revision it is compared with (0: none), values or manifest, all values or the user-supplied ones, the manifest's objects or manifest.yaml, the object selected, the values' line diff unfolded |

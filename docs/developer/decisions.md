@@ -7578,7 +7578,13 @@ state of Cogpit's own.
   then by their distinct Critical and High ids.
 - **A click on an entry** narrows the table through the page's search, engine state
   (`ui.setFilter`): `image:<repository:tag>`, `cve:<id>`, `ns:<namespace>`, in place of a token
-  of the same key. A namespace is a token, not the namespace filter, so the cards keep the
+  of the same key.
+- **From a pod's drawer** (the owner's): a container's grade card ([D-113](#d-113-image-grades-shields-from-trivys-reports))
+  ends its last line with "Vulnerabilities in Image Security" while the navigator has the page;
+  it opens the page's CVEs as the navigator does, the search `image:<repository:tag>` alone, every
+  severity, since one image's list is short (`trivy.showImage`). An `image:` value naming a tag
+  ends there: the name goes on with nothing or its digest, so `shop/api:2.4.1` does not take
+  2.4.10; without a tag it is contained. A namespace is a token, not the namespace filter, so the cards keep the
   cluster's picture.
 - **Search:** the views' search field, across the free width of the findings' header row (the
   page's main tool, where a view's search keeps its fixed width at the right), plain text; its words of the forms `sev>=<severity>`,

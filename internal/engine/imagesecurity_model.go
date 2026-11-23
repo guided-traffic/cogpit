@@ -401,7 +401,32 @@ func (q *findingQuery) keeps(f *imageSecFinding, r *imageSecReport) bool {
 	if len(q.cves) > 0 && !slices.Contains(q.cves, strings.ToLower(f.cve)) {
 		return false
 	}
-	return containsAny(r.image, q.images) && containsAny(f.pkg, q.packages)
+	return imageMatches(r.image, q.images) && containsAny(f.pkg, q.packages)
+}
+
+// imageMatches reports whether an image's name contains one of the lowered values, or there are
+// none. A value that names a tag ("shop/api:2.4.1") ends there: the name goes on with nothing or
+// its digest ("@sha256:…"), so that 2.4.1 does not take 2.4.10.
+func imageMatches(image string, values []string) bool {
+	if len(values) == 0 {
+		return true
+	}
+	image = strings.ToLower(image)
+	for _, v := range values {
+		tagged := strings.LastIndexByte(v, ':') > strings.LastIndexByte(v, '/')
+		for at := 0; ; {
+			i := strings.Index(image[at:], v)
+			if i < 0 {
+				break
+			}
+			end := at + i + len(v)
+			if !tagged || end == len(image) || image[end] == '@' {
+				return true
+			}
+			at += i + 1
+		}
+	}
+	return false
 }
 
 func (q *findingQuery) severityKeeps(level int) bool {

@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
@@ -49,9 +50,19 @@ func (d *drawer) gradeCard(ref model.ObjectRef, card *model.GradeCard) fyne.Canv
 		container.NewVBox(body...))
 }
 
+// imageSecLinkText is the grade card's link to the image's CVEs on the Image Security page.
+const imageSecLinkText = "Vulnerabilities in Image Security"
+
+// showInImageSecurity opens the Image Security page searched for the image (trivy.showImage).
+func (d *drawer) showInImageSecurity(image string) {
+	d.sh.dispatch("trivy.showImage", struct {
+		Image string `json:"image"`
+	}{image}, func(_ any, err error) { d.sh.showError(err) })
+}
+
 // gradeMeta is the card's last line, wrapped as the drawer is wide: "OS alpine 3.20.10 · end of
-// life · Scanned 3h ago (…) · " and the report's name, a link to its object where the cluster serves
-// its kind.
+// life · Scanned 3h ago (…) · " a link to the image's CVEs on the Image Security page while the
+// navigator has it, and the report's name, a link to its object where the cluster serves its kind.
 func (d *drawer) gradeMeta(ref model.ObjectRef, card *model.GradeCard) fyne.CanvasObject {
 	muted := widget.RichTextStyle{ColorName: colorMuted, Inline: true}
 	var segs []widget.RichTextSegment
@@ -69,6 +80,13 @@ func (d *drawer) gradeMeta(ref model.ObjectRef, card *model.GradeCard) fyne.Canv
 	}
 	if card.Scanned != "" {
 		add("Scanned "+card.Scanned, muted)
+	}
+	if card.Image != "" && d.sh.side.titles[engine.ImageSecurity] != "" { // the page is in the navigator
+		image := card.Image
+		if len(segs) > 0 {
+			segs = append(segs, &widget.TextSegment{Text: gradeMetaSep, Style: muted})
+		}
+		segs = append(segs, &widget.HyperlinkSegment{Text: imageSecLinkText, OnTapped: func() { d.showInImageSecurity(image) }})
 	}
 	if r := card.Report; r != nil {
 		if d.sh.view.serves(r.Kind) {

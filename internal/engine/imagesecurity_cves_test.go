@@ -160,3 +160,32 @@ func TestImageSecurityPDF(t *testing.T) {
 		t.Errorf("off: %v", err)
 	}
 }
+
+// A pod drawer's link: the page's CVEs searched for one image, every severity; a tag ends the
+// match.
+func TestImageSecurityShowImage(t *testing.T) {
+	s := imageSecSession(t, testkit.ImageSecuritySource())
+	u, err := s.ShowImageSecurityImage("shop/api:2.4.1")
+	if err != nil || u.View != ImageSecurity || u.Filter != "image:shop/api:2.4.1" {
+		t.Fatalf("%v: %q %q", err, u.View, u.Filter)
+	}
+	waitTable(t, s, ImageSecurity, func(t *TableSnapshot) bool { return t.Synced && len(t.Rows) == 5 })
+	if _, err := s.ShowImageSecurityImage("a b"); err == nil {
+		t.Error("an image with a blank was taken")
+	}
+	for _, c := range []struct {
+		image, value string
+		want         bool
+	}{
+		{"shop/api:2.4.1", "shop/api:2.4.1", true},
+		{"shop/api:2.4.10", "shop/api:2.4.1", false},
+		{"shop/api:2.4.1@sha256:1a2b", "shop/api:2.4.1", true},
+		{"registry/shop/api:2.4.1", "shop/api:2.4.1", true},
+		{"shop/api:2.4.10", "shop/api", true}, // no tag: contains
+		{"Shop/API:2.4.1", "shop/api:2.4.1", true},
+	} {
+		if got := imageMatches(c.image, []string{c.value}); got != c.want {
+			t.Errorf("%q in %q: %v", c.value, c.image, got)
+		}
+	}
+}

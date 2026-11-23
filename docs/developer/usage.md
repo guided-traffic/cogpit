@@ -139,7 +139,8 @@ Ctrl on Windows and Linux.
   Low or Unknown, at most 10; B Medium, or more than 10 Low or Unknown; C High, or an OS at its end
   of life; D 1 to 5 Critical; E more; N/A no report. The Pods list shows each pod's worst grade in
   its Signals column ([Signals](#the-signals-column)), a pod's drawer each container's with its
-  counts; nothing is read while the integration is off. Reports you may not list show no grade and
+  counts and, while the navigator has Image Security, a link "Vulnerabilities in Image Security" to
+  that image's CVEs there (every severity); nothing is read while the integration is off. Reports you may not list show no grade and
   "No permission" in Cluster Settings › Integrations › Trivy, and are not asked for again until
   Refresh Access Reviews or the cluster is shown again. The Image Security page sums them up for
   the cluster and searches the findings ([details](#image-security)).
@@ -1607,7 +1608,7 @@ right applies to the whole page.
   | `sev:low` # example | that severity only |
   | `fixable` | findings with a fixed version |
   | `ns:shop` # example | that namespace |
-  | `image:shop/api` # example | images that contain it |
+  | `image:shop/api` # example | images that contain it; a tag ends the match (`image:shop/api:2.4.1` keeps 2.4.1, not 2.4.10) |
   | `pkg:openssl` # example | packages that contain it |
   | `cve:CVE-2024-45337` # example | that CVE |
 
@@ -1638,7 +1639,8 @@ right applies to the whole page.
 - **Colours:** red for Critical and the E shield, amber for High and D, everything else grey.
 - **Agents:** `trivy_imageSecurity {context?, namespaces?, table?, filter?, limit?}` reads the
   page (its curve included), with `table` `cves` or `findings` one of its tables;
-  `trivy_imageSecurityTable {table, cve?}` switches the shown table; `trivy_setTrendRange {days}`
+  `trivy_imageSecurityTable {table, cve?}` switches the shown table; `trivy_showImage {image}` opens
+  the CVEs of one image; `trivy_setTrendRange {days}`
   sets the curve's range; `trivy_exportImageSecurityPdf {context?}` returns the report;
   `ui_setFilter` sets its search. No vulnerability's title or description is read.
 - **Reads:** the reports, without the fields the page does not show, and the pods, only while the

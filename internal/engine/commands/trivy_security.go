@@ -184,3 +184,30 @@ func registerTrivySecurityPDF(g *registrar) {
 		},
 	})
 }
+
+type imageSecurityImageParams struct {
+	Image string `json:"image" jsonschema:"the image as the Image Security page and a pod drawer's grade card name it: repository and tag without the registry, e.g. shop/api:2.4.1"`
+}
+
+func registerTrivySecurityImage(g *registrar) {
+	add(g, engine.Spec[imageSecurityImageParams]{
+		ID: "trivy.showImage", Label: "Show Image in Image Security", Danger: engine.DangerUI, Verbs: cacheReads,
+		Description: "Opens the Image Security page's CVEs searched for one image, every severity (image:<image>), as the " +
+			"link on a container's grade card in a pod's drawer does: the CVEs of that image, each with the containers that " +
+			"run it. A tag ends the match (shop/api:2.4.1 does not take 2.4.10). Needs the Trivy integration on. Returns " +
+			"the new UI state.",
+		Enabled: func(s *engine.Session, _ imageSecurityImageParams) error {
+			b, err := connected(s)
+			if err != nil {
+				return err
+			}
+			if u := s.UIState(); !u.IntegrationOn(b.Context, engine.IntegrationTrivy) {
+				return engine.ErrTrivyOff
+			}
+			return nil
+		},
+		Run: func(_ context.Context, s *engine.Session, p imageSecurityImageParams) (any, error) {
+			return s.ShowImageSecurityImage(p.Image)
+		},
+	})
+}

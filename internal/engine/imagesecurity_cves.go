@@ -277,3 +277,19 @@ func ImageSecurityFilterSeverity(filter, severity string) string {
 	}
 	return strings.Join(append(out, tokenSev+strings.ToLower(severity)), " ")
 }
+
+// ShowImageSecurityImage opens the Image Security page's CVEs (as ui.openView does) with its search
+// on one image, every severity: "image:shop/api:2.4.1", the image as the page names it. A pod
+// drawer's grade card links here.
+func (s *Session) ShowImageSecurityImage(image string) (UIState, error) {
+	image = strings.TrimSpace(image)
+	if image == "" || strings.ContainsAny(image, " \t\n") {
+		return UIState{}, fmt.Errorf("an image is a name without blanks, as the page writes it (shop/api:2.4.1), not %q", image)
+	}
+	s.OpenTab(ImageSecurity, false)
+	return s.UpdateUI(func(u *UIState) {
+		if u.View == ImageSecurity {
+			u.Filter = tokenImage + image
+		}
+	}), nil
+}

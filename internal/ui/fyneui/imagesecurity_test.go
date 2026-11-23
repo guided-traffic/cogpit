@@ -267,3 +267,31 @@ func TestRenderImageSecurityDark(t *testing.T) {
 func TestRenderImageSecurityLight(t *testing.T) {
 	renderImageSecurity(t, ThemeLight, "image_security_light")
 }
+
+// TestImageSecurityFromThePodDrawer: a container's grade card links to its image's CVEs on the
+// Image Security page, every severity.
+func TestImageSecurityFromThePodDrawer(t *testing.T) {
+	sh, q, _, _ := trivyMemoryShell(t)
+	ref := model.ObjectRef{Context: "kind-trivy", Kind: "pods", Namespace: "team", Name: "bare"}
+	sh.dispatch("ui.navigate", map[string]any{"ref": ref}, nil)
+	var link *widget.HyperlinkSegment
+	q.until(t, "the grade card's link", func() bool {
+		for _, rt := range findAll[*widget.RichText](sh.drawer.details) {
+			for _, seg := range rt.Segments {
+				if h, ok := seg.(*widget.HyperlinkSegment); ok && h.Text == imageSecLinkText {
+					link = h
+				}
+			}
+		}
+		return link != nil
+	})
+	q.drain()
+	settle(sh.win)
+	lookPNG(t, sh.win, "image_security_drawer_link_dark.png")
+	link.OnTapped()
+	q.until(t, "the image's CVEs", func() bool {
+		tv := sh.view
+		return sh.ui.View == engine.ImageSecurity && sh.ui.Filter == "image:library/alpine:3.12" && tv.snap != nil &&
+			tv.snap.View == engine.ImageSecurity && len(tv.snap.Rows) == 2
+	})
+}

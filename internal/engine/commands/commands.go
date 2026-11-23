@@ -74,6 +74,7 @@ func RegisterAll(r *engine.Registry) error {
 	registerImageSecurityTrend(g) // its findings curve's range (imagesecurity_trend.go)
 	registerTrivySecurityTable(g) // its tables switched (trivy_security.go)
 	registerTrivySecurityPDF(g)   // the page as a PDF (trivy_security.go)
+	registerTrivySecurityImage(g) // a pod drawer's link to an image on it (trivy_security.go)
 	registerVelero(g)             // the Velero page's read (D-new)
 	registerPreferences(g)
 	registerProgramFolders(g) // Preferences › Kubernetes › Program folders (D-120)

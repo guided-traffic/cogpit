@@ -223,6 +223,7 @@ var wantCommands = map[string]engine.Danger{
 	"trivy.imageSecurity":          engine.DangerRead,
 	"trivy.imageSecurityTable":     engine.DangerUI,
 	"trivy.exportImageSecurityPdf": engine.DangerRead,
+	"trivy.showImage":              engine.DangerUI,
 	// Its findings curve's range, UI state (TestImageSecurityTrendRange).
 	"trivy.setTrendRange": engine.DangerUI,
 	// The Velero page (D-new), read from the cache (TestVeleroDashboardCommand).
