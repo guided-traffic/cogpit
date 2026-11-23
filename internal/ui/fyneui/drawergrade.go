@@ -40,7 +40,13 @@ func (d *drawer) gradeCard(ref model.ObjectRef, card *model.GradeCard) fyne.Canv
 		&widget.TextSegment{Text: card.Reason, Style: widget.RichTextStyle{ColorName: colorMuted, SizeName: theme.SizeNameCaptionText}},
 	)
 	head.Wrapping = fyne.TextWrapWord
-	body := []fyne.CanvasObject{head}
+	var top fyne.CanvasObject = head
+	if card.Image != "" && d.sh.side.titles[engine.ImageSecurity] != "" { // the page is in the navigator
+		image := card.Image
+		link := widget.NewRichText(&widget.HyperlinkSegment{Text: imageSecLinkText, OnTapped: func() { d.showInImageSecurity(image) }})
+		top = container.NewBorder(nil, nil, nil, container.NewVBox(link), head)
+	}
+	body := []fyne.CanvasObject{top}
 	if card.Counts != nil {
 		pad := d.sh.app.Settings().Theme().Size(theme.SizeNameInnerPadding)
 		body = append(body, container.New(layout.NewCustomPaddedLayout(0, 0, pad, pad), newSeverityBar(*card.Counts)),
@@ -50,8 +56,9 @@ func (d *drawer) gradeCard(ref model.ObjectRef, card *model.GradeCard) fyne.Canv
 		container.NewVBox(body...))
 }
 
-// imageSecLinkText is the grade card's link to the image's CVEs on the Image Security page.
-const imageSecLinkText = "Vulnerabilities in Image Security"
+// imageSecLinkText is the grade card's link, at its top right, to the image's CVEs on the Image
+// Security page (the owner's place and word).
+const imageSecLinkText = "Details"
 
 // showInImageSecurity opens the Image Security page searched for the image (trivy.showImage).
 func (d *drawer) showInImageSecurity(image string) {
@@ -61,8 +68,8 @@ func (d *drawer) showInImageSecurity(image string) {
 }
 
 // gradeMeta is the card's last line, wrapped as the drawer is wide: "OS alpine 3.20.10 · end of
-// life · Scanned 3h ago (…) · " a link to the image's CVEs on the Image Security page while the
-// navigator has it, and the report's name, a link to its object where the cluster serves its kind.
+// life · Scanned 3h ago (…) · " and the report's name, a link to its object where the cluster serves
+// its kind.
 func (d *drawer) gradeMeta(ref model.ObjectRef, card *model.GradeCard) fyne.CanvasObject {
 	muted := widget.RichTextStyle{ColorName: colorMuted, Inline: true}
 	var segs []widget.RichTextSegment
@@ -80,13 +87,6 @@ func (d *drawer) gradeMeta(ref model.ObjectRef, card *model.GradeCard) fyne.Canv
 	}
 	if card.Scanned != "" {
 		add("Scanned "+card.Scanned, muted)
-	}
-	if card.Image != "" && d.sh.side.titles[engine.ImageSecurity] != "" { // the page is in the navigator
-		image := card.Image
-		if len(segs) > 0 {
-			segs = append(segs, &widget.TextSegment{Text: gradeMetaSep, Style: muted})
-		}
-		segs = append(segs, &widget.HyperlinkSegment{Text: imageSecLinkText, OnTapped: func() { d.showInImageSecurity(image) }})
 	}
 	if r := card.Report; r != nil {
 		if d.sh.view.serves(r.Kind) {

@@ -139,8 +139,8 @@ Ctrl on Windows and Linux.
   Low or Unknown, at most 10; B Medium, or more than 10 Low or Unknown; C High, or an OS at its end
   of life; D 1 to 5 Critical; E more; N/A no report. The Pods list shows each pod's worst grade in
   its Signals column ([Signals](#the-signals-column)), a pod's drawer each container's with its
-  counts and, while the navigator has Image Security, a link "Vulnerabilities in Image Security" to
-  that image's CVEs there (every severity); nothing is read while the integration is off. Reports you may not list show no grade and
+  counts and, while the navigator has Image Security, "Details" at the card's top right: that
+  image's CVEs there (every severity); nothing is read while the integration is off. Reports you may not list show no grade and
   "No permission" in Cluster Settings › Integrations › Trivy, and are not asked for again until
   Refresh Access Reviews or the cluster is shown again. The Image Security page sums them up for
   the cluster and searches the findings ([details](#image-security)).
