@@ -270,6 +270,8 @@ type imageSecWorker struct {
 
 	snap     atomic.Pointer[TableSnapshot]
 	build    atomic.Pointer[imageSecBuild]
+	ready    chan struct{} // closed once the first build is stored
+	readyNow sync.Once
 	wake     chan struct{}
 	quit     chan struct{}
 	stopped  atomic.Bool
@@ -278,7 +280,7 @@ type imageSecWorker struct {
 
 // startImageSecurity starts the page's worker; the first build runs at once.
 func (s *Session) startImageSecurity(b *Backend, reason, view string, params viewParams) *imageSecWorker {
-	w := &imageSecWorker{s: s, backend: b, params: params, view: view, wake: make(chan struct{}, 1), quit: make(chan struct{})}
+	w := &imageSecWorker{s: s, backend: b, params: params, view: view, ready: make(chan struct{}), wake: make(chan struct{}, 1), quit: make(chan struct{})}
 	w.refused.startAt(b.ns.refusalsGen())
 	wake := w.wake
 	w.src = newImageSecSource(b, reason, b.acquireForPage, func() { signal(wake) }) // nothing while a plan is pending
@@ -343,6 +345,7 @@ func (w *imageSecWorker) rebuild() {
 	}
 	w.build.Store(fb)
 	w.snap.Store(snap)
+	w.readyNow.Do(func() { close(w.ready) })
 	w.s.emit(Event{Type: EventTable, View: view, Revision: snap.Revision})
 }
 
@@ -394,13 +397,19 @@ func (s *Session) imageSecReading(ctx context.Context, b *Backend, u *UIState) (
 	s.state.mu.Lock()
 	page := s.state.imageSec
 	s.state.mu.Unlock()
+	wctx, cancel := context.WithTimeout(ctx, syncTimeout)
+	defer cancel()
 	var fb *imageSecBuild
 	if page != nil && page.backend == b {
+		// A page just started builds at once: its build, not a reading of the call's own.
+		select {
+		case <-page.ready:
+		case <-page.quit:
+		case <-wctx.Done():
+		}
 		fb = page.build.Load()
 	}
 	if fb == nil {
-		wctx, cancel := context.WithTimeout(ctx, syncTimeout)
-		defer cancel()
 		waitCustomKindsSettled(wctx, b) // before, the reports' kind may not be known yet
 		reason := imageSecReason(b, u)
 		src := openFollowing(wctx, b, []string{trivyReportsKind, logKindPods}, func() (*imageSecSource, []kindHandle) {

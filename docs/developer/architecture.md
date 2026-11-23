@@ -509,7 +509,9 @@ A view key with a slash is a page (`engine.IsPage`,
 open page runs its own worker in place of a view worker (`state.page`, `state.cluster`,
 `state.flux`, `state.argo`, `state.imageSec`, `state.velero`), with cache handles on the kinds it
 reads; an agent's read of a page that is not open (`flux.dashboard`, `trivy.imageSecurity`,
-`velero.dashboard`) takes the same handles for the call (`openFollowing`). A page may open with a
+`velero.dashboard`) takes the same handles for the call (`openFollowing`); while the page is open,
+the read waits for its first build (a page started anew after a refusal), so that the kinds are not
+listed twice. A page may open with a
 search of its own (`pageFilters`: Image Security's `sev>=high`). Its table's rows keep their kind
 keys, so selection, row menus and the drawer work (`engine.MixedKinds` where kinds mix; Image
 Security's CVEs are no objects: their rows name the page's key, and the window gives them no
