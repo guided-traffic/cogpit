@@ -63,10 +63,7 @@ const (
 	isShieldWidth = 18
 	isNumWidth    = 28
 	isShieldSide  = 16
-	isBandHeight  = 22 // the severity band's segments
-	isBandGap     = 3
-	isBandMinSeg  = 34 // a segment above zero is at least this wide, for its count
-	isLegendSide  = 9  // a legend's square
+	isLegendSide  = 9 // a legend's square
 )
 
 // imageSecPanel shows the page's header line and cards.
@@ -232,50 +229,39 @@ func noneLine() fyne.CanvasObject {
 	return newTextLine("None", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 }
 
-// band is the severity band: one segment per severity with CVE ids, as wide as its share (at
-// least isBandMinSeg), its count on it; under it a legend and "188 CVEs · 119 fixable". A click
-// on a segment keeps that severity's rows (the search's sev tokens replaced).
+// severityWords are the severities as the engine writes them, in the severity bar's order.
+var severityWords = [5]string{"Critical", "High", "Medium", "Low", "Unknown"}
+
+// band is the severity band: the drawer's severity bar (newSeverityBar, its colours and its
+// shares) over the distinct CVE ids by severity, as wide as the page; under it a legend and "188
+// CVEs · 119 fixable". A click on a segment keeps that severity's rows (the search's sev tokens
+// replaced).
 func (p *imageSecPanel) band(m *engine.ImageSecurityModel) fyne.CanvasObject {
-	lay := &isBandLayout{}
-	var segs, legend []fyne.CanvasObject
+	var counts model.VulnerabilityCounts
 	for _, s := range m.Severities {
-		fill, ink := severityFill(s.Severity)
-		legend = append(legend, newLegendSquare(fill), newTextLine(s.Severity, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}),
-			newSpace(theme.SizeNamePadding))
-		if s.Count == 0 {
-			continue
+		n := int64(s.Count)
+		switch s.Severity {
+		case "Critical":
+			counts.Critical = n
+		case "High":
+			counts.High = n
+		case "Medium":
+			counts.Medium = n
+		case "Low":
+			counts.Low = n
+		default:
+			counts.Unknown = n
 		}
-		plate := newSurface(fill)
-		plate.radius = theme.SizeNameSelectionRadius
-		count := newTextLine(formatCount(int64(s.Count)), ink, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true})
-		count.align = fyne.TextAlignCenter
-		sev := s.Severity
-		segs = append(segs, newTapTarget(container.NewStack(plate, container.NewCenter(count)), func() { p.narrowSeverity(sev) }))
-		lay.counts = append(lay.counts, s.Count)
+	}
+	bar := newSeverityBar(counts)
+	bar.onTap = func(i int) { p.narrowSeverity(severityWords[i]) }
+	legend := make([]fyne.CanvasObject, 0, 3*len(severityWords))
+	for i, w := range severityWords {
+		legend = append(legend, newLegendSquare(severityFills[i]), newTextLine(w, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}),
+			newSpace(theme.SizeNamePadding))
 	}
 	totals := newTextLine(formatCount(int64(m.CVEs))+" CVEs · "+formatCount(int64(m.Fixable))+" fixable", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
-	legendRow := container.NewBorder(nil, nil, container.NewHBox(legend...), totals)
-	if len(segs) == 0 {
-		return legendRow
-	}
-	return container.NewVBox(container.New(lay, segs...), legendRow)
-}
-
-// severityFill is a severity's colour in the band and its legend, and the colour of the count on
-// it (D-calm): the crests' red and amber for Critical and High (the shields' E and D), greys from
-// light to faint for Medium, Low and Unknown.
-func severityFill(sev string) (fill, ink fyne.ThemeColorName) {
-	switch sev {
-	case "Critical":
-		return colorGradeE, colorGradeInkOnDark
-	case "High":
-		return colorGradeD, colorGradeInkOnDark
-	case "Medium":
-		return colorMuted, theme.ColorNameBackground
-	case "Low":
-		return theme.ColorNameDisabled, theme.ColorNameForeground
-	}
-	return colorHairline, theme.ColorNameForeground
+	return container.NewVBox(bar, container.NewBorder(nil, nil, container.NewHBox(legend...), totals))
 }
 
 // narrowSeverity keeps one severity's rows: the search's severity tokens replaced by its.
@@ -302,57 +288,11 @@ func (l fixedSize) Layout(objs []fyne.CanvasObject, _ fyne.Size) {
 
 func (l fixedSize) MinSize([]fyne.CanvasObject) fyne.Size { return l.size }
 
-// isBandLayout lays the band's segments out side by side, isBandGap apart, each as wide as its
-// count's share of the width left after the gaps, at least isBandMinSeg.
-type isBandLayout struct{ counts []int }
-
-func (l *isBandLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
-	widths := bandWidths(l.counts, size.Width-isBandGap*float32(max(len(objs)-1, 0)))
-	x := float32(0)
-	for i, o := range objs {
-		o.Move(fyne.NewPos(x, 0))
-		o.Resize(fyne.NewSize(widths[i], isBandHeight))
-		x += widths[i] + isBandGap
-	}
-}
-
-func (l *isBandLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
-	return fyne.NewSize(float32(len(objs))*(isBandMinSeg+isBandGap), isBandHeight)
-}
-
-// bandWidths shares a width among counts: each its share, the small ones raised to isBandMinSeg
-// and the others shrunk by what that took.
-func bandWidths(counts []int, width float32) []float32 {
-	out := make([]float32, len(counts))
-	total := 0
-	for _, c := range counts {
-		total += c
-	}
-	if total == 0 || width <= 0 {
-		return out
-	}
-	free, rest := width, 0
-	for i, c := range counts {
-		if w := width * float32(c) / float32(total); w < isBandMinSeg {
-			out[i] = isBandMinSeg
-			free -= isBandMinSeg
-		} else {
-			rest += c
-		}
-	}
-	for i, c := range counts {
-		if out[i] == 0 && rest > 0 {
-			out[i] = max(free*float32(c)/float32(rest), isBandMinSeg)
-		}
-	}
-	return out
-}
-
 // trendHeight is the findings curve's height, in points.
 const trendHeight = 96
 
 // trendCard is the findings curve from Prometheus: a stacked bar per point, the severities' colours
-// as the band has them; its title, the source and the range's choice above, the largest total at
+// as the drawer's severity bar has them; its title, the source and the range's choice above, the largest total at
 // the left, the first and the last time below; a note in place of the bars while it has none.
 func (p *imageSecPanel) trendCard(t *engine.ImageSecurityTrend) fyne.CanvasObject {
 	rng := newSelectField(trendRangeLabels(), func(label string) {
@@ -406,8 +346,7 @@ func (p *imageSecPanel) trendBars(t *engine.ImageSecurityTrend) fyne.CanvasObjec
 		counts := [5]int{pt.Critical, pt.High, pt.Medium, pt.Low, pt.Unknown}
 		lay.points = append(lay.points, counts)
 		lay.peak = max(lay.peak, pt.Critical+pt.High+pt.Medium+pt.Low+pt.Unknown)
-		for _, sev := range []string{"Critical", "High", "Medium", "Low", "Unknown"} {
-			fill, _ := severityFill(sev)
+		for _, fill := range severityFills {
 			objs = append(objs, newSurface(fill))
 		}
 	}

@@ -154,18 +154,22 @@ func TestImageSecurityPageInTheWindow(t *testing.T) {
 		}
 	}
 
-	// The band's four segments (no Medium), then the entries: a namespace's narrows the table, the
-	// search keeps its sev token; a segment replaces it.
+	// The entries: a namespace's narrows the table, the search keeps its sev token; a segment of the
+	// band, the drawer's severity bar, replaces it.
 	taps := findAll[*tapTarget](tv.imageSec.root)
-	if len(taps) != 4+3+5+2 {
+	if len(taps) != 3+5+2 {
 		t.Fatalf("%d entries", len(taps))
+	}
+	bars := findAll[*severityBar](tv.imageSec.root)
+	if len(bars) != 1 || bars[0].counts != (model.VulnerabilityCounts{Critical: 2, High: 3, Low: 1, Unknown: 1}) {
+		t.Fatalf("the band: %d bars", len(bars))
 	}
 	taps[len(taps)-1].Tapped(nil) // team
 	q.until(t, "the namespace's CVEs", func() bool { return sh.ui.Filter == "sev>=high ns:team" && len(tv.snap.Rows) == 2 })
 	if tv.search.Text != "sev>=high ns:team" {
 		t.Errorf("the search field shows %q", tv.search.Text)
 	}
-	taps[0].Tapped(nil) // Critical
+	bars[0].Tapped(&fyne.PointEvent{Position: fyne.NewPos(1, 1)}) // Critical
 	q.until(t, "team's Critical CVEs", func() bool { return sh.ui.Filter == "ns:team sev:critical" && len(tv.snap.Rows) == 0 })
 	sh.dispatch("ui.setFilter", filterParams{Filter: "sev>=high ns:team"}, nil)
 	q.until(t, "the namespace's CVEs", func() bool { return len(tv.snap.Rows) == 2 })

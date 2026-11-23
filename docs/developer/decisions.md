@@ -7562,9 +7562,10 @@ state of Cogpit's own.
   them, by D-78's matching of a pod to its controller's report; the newest `report.updateTimestamp`.
   A user who may not list pods gets only the newest scan.
 - **Severity band, for the selected namespaces** (the search narrows the table only): the
-  distinct CVE ids by severity, each under the worst severity a finding gives it, Critical to Low
-  and Unknown when there is one, one segment per severity with ids, as wide as its share and at
-  least 34 points, its count on it; a legend and "1,234 CVEs · 412 fixable" # example under it,
+  distinct CVE ids by severity, each under the worst severity a finding gives it, drawn by the
+  severity bar of a pod's drawer (D-113's image card: Critical to Unknown in Docker Scout's
+  colours, Unknown hatched, a severity without ids faint, each as wide as its share), its count
+  on it; a legend and "1,234 CVEs · 412 fixable" # example under it,
   fixable an id with a fixed version in one of its findings. A click on a segment puts
   `sev:<severity>` in place of the search's severity tokens.
 - **Cards, for the selected namespaces:** Top
@@ -7616,9 +7617,9 @@ state of Cogpit's own.
   opens at its top. A workload's rows share its object, so they mark together as the drawer's.
 - **Colours (D-calm):** grey is the ground; the Severity word Critical in the error colour, High
   in the warning colour, the others and the installed version muted; no pill, no row status; in
-  the cards Critical and High bold in their colours; the band's and the curve's Critical and High
-  in the E and D crests' colours (the count on them white), Medium, Low and Unknown in greys from
-  light to faint; the shields of S to C grey with the letter in the text colour, D and E in
+  the cards Critical and High bold in their colours; the band, the curve, their legend and the
+  PDF's band and curve in the drawer's severity bar colours (the owner's: one count, one look; the
+  PDF's Unknown solid grey, unhatched); the shields of S to C grey with the letter in the text colour, D and E in
   their own, N/A as everywhere. The shield elsewhere stays as D-113 has it.
 - **Findings over time** (the owner's: from Prometheus, hidden where there is none): a card under
   the others, while the Trivy and Prometheus integrations are on, of the findings (CVE × image)
@@ -7859,7 +7860,10 @@ grades S to C), is drawn in the text or the muted colour.
 
 - **Form:** a state is a coloured word, never a filled pill; no row carries a coloured stripe or
   spine; a row shows at most one colour. Card and tile titles are in the text colour, section
-  labels muted; bars are faint with only the error and warning segments coloured.
+  labels muted; bars are faint with only the error and warning segments coloured. Severity counts
+  as bars and areas are the exception (the owner's): Image Security's band, curve and PDF draw
+  them as the drawer's severity bar does ([D-113](#d-113-image-grades-shields-from-trivys-reports)),
+  so that one count has one look everywhere; the severity words stay calm.
 - **Grade shields:** on these pages D and E keep their colours and S to C are grey, the letter in
   the text colour; N/A stays as D-113 draws it. The shields elsewhere (the Signals column, the
   drawer's grade card) are unchanged.

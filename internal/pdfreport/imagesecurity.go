@@ -119,19 +119,20 @@ func levelText(l Level) rgb {
 	return colText
 }
 
-// levelFill is a level's fill in the band and the curve, and the colour its label takes on it.
+// levelFill is a level's fill in the band and the curve, and the colour its label takes on it: the
+// severity bar's colours of the window (a pod's drawer, the Image Security page).
 func levelFill(l Level) (fill, label rgb) {
 	switch l {
 	case LevelCritical:
-		return colRed, colWhite
+		return colSevCritical, colWhite
 	case LevelHigh:
-		return colAmberFill, colText
+		return colSevHigh, colWhite
 	case LevelMedium:
-		return colGreyDark, colWhite
+		return colSevMedium, colSevInkDark
 	case LevelLow:
-		return colGreyMid, colText
+		return colSevLow, colSevInkDark
 	}
-	return colGreyLight, colText
+	return colSevUnknown, colText
 }
 
 // Render lays the report out on A4 landscape pages and returns the PDF.

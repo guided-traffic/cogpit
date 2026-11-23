@@ -8,6 +8,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/srwiley/rasterx"
@@ -328,10 +329,35 @@ func (r *gradeBadgeRenderer) Destroy()                     {}
 // severityBar draws an image's counts as five segments, Critical to Unknown, each as wide as its
 // share of the vulnerabilities (at least a sliver, and room for its number), its count inside, in
 // Docker Scout's colours; Unknown hatched; a severity without vulnerabilities faint (the owner's pick
-// in the lab: "Anteilig", Scout's colours).
+// in the lab: "Anteilig", Scout's colours). The drawer's image card and the Image Security page's
+// band draw it alike; with onTap a click on a segment names its severity (0 Critical … 4 Unknown).
 type severityBar struct {
 	widget.BaseWidget
 	counts model.VulnerabilityCounts
+	onTap  func(sev int)
+	r      *severityBarRenderer
+}
+
+// Tapped implements fyne.Tappable: the segment under the click, while the bar takes clicks.
+func (b *severityBar) Tapped(e *fyne.PointEvent) {
+	if b.onTap == nil || b.r == nil {
+		return
+	}
+	for i := range b.r.segs {
+		s := &b.r.segs[i]
+		if x := s.fill.Position().X; e.Position.X >= x && e.Position.X < x+s.fill.Size().Width+sevBarGap {
+			b.onTap(i)
+			return
+		}
+	}
+}
+
+// Cursor implements desktop.Cursorable: a hand while the bar takes clicks.
+func (b *severityBar) Cursor() desktop.Cursor {
+	if b.onTap != nil {
+		return desktop.PointerCursor
+	}
+	return desktop.DefaultCursor
 }
 
 func newSeverityBar(c model.VulnerabilityCounts) *severityBar {
@@ -353,6 +379,7 @@ const (
 
 func (b *severityBar) CreateRenderer() fyne.WidgetRenderer {
 	r := &severityBarRenderer{b: b}
+	b.r = r
 	for i := range r.segs {
 		s := &r.segs[i]
 		s.fill = canvas.NewRectangle(color.Transparent)
@@ -463,10 +490,16 @@ func (r *severityBarRenderer) Layout(size fyne.Size) {
 	}
 }
 
+// severityFills and severityInks are the severities' colours, Critical to Unknown, and those of a
+// count on them: the bar's, and the Image Security page's curve and legend.
+var (
+	severityFills = [5]fyne.ThemeColorName{colorSevCritical, colorSevHigh, colorSevMedium, colorSevLow, colorSevUnknown}
+	severityInks  = [5]fyne.ThemeColorName{colorGradeInkOnDark, colorGradeInkOnDark, colorSevInkDark, colorSevInkDark, theme.ColorNameForeground}
+)
+
 func (r *severityBarRenderer) Refresh() {
 	th := r.b.Theme()
-	fills := [5]fyne.ThemeColorName{colorSevCritical, colorSevHigh, colorSevMedium, colorSevLow, colorSevUnknown}
-	inks := [5]fyne.ThemeColorName{colorGradeInkOnDark, colorGradeInkOnDark, colorSevInkDark, colorSevInkDark, theme.ColorNameForeground}
+	fills, inks := severityFills, severityInks
 	size := th.Size(theme.SizeNameCaptionText)
 	for i, v := range r.counts() {
 		s := &r.segs[i]

@@ -62,10 +62,14 @@ var (
 	colWhite     = rgb{255, 255, 255}
 	colRed       = rgb{192, 41, 43}
 	colAmberText = rgb{168, 98, 0}
-	colAmberFill = rgb{232, 160, 30}
-	colGreyDark  = rgb{120, 128, 136}
-	colGreyMid   = rgb{173, 181, 189}
-	colGreyLight = rgb{214, 218, 222}
+	// The severities' fills, as Cogpit's severity bar has them (the image card in a pod's drawer):
+	// Docker Scout's scale; Unknown the light theme's grey (the bar hatches it).
+	colSevCritical = rgb{0x7f, 0x1d, 0x1d}
+	colSevHigh     = rgb{0xd9, 0x40, 0x3a}
+	colSevMedium   = rgb{0xe8, 0xa3, 0x3d}
+	colSevLow      = rgb{0xf5, 0xd6, 0x8e}
+	colSevUnknown  = rgb{0xb9, 0xbd, 0xc4}
+	colSevInkDark  = rgb{0x1c, 0x12, 0x04} // a count on Medium and Low
 )
 
 // face is one embedded font: its parsed outline for measuring, and per rune the advance at one
