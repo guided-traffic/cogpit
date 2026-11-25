@@ -94,7 +94,7 @@ func DebugUsers(pod *unstructured.Unstructured) map[string]int64 {
 	if podSet {
 		out[""] = podUser
 	}
-	for _, field := range []string{"containers", "initContainers"} {
+	for _, field := range []string{specContainers, "initContainers"} {
 		for _, c := range model.NestedSlice(pod.Object, "spec", field) {
 			name := model.NestedString(c, "name")
 			if u, ok := model.NestedInt64(c, "securityContext", "runAsUser"); ok {
