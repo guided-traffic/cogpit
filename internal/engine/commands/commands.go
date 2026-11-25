@@ -16,6 +16,7 @@ import (
 const (
 	kindPods        = "pods"
 	kindDeployments = "deployments"
+	kindNamespaces  = "namespaces"
 )
 
 // RegisterAll registers every command. It fails on the first registration error (a duplicate id

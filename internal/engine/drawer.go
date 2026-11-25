@@ -349,6 +349,7 @@ func buildDetail(p *model.KindProfile, ref model.ObjectRef, obj *unstructured.Un
 		m.Containers = ContainerNames(obj, false)
 		m.InitContainers = containerNames(obj, "initContainers")
 		m.EphemeralContainers = containerNames(obj, specEphemeralContainers)
+		m.DebugUsers = DebugUsers(obj)
 	}
 	return m, err
 }

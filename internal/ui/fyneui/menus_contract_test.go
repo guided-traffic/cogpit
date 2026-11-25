@@ -56,7 +56,7 @@ func TestRegistryMenusAsLens(t *testing.T) {
 		"deployment.scale": "dialog:replicas", "statefulset.scale": "dialog:replicas", "replicaset.scale": "dialog:replicas",
 		"daemonset.restart": "", "statefulset.restart": "", "workload.logs": "",
 		"pod.logs": "containers", "pod.shell": "containers", "pod.attach": "containers",
-		engine.DebugCommand: "dialog:image,target,uid",
+		engine.DebugCommand: "dialog:image,target,profile,uid",
 		"node.drain":        "dialog:ignoreDaemonSets,deleteEmptyDirData,force,gracePeriodSeconds,timeoutSeconds",
 		"pod.evict":         "", "node.cordon": "", "cronjob.trigger": "", "object.edit": "", "object.delete": "", engine.RemoveFinalizersCommand: "",
 	} {

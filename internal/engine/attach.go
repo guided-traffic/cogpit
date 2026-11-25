@@ -35,7 +35,7 @@ func (s *Session) openAttach(ctx context.Context, tab DockTab, b *Backend) (term
 // gets neither: its output is shown and nothing typed is sent.
 func AttachOptions(pod *unstructured.Unstructured, container string) terminal.AttachOptions {
 	opts := terminal.AttachOptions{Namespace: pod.GetNamespace(), Pod: pod.GetName(), Container: container}
-	for _, field := range []string{"containers", "initContainers", specEphemeralContainers} {
+	for _, field := range []string{specContainers, "initContainers", specEphemeralContainers} {
 		for _, c := range model.NestedSlice(pod, "spec", field) {
 			if model.NestedString(c, "name") != container {
 				continue

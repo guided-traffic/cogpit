@@ -21,7 +21,8 @@ import (
 // pod.debug (commands/debugcontainer.go) adds an ephemeral container to a running pod, as `kubectl
 // debug -it --target` does: a container "debugger-<5 characters>" from the image the user confirmed
 // (the Preferences' DebugImage by default, nicolaka/netshoot pinned by digest), with stdin and a
-// TTY, sharing the target container's processes; then the pod's Attach tab opens on it. Kubernetes
+// TTY, the security context of its profile (debugprofile.go), sharing the target container's
+// processes; then the pod's Attach tab opens on it. Kubernetes
 // keeps an ephemeral container as long as the pod object: it survives the pod's container restarts,
 // is never restarted itself, and the API cannot remove or change it, so adding one cannot be undone
 // and is destructive for every origin (the owner). The new container reaches Cogpit through the
@@ -136,22 +137,26 @@ func imageEffects(image string) []Effect {
 }
 
 // DebugEffects are a debug container's rows in its confirmation, after Context › Namespace › Pod
-// (the owner's order, D-85): the target, what the container sees of it, and the image with its
-// digest. No sentence: "This cannot be undone." says the rest (D-102).
-func DebugEffects(target, image string) []Effect {
-	out := make([]Effect, 0, 4)
+// (the owner's order, D-85): the target, what the container sees of it, the profile and what it
+// grants (user the Restricted one's user, DebugUser), and the image with its digest. No sentence:
+// "This cannot be undone." says the rest (D-102).
+func DebugEffects(target, image string, profile DebugProfile, user int64) []Effect {
+	out := make([]Effect, 0, 6)
 	if target == "" {
 		out = append(out, Effect{Name: "Target", Value: "none"})
 	} else {
 		out = append(out, Effect{Name: "Target", Value: target, Tone: EffectNames},
 			Effect{Name: "Sees", Value: target + "'s processes and files", Tone: EffectWarning})
 	}
+	out = append(out, debugProfileEffects(profile, user)...)
 	return append(out, imageEffects(image)...)
 }
 
 // DebugDetail is DebugEffects' text, the confirmation's Detail, to which the window's Debug dialog
 // binds the user's answer.
-func DebugDetail(target, image string) string { return EffectsText(DebugEffects(target, image)) }
+func DebugDetail(target, image string, profile DebugProfile, user int64) string {
+	return EffectsText(DebugEffects(target, image, profile, user))
+}
 
 // DebugContainerName returns a new debug container's name: DebugContainerPrefix and five random
 // lowercase characters, as kubectl debug names one, none of the names taken.
@@ -166,13 +171,14 @@ func DebugContainerName(taken []string) string {
 
 // DebugContainer is the ephemeral container Debug adds, as kubectl debug -it builds it: the image,
 // stdin and a TTY (so that an attach is a shell and it outlives a detach), the termination message
-// from its file, and the target whose processes it shares ("" for none). No command: the image's
-// own (netshoot's zsh).
-func DebugContainer(name, image, target string) corev1.EphemeralContainer {
+// from its file, the profile's security context (DebugSecurityContext, nil for General) and the
+// target whose processes it shares ("" for none). No command: the image's own (netshoot's zsh).
+func DebugContainer(name, image, target string, sc *corev1.SecurityContext) corev1.EphemeralContainer {
 	return corev1.EphemeralContainer{
 		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
 			Name: name, Image: image, Stdin: true, TTY: true,
 			TerminationMessagePolicy: corev1.TerminationMessageReadFile,
+			SecurityContext:          sc,
 		},
 		TargetContainerName: target,
 	}
@@ -191,10 +197,11 @@ func PodEnded(pod *unstructured.Unstructured) string {
 }
 
 // AddDebugContainer adds a debug container to the pod ref names, the one with uid as the cache
-// held it, from image with target ("" for none), and returns its name. The caller (pod.debug) was
-// confirmed for that pod, image and target; pod is the cached pod, whose container names the new
-// name avoids.
-func (s *Session) AddDebugContainer(ctx context.Context, ref model.ObjectRef, pod *unstructured.Unstructured, uid, image, target string) (string, error) {
+// held it, from image with target ("" for none) and profile, and returns its name. The caller
+// (pod.debug) was confirmed for that pod, image, target and profile; pod is the cached pod, whose
+// container names the new name avoids and whose users the Restricted profile's user comes from.
+func (s *Session) AddDebugContainer(ctx context.Context, ref model.ObjectRef, pod *unstructured.Unstructured, uid, image, target string,
+	profile DebugProfile) (string, error) {
 	b, err := s.TargetBackend(ref.Context) // the pod's cluster, shown or not (D-69)
 	if err != nil {
 		return "", err
@@ -204,7 +211,8 @@ func (s *Session) AddDebugContainer(ctx context.Context, ref model.ObjectRef, po
 		return "", errors.New("this cluster connection cannot add debug containers")
 	}
 	name := DebugContainerName(ContainerNames(pod, true))
-	if err := w.AddEphemeralContainer(ctx, ref.Namespace, ref.Name, uid, DebugContainer(name, image, target)); err != nil {
+	if err := w.AddEphemeralContainer(ctx, ref.Namespace, ref.Name, uid, DebugContainer(name, image, target,
+		DebugSecurityContext(profile, DebugUser(DebugUsers(pod), target)))); err != nil {
 		if errors.Is(err, cluster.ErrReplaced) {
 			return "", fmt.Errorf("%w: %w", ErrTargetsChanged, err)
 		}

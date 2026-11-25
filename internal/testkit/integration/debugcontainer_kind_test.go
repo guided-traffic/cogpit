@@ -109,7 +109,8 @@ func TestKindDebugContainer(t *testing.T) {
 	name := debug.Container
 	mu.Lock()
 	if len(asked) != 1 || asked[0].Danger != engine.DangerDestructive ||
-		!strings.Contains(asked[0].Message(), "Target: main. Sees: main's processes and files. Image: docker.io/nicolaka/netshoot:") {
+		!strings.Contains(asked[0].Message(), "Target: main. Sees: main's processes and files. Profile: General. Rights: the image's user, "+
+			"the runtime's default capabilities. Image: docker.io/nicolaka/netshoot:") {
 		t.Errorf("confirmation %+v", asked)
 	}
 	mu.Unlock()
@@ -193,7 +194,7 @@ func TestKindDebugContainer(t *testing.T) {
 
 	// Another pod's UID: the API server refuses the patch (metadata.uid immutable).
 	err = s.Backend().Conn.AddEphemeralContainer(ctx, debugNamespace, "target", "00000000-0000-0000-0000-000000000000",
-		engine.DebugContainer("debugger-wrong", engine.DefaultNodeShellImage, ""))
+		engine.DebugContainer("debugger-wrong", engine.DefaultNodeShellImage, "", nil))
 	if !errors.Is(err, cluster.ErrReplaced) {
 		t.Errorf("a patch with another UID: %v", err)
 	}
@@ -217,6 +218,7 @@ func TestKindDebugContainer(t *testing.T) {
 	if p, err = kube.CoreV1().Pods(debugNamespace).Get(ctx, "target", metav1.GetOptions{}); err != nil || len(p.Spec.EphemeralContainers) != 1 {
 		t.Errorf("a refused debug added a container: %v, %d", err, len(p.Spec.EphemeralContainers))
 	}
+	kindDebugRestricted(ctx, t, s, kube)
 	if nsObj, err = kube.CoreV1().Namespaces().Get(ctx, debugNamespace, metav1.GetOptions{}); err != nil {
 		t.Fatal(err)
 	}
@@ -246,7 +248,70 @@ func TestKindDebugContainer(t *testing.T) {
 		t.Errorf("Debug on a finished pod: %v", err)
 	}
 	err = s.Backend().Conn.AddEphemeralContainer(ctx, debugNamespace, "finished", string(created.UID),
-		engine.DebugContainer("debugger-late", engine.DefaultNodeShellImage, ""))
+		engine.DebugContainer("debugger-late", engine.DefaultNodeShellImage, "", nil))
 	t.Logf("the API server on a finished pod: %v", err)
 	t.Logf("output:\n%q", out.String())
+}
+
+// kindDebugRestricted: in the namespace that enforces Pod Security's restricted level, a pod that
+// meets it takes a Restricted debug container (D-102): the API server admits it, the container
+// runs netshoot as the target's user, and its shell sees the target's process.
+func kindDebugRestricted(ctx context.Context, t *testing.T, s *engine.Session, kube kubernetes.Interface) {
+	t.Helper()
+	no, yes, user := false, true, int64(1000)
+	strict := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "strict", Namespace: debugNamespace},
+		Spec: corev1.PodSpec{
+			SecurityContext: &corev1.PodSecurityContext{RunAsNonRoot: &yes, RunAsUser: &user,
+				SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault}},
+			Containers: []corev1.Container{{Name: "main", Image: engine.DefaultNodeShellImage, Command: []string{"sleep", "3600"},
+				SecurityContext: &corev1.SecurityContext{AllowPrivilegeEscalation: &no,
+					Capabilities: &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}}}}},
+			TerminationGracePeriodSeconds: new(int64),
+		},
+	}
+	if _, err := kube.CoreV1().Pods(debugNamespace).Create(ctx, strict, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("a pod that meets restricted: %v", err)
+	}
+	if err := s.Backend().Conn.WaitPodRunning(ctx, debugNamespace, "strict", "main"); err != nil {
+		t.Fatalf("the strict pod: %v", err)
+	}
+	ref := model.ObjectRef{Kind: "pods", Namespace: debugNamespace, Name: "strict"}
+	if !testkit.WaitFor(ctx, func() bool { o, err := s.Lookup(ref); return err == nil && o != nil && engine.PodEnded(o) == "" }) {
+		t.Fatal("the strict pod is not in the cache")
+	}
+	raw, _ := json.Marshal(map[string]any{"ref": ref, "target": "main", "profile": "restricted"})
+	res, err := s.Dispatch(ctx, engine.Invocation{ID: engine.DebugCommand, Params: raw, Origin: engine.OriginGUI})
+	if err != nil {
+		t.Fatalf("Restricted under Pod Security restricted: %v", err)
+	}
+	debug := res.(commands.DebugResult)
+	if debug.Tab == nil || debug.Profile != "restricted" {
+		t.Fatalf("result %+v", debug)
+	}
+	sess, err := s.OpenTerminal(ctx, debug.Tab.ID)
+	if err != nil {
+		t.Fatalf("OpenTerminal: %v", err)
+	}
+	defer func() { _ = sess.Close() }()
+	out := collectShell(sess)
+	if !testkit.WaitFor(ctx, func() bool { return strings.Contains(out.String(), "[cogpit] attached to strict/"+debug.Container) }) {
+		t.Fatalf("not attached: %q", out.String())
+	}
+	for i := 0; ; i++ {
+		if _, err := io.WriteString(sess, "echo UID-$(id -u)-PROC-$(ps -o args | grep -c '[s]leep 3600')-END\r"); err != nil {
+			t.Fatal(err)
+		}
+		wctx, wcancel := context.WithTimeout(ctx, 10*time.Second)
+		ok := testkit.WaitFor(wctx, func() bool { return strings.Contains(out.String(), "UID-1000-PROC-1-END") })
+		wcancel()
+		if ok {
+			t.Logf("Restricted under Pod Security restricted: %s runs as user 1000 and sees the target", debug.Container)
+			break
+		}
+		if i == 5 {
+			t.Fatalf("the Restricted debug shell did not answer as user 1000 seeing the target:\n%q", out.String())
+		}
+	}
+	_, _ = io.WriteString(sess, "exit\r")
 }

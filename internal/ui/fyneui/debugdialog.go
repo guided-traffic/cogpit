@@ -20,12 +20,15 @@ import (
 // The Debug dialog (the owner; D-102; engine/debugcontainer.go): Debug on a pod, from its drawer's
 // toolbar, its row menu or the palette, asks which image, prefilled with the Preferences' debug
 // image in an ordinary entry the user edits, selects, copies and pastes into, and which of the
-// pod's containers to target (the first preselected, None for no target). Debug is destructive for
-// every origin (the owner), and this dialog is its confirmation, as the Rollback dialog is a
-// rollback's (helmrollback.go): its rows are the confirmation's, Context › Namespace › Pod, Target
-// and what the container sees of it, Image and its digest, "This cannot be undone." in red, its
-// Debug button armed after the confirmation's delay. Its answer is bound to the command, this
-// window, the pod and its UID as the dialog read them, the target and the image, so the engine's
+// pod's containers to target (the first preselected, None for no target), and which profile sets
+// its security context (Restricted preselected where the namespace enforces Pod Security's
+// restricted level, else General; engine/debugprofile.go). Debug is destructive for every origin
+// (the owner), and this dialog is its confirmation, as the Rollback dialog is a rollback's
+// (helmrollback.go): its rows are the confirmation's, Context › Namespace › Pod, Target and what
+// the container sees of it, Profile and what it grants, Image and its digest, "This cannot be
+// undone." in red, its Debug button armed after the confirmation's delay. Its answer is bound to
+// the command, this window, the pod and its UID as the dialog read them, the target, the profile
+// and the image, so the engine's
 // confirmation of exactly that takes it instead of asking a second time; a pod created again under
 // the name meanwhile is refused. One step, not two: a second dialog would only repeat the first's
 // values (the lead's choice, D-102).
@@ -46,10 +49,11 @@ var errPodReplacedWhileOpen = errors.New("the pod was replaced by another of its
 
 // debugDialogParams mirror pod.debug's parameters.
 type debugDialogParams struct {
-	Ref    model.ObjectRef `json:"ref"`
-	Image  string          `json:"image,omitempty"`
-	Target string          `json:"target,omitempty"`
-	UID    string          `json:"uid,omitempty"`
+	Ref     model.ObjectRef `json:"ref"`
+	Image   string          `json:"image,omitempty"`
+	Target  string          `json:"target,omitempty"`
+	Profile string          `json:"profile,omitempty"`
+	UID     string          `json:"uid,omitempty"`
 }
 
 // openDebugDialog reads the pod's containers from the drawer's model, off the main goroutine, and
@@ -73,11 +77,14 @@ func openDebugDialog(sh *shell, ref model.ObjectRef, a model.ItemAction) {
 	}
 	go func() {
 		defer sh.recoverTo("the Debug dialog")
-		var targets []string
+		var (
+			targets []string
+			users   map[string]int64
+		)
 		if m, err := sh.eng.Detail(p.Ref); err == nil && m != nil {
-			targets = m.Containers
+			targets, users = m.Containers, m.DebugUsers
 		}
-		sh.do(func() { sh.showDebugDialog(p, targets) })
+		sh.do(func() { sh.showDebugDialog(p, targets, users) })
 	}()
 }
 
@@ -86,6 +93,7 @@ type debugDialog struct {
 	d       *dialogFrame
 	rows    *fyne.Container
 	target  *selectField
+	profile *selectField
 	image   *fieldEntry
 	confirm *textButton
 	cancel  *textButton
@@ -111,8 +119,14 @@ func (dd *debugDialog) chosenTarget() string {
 	return ""
 }
 
-// showDebugDialog builds and shows the dialog for the pod p names, targets its containers.
-func (sh *shell) showDebugDialog(p debugDialogParams, targets []string) *debugDialog {
+// chosenProfile is the profile picked.
+func (dd *debugDialog) chosenProfile() engine.DebugProfile {
+	return engine.DebugProfileLabeled(dd.profile.Selected)
+}
+
+// showDebugDialog builds and shows the dialog for the pod p names, targets its containers, users
+// the user IDs they run as (engine.DebugUsers), from which the Restricted profile's user comes.
+func (sh *shell) showDebugDialog(p debugDialogParams, targets []string, users map[string]int64) *debugDialog {
 	th := sh.app.Settings().Theme()
 	width := th.Size(sizeConfirmWidth)
 	valueW := width - th.Size(sizeDrawerLabel) - 2*th.Size(theme.SizeNamePadding)
@@ -126,6 +140,16 @@ func (sh *shell) showDebugDialog(p debugDialogParams, targets []string) *debugDi
 	default:
 		dd.target.SetSelected(debugNoTarget)
 	}
+	labels := make([]string, 0, len(engine.DebugProfiles))
+	for _, pr := range engine.DebugProfiles {
+		labels = append(labels, pr.Label())
+	}
+	dd.profile = newSelectField(labels, nil)
+	start, err := engine.ParseDebugProfile(p.Profile)
+	if err != nil {
+		start = engine.DebugGeneral
+	}
+	dd.profile.SetSelected(start.Label())
 	dd.image = newFieldEntry() // an ordinary entry: select, copy, paste, edit; Escape cancels (escape.go)
 	dd.configured = p.Image
 	dd.image.SetText(engine.ShortImage(p.Image))
@@ -133,17 +157,24 @@ func (sh *shell) showDebugDialog(p debugDialogParams, targets []string) *debugDi
 	dd.confirm.Importance = widget.DangerImportance
 	dd.cancel = newPlateButton("Cancel", nil, nil)
 
-	// The rows as the confirmation has them (D-85): the place, then the target and the image as the
-	// fields the user sets, each followed by what the engine's confirmation would add (what the
-	// container sees of the target, the image's digest or that it floats).
+	// The rows as the confirmation has them (D-85): the place, then the target, the profile and the
+	// image as the fields the user sets, each followed by what the engine's confirmation would add
+	// (what the container sees of the target, what the profile grants, the image's digest or that
+	// it floats).
 	build := func() {
 		target, image := dd.chosenTarget(), dd.chosenImage()
 		dd.rows.Objects = nil
 		placeRows(dd.rows, p.Ref.Context, []string{p.Ref.Namespace}, []namedObject{{kind: "Pod", name: p.Ref.Name}}, valueW)
 		dd.rows.Objects = append(dd.rows.Objects, rowName("Target"), dd.target)
-		effects := engine.DebugEffects(target, image)
+		effects := engine.DebugEffects(target, image, dd.chosenProfile(), engine.DebugUser(users, target))
 		for _, e := range effects {
 			if e.Name == "Sees" {
+				dd.rows.Objects = append(dd.rows.Objects, rowName(e.Name), effectValue(e, valueW))
+			}
+		}
+		dd.rows.Objects = append(dd.rows.Objects, rowName("Profile"), dd.profile)
+		for _, e := range effects {
+			if e.Name == "Rights" {
 				dd.rows.Objects = append(dd.rows.Objects, rowName(e.Name), effectValue(e, valueW))
 			}
 		}
@@ -165,6 +196,7 @@ func (sh *shell) showDebugDialog(p debugDialogParams, targets []string) *debugDi
 		}
 	}
 	dd.target.OnChanged = func(string) { build() }
+	dd.profile.OnChanged = func(string) { build() }
 	dd.image.OnChanged = func(string) { build(); enable() }
 	build()
 	dd.confirm.Disable()
@@ -181,12 +213,13 @@ func (sh *shell) showDebugDialog(p debugDialogParams, targets []string) *debugDi
 		if image == "" {
 			return
 		}
-		params := debugDialogParams{Ref: p.Ref, Image: image, Target: dd.chosenTarget(), UID: p.UID}
+		profile := dd.chosenProfile()
+		params := debugDialogParams{Ref: p.Ref, Image: image, Target: dd.chosenTarget(), Profile: string(profile), UID: p.UID}
 		dd.d.Hide()
 		var answer *dialogConfirmation
 		if p.UID != "" { // without the UID the engine's own confirmation asks
 			answer = sh.confirmer.confirmedByDialogOr(engine.DebugCommand, p.Ref, p.UID,
-				engine.DebugDetail(params.Target, image), errPodReplacedWhileOpen)
+				engine.DebugDetail(params.Target, image, profile, engine.DebugUser(users, params.Target)), errPodReplacedWhileOpen)
 		}
 		sh.dispatch(engine.DebugCommand, params, func(res any, err error) {
 			if answer != nil {
