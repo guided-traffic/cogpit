@@ -7459,13 +7459,20 @@ same way.
 A read refused wholly (403 in its one scope, or in every namespace it reads) goes back whole; of a
 read namespace by namespace, each refused namespace goes back and the others are read and watched
 on. Nothing refused is listed again until `cluster.refreshAccess` (the reader starts again), the
-view or page opened again, the cluster shown again or the next connect. A refusal in all namespaces
+next connect, or the view or page opened or the cluster shown again once the refusal is 5 minutes
+old. A refusal in all namespaces
 is followed first, namespace by namespace, as every read follows it (D-173).
 
 - The handle goes back through `cache.Handle.ReleaseWithErr`, a refused namespace of it through
   `ReleaseRefusedNamespaces`: the handle keeps its error, whether it had synced and what it held,
   so the reader's code reads it as any handle; a refused scope is not kept warm, so its informer
-  stops at once.
+  stops at once. Its refusal is remembered instead, for the warm period (5 minutes): a reader that
+  acquires the scope again meanwhile (a page that starts again because the plan of another of its
+  kinds changed, the drawer opened again) gets the refusal at once, without a list, and gives it
+  back as any refused read ([`refusalmemory.go`](../../internal/cache/refusalmemory.go));
+  `cluster.refreshAccess` forgets it (`Cache.ForgetRefusals`). Rejected: starting the new page
+  before stopping the old (a read given back already is gone either way); handing each kind's
+  handle from the old page to the new (one change per page, seven readers).
 - A kind the access reviews say the user may not list where a reader would read it is named the
   same way, and not read: "Cogpit may not list kustomizations.kustomize.toolkit.fluxcd.io,
   gitrepositories.source.toolkit.fluxcd.io" on the Flux dashboard (not "The cluster serves no

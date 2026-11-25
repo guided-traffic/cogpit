@@ -233,24 +233,24 @@ func TestPollerBackoffAndKeep(t *testing.T) {
 	}
 
 	target := &Target{Namespace: "m", Service: "am", Port: "web"}
-	p.apply(0, result{state: StateFound, target: target, alerts: []Alert{{Name: "A"}}, total: 1})
+	p.apply(0, 0, result{state: StateFound, target: target, alerts: []Alert{{Name: "A"}}, total: 1})
 	if s := p.Snapshot(); s.AsOf != now || s.Total != 1 {
 		t.Fatalf("answer %+v", s)
 	}
 	fail := result{state: StateUnavailable, err: "unavailable (HTTP 503)"}
 	now = now.Add(time.Minute)
-	p.apply(0, fail)
+	p.apply(0, 0, fail)
 	if s := p.Snapshot(); s.Total != 1 || !s.FailingSince.Equal(now) {
 		t.Errorf("kept %+v", s)
 	}
 	now = now.Add(DefaultKeepFor)
-	p.apply(0, fail)
+	p.apply(0, 0, fail)
 	if s := p.Snapshot(); s.Answered() || s.Total != 0 || s.State != StateUnavailable || s.Target != (Target{}) {
 		t.Errorf("after KeepFor %+v", s)
 	}
 	// An older address's poll is not applied.
 	p.gen = 5
-	p.apply(4, result{state: StateFound, target: target, total: 9})
+	p.apply(4, 0, result{state: StateFound, target: target, total: 9})
 	if p.Snapshot().Total == 9 {
 		t.Error("a poll of an older address was applied")
 	}
