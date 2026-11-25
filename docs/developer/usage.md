@@ -142,7 +142,7 @@ Ctrl on Windows and Linux.
   counts and, while the navigator has Image Security, "Details" at the card's top right: that
   image's CVEs there (every severity); nothing is read while the integration is off. Reports you may not list show no grade and
   "No permission" in Cluster Settings › Integrations › Trivy, and are not asked for again until
-  Refresh Access Reviews or the cluster is shown again. The Image Security page sums them up for
+  Refresh Access Reviews, or the cluster shown again 5 minutes after the refusal. The Image Security page sums them up for
   the cluster and searches the findings ([details](#image-security)).
 
 **Workloads at run time**
@@ -1404,8 +1404,9 @@ times since 08:01:04") instead of pushing other lines out.
 A kind the API server refuses to a list view, the Workloads or cluster Overview, the Flux or Argo
 CD dashboard is named in the error line above the table ("Nodes: … is forbidden …") and listed
 once, not again while it is open; so is a namespace refused while the kind's other namespaces are
-read ("in team-b: … is forbidden"), whose rows stay. Refresh Access Reviews, opening the view
-again or the next connect asks again. Kinds the access reviews say you may not list are not read
+read ("in team-b: … is forbidden"), whose rows stay. Refresh Access Reviews or the next connect
+asks again, and so does opening the view again once the refusal is 5 minutes old; sooner, the
+view shows the refusal it got without asking. Kinds the access reviews say you may not list are not read
 and are named instead: "Cogpit may not list applications.argoproj.io" on the Argo CD dashboard,
 the Flux kinds on the Flux dashboard. What could not be read shows "—" where its count would be
 (the dashboards' cards, the Workloads Overview's kinds), and the table neither counts items nor
@@ -1647,8 +1648,8 @@ right applies to the whole page.
   page is open; for the curve, two queries of the cluster's Prometheus through the API server's
   service proxy, with your identity, while the page shows. Off: no entry, nothing read. Reports you may not list: the error line says so
   ("Cogpit may not list vulnerabilityreports.aquasecurity.github.io", or the cluster's refusal),
-  without cards or counts, and they are not asked for again until Refresh Access Reviews or the
-  page is opened again.
+  without cards or counts, and they are not asked for again until Refresh Access Reviews, or the
+  page opened again 5 minutes after the refusal.
 
 ### The Velero page
 
@@ -1688,7 +1689,7 @@ from the cache and nothing else: no action, no request to Velero, nothing create
 - **Reads:** Velero's kinds, the namespaces, PVCs and workloads, only while the page is open. A kind
   you may not list counts "—" in its tile, which names it ("Cogpit may not list backups.velero.io",
   or the cluster's refusal); the sections built from it count "—" and claim nothing. It is not asked
-  for again until Refresh Access Reviews or the page is opened again.
+  for again until Refresh Access Reviews, or the page opened again 5 minutes after the refusal.
 
 ### A volume's usage
 

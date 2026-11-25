@@ -190,10 +190,12 @@ type Cache struct {
 	stop context.CancelFunc
 
 	mu        sync.Mutex
-	informers map[Scope]*entry     // every scope a handle holds or that is warm
-	runners   map[*runner]struct{} // every informer running, those of entries and those still serving a handover
-	closed    bool
-	entries   uint64 // entries made so far: each entry's seq (peek.go)
+	informers map[Scope]*entry // every scope a handle holds or that is warm
+	// remembered are the refused scopes no handle holds any more (refusalmemory.go).
+	remembered map[Scope]*rememberedRefusal
+	runners    map[*runner]struct{} // every informer running, those of entries and those still serving a handover
+	closed     bool
+	entries    uint64 // entries made so far: each entry's seq (peek.go)
 
 	// lists is set once a streamed initial list stalled: every read lists from then on, and
 	// listCtx ends then, which ends the streams still running (stall.go).
@@ -305,6 +307,9 @@ func (c *Cache) Acquire(scope Scope) *Handle {
 	}
 	e := c.informers[scope]
 	if e == nil {
+		if h := c.rememberedLocked(scope); h != nil {
+			return h // refused a moment ago: its refusal, without a list (refusalmemory.go)
+		}
 		e = c.newEntry(scope)
 	}
 	e.refs++
@@ -429,7 +434,8 @@ func (c *Cache) release(e *entry) {
 	if e.refs > 0 || c.closed {
 		return
 	}
-	if e.refusedLocked() { // a refused scope is not kept warm (nsscope.go)
+	if e.refusedLocked() { // a refused scope is not kept warm (nsscope.go), its refusal is remembered
+		c.rememberLocked(e)
 		c.retire(e)
 		return
 	}
@@ -523,6 +529,7 @@ func (c *Cache) Close() {
 	c.mu.Lock()
 	c.closed = true
 	c.stop()
+	c.forgetRefusalsLocked()
 	for scope, e := range c.informers {
 		if e.warmTimer != nil {
 			e.warmTimer.Stop()
@@ -811,6 +818,8 @@ type Handle struct {
 	released atomic.Bool
 	set      *nsSet                  // a scope read in several namespaces, one informer each (nsscope.go); nil otherwise
 	kept     atomic.Pointer[keptErr] // what a handle released by ReleaseWithErr keeps; nil otherwise
+	// remembered: a handle on a remembered refusal (refusalmemory.go) not given back yet.
+	remembered atomic.Bool
 }
 
 // keptErr is what ReleaseWithErr keeps: the handle's error and whether it had synced.
@@ -1012,6 +1021,9 @@ func (h *Handle) Release() {
 // reader shows the refusal (a refused scope is not kept warm). It reports whether it released the handle now: a handle without an error, or one
 // released before, stays as it is.
 func (h *Handle) ReleaseWithErr() bool {
+	if h.remembered.CompareAndSwap(true, false) {
+		return true // a remembered refusal: nothing to release, given back now (refusalmemory.go)
+	}
 	err := h.Err()
 	if err == nil || h.released.Load() || !h.kept.CompareAndSwap(nil, &keptErr{err: err, synced: h.HasSynced()}) {
 		return false

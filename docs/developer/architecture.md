@@ -1301,7 +1301,9 @@ hold nothing (`acquireNow`), and reads that wait anyway wait up to 10 s (`acquir
 of one object, its logs or a port forward then takes the target's namespace alone (`acquireIn`).
 `DetailWait` reads an object's events through its namespace's events informer, shared with the
 Events view, because `cache.Scope` selects by label only (`detailReads`). A refused scope is not
-kept warm.
+kept warm: its informer stops with its last handle, and its refusal is remembered for the warm
+period, so a reader that acquires it again gets the refusal without a list until
+`cluster.refreshAccess` forgets it ([`refusalmemory.go`](../../internal/cache/refusalmemory.go)).
 
 **A refusal counts, whoever met it**
 ([`accessiblens_follow.go`](../../internal/engine/accessiblens_follow.go)). `Cache.OnRefused`
