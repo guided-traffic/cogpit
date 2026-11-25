@@ -275,17 +275,18 @@ check_nested() {
 # build_dmg puts the signed app into the template of the disk image's window (D-70) and signs the
 # disk image. The template comes from the job that built the app (hack/macos/dmg-template.sh,
 # dmgbuild: code from PyPI, which never runs here); this job only checks it and fills it in with
-# Apple's tools. The check: the template is a writable HFS+ image whose volume is "Cogpit
-# <version>" and holds exactly the window's settings (.DS_Store), its background, the volume's icon
-# and the link to /Applications, nothing else. Then it is resized to fit the app, the app copied in
+# Apple's tools. The check: the template is a compressed HFS+ image (UDZO; dmgbuild writes no
+# writable one), converted to a writable one here, whose volume is "Cogpit <version>" and holds
+# exactly the window's settings (.DS_Store), its background, the volume's icon and the link to
+# /Applications, nothing else. Then it is resized to fit the app, the app copied in
 # (no Finder flags: an xattr on the bundle fails codesign's strict check; Finder hides an app's
 # .app anyway), and the image converted to a compressed one.
 build_dmg() {
 	group "Disk image $(basename "$dmg")"
 	local template="$in/Cogpit-$version-template.dmg" rw="$work/template.dmg" mnt="$work/template-mnt" mb found want
 	[ -f "$template" ] || die "no disk image template $template (make dist-dmg-template VERSION=$version)"
-	cp "$template" "$rw"
-	hdiutil imageinfo "$rw" | grep -qx 'Format: UDRW' || die "$template is not a writable disk image (UDRW)"
+	hdiutil imageinfo "$template" | grep -qx 'Format: UDZO' || die "$template is not a compressed disk image (UDZO)"
+	retry 3 hdiutil convert -quiet "$template" -format UDRW -o "$rw"
 	mb=$(($(du -sm "$app" | cut -f1) * 12 / 10 + 32))
 	retry 3 hdiutil resize -quiet -size "${mb}m" "$rw"
 	mkdir "$mnt"

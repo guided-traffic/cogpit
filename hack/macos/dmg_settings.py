@@ -14,7 +14,7 @@ _name = "Cogpit.app"  # placed by the signing job; its place and view settings a
 _w, _h = _lab["W"], _lab["H"]
 _y = round(_lab["iconY"] * _h)
 
-format = "UDRW"  # writable: the signing job resizes it, adds the app and converts it to UDZO
+format = "UDZO"  # dmgbuild 2 writes no writable image: the signing job converts it to UDRW, adds the app, back to UDZO
 filesystem = "HFS+"
 files = []
 symlinks = {"Applications": "/Applications"}
