@@ -46,6 +46,9 @@ type DetailModel struct {
 	// EphemeralContainers are the pod's ephemeral (debug) container names, which logs, shell and
 	// attach can pick too (D-102).
 	EphemeralContainers []string `json:"ephemeralContainers,omitempty"`
+	// DebugUsers are the user IDs the pod's containers run as by its spec, "" the pod's
+	// (DebugUsers): the Debug dialog's Restricted profile runs as its target's (D-102).
+	DebugUsers map[string]int64 `json:"debugUsers,omitempty"`
 	// Missing is true when the object is not (or no longer) in the cache.
 	Missing bool `json:"missing,omitempty"`
 	// Loading is true while the object's kind is still being listed: the object may yet appear,

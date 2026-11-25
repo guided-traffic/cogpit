@@ -110,7 +110,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-99](#d-99-selecting-and-copying-a-log-tabs-text-and-a-toasts) | Selecting and copying a log tab's text and a toast's | built: log, toast and chat text selectable; Follow by scrolling |
 | [D-100](#d-100-objects-and-effects-in-one-form-and-a-drawers-edited-state-beside-save) | Objects and effects in one form, and a drawer's edited state beside Save | built: Kind → name in dialogs, effects as rows, edit pills |
 | [D-101](#d-101-the-kubeconfig-sources-at-hand-and-a-removed-cluster-leaves-the-hotbar) | The kubeconfig sources at hand, and a removed cluster leaves the hotbar | built: sources' "−"; a removed source's clusters leave the hotbar |
-| [D-102](#d-102-debug-containers-added-from-the-drawer-shown-in-blue-reached-by-logs-shell-and-attach) | Debug containers added from the drawer, shown in blue, reached by Logs, Shell and Attach | built: pod.debug, Destructive, netshoot pinned by digest |
+| [D-102](#d-102-debug-containers-added-from-the-drawer-shown-in-blue-reached-by-logs-shell-and-attach) | Debug containers added from the drawer, shown in blue, reached by Logs, Shell and Attach | built: pod.debug, Destructive, netshoot pinned by digest, three profiles |
 | [D-103](#d-103-fynes-thread-check-a-build-parameter-off-in-releases) | Fyne's thread check, a build parameter, off in releases | built: FYNE_THREAD_CHECKS, off in releases, on in development builds |
 | [D-104](#d-104-dialog-fields-hints-dropdowns-and-button-outlines) | Dialog fields, hints, dropdowns and button outlines | built: hint tooltips, sliders, dropdowns over the field, outlines |
 | [D-105](#d-105-reverse-video-as-a-state-and-a-keys-modifiers-from-the-key-itself) | Reverse video as a state, and a key's modifiers from the key itself | built: fork patches for SGR 7, key modifiers, xterm sequences |
@@ -3946,8 +3946,19 @@ place. A source can hold several clusters, so the "−" opens the dialog instead
   Greyed with the reason on a pod that has ended or is being deleted.
 - **One dialog, the confirmation** ([`debugdialog.go`](../../internal/ui/fyneui/debugdialog.go)):
   Context › Namespace › Pod, Target (the pod's containers, the first preselected, or None), Sees,
-  Image (editable), Digest, "This cannot be undone."; the answer is bound to the pod's UID, the
-  target and the image. Agents and the CLI get the engine's confirmation with the same rows.
+  Profile, Rights, Image (editable), Digest, "This cannot be undone."; the answer is bound to the
+  pod's UID, the target, the profile and the image. Agents and the CLI get the engine's
+  confirmation with the same rows.
+- **Profiles** ([`debugprofile.go`](../../internal/engine/debugprofile.go)), after
+  `kubectl debug --profile`: **General** sets no security context (the image's user, the runtime's
+  default capabilities; unlike kubectl's general no `SYS_PTRACE`); **Restricted** sets
+  `allowPrivilegeEscalation: false`, drops `ALL` capabilities, `runAsNonRoot: true`,
+  `seccompProfile: RuntimeDefault` and `runAsUser` the target's user from the pod's spec (its own,
+  else the pod's; 65534 when that is root or only the image sets it), which passes Pod Security's
+  restricted level and policy engines that ask the same of ephemeral containers; **Netadmin** adds
+  `NET_ADMIN` and `NET_RAW`. The dialog preselects Restricted where the namespace carries
+  `pod-security.kubernetes.io/enforce: restricted`, else General; `pod.debug` without `profile`
+  runs General.
 - **The write:** `debugger-<5 lowercase characters>` with stdin, a TTY, the image's own command and
   `targetContainerName` (`engine.DebugContainer`), a strategic merge patch on the
   `ephemeralcontainers` subresource with the pod's UID as `metadata.uid`, so a pod created again
@@ -3963,16 +3974,24 @@ place. A source can hold several clusters, so the "−" opens the dialog instead
   outline once finished (`CellMark.Hollow`); at most 12 squares a cell, the rest "+N". They count
   in neither READY, RESTARTS nor STATUS, as in kubectl. A pod's log tab lists them apart.
 
-**Why:** One dialog that is the confirmation shows each value once (D-85). A finished debug
+**Why:** One dialog that is the confirmation shows each value once (D-85). A profile, not one
+fixed security context: Restricted takes from netshoot what it is started for (`tcpdump`, `strace`,
+reading a target that runs as another user), so it is the choice for the namespaces that need it,
+not the price of every debug. Restricted runs as the target's user, so it still reads the
+target's processes and files where the spec names that user. Rejected: always Restricted (weaker
+debugging everywhere); retrying Restricted after a refusal (parses a webhook's free text, and every
+debug fails once first); reading policy engines' rules for the preselection (a reader per engine). A finished debug
 shell's exit code says how its last command ended, not that the pod is unwell. A field left at the
 default stores empty, so it follows the pinned default as Renovate moves it.
 
-**Not covered:** a command of its own (kubectl's `-- <command>`); stopping it when its tab closes.
+**Not covered:** a command of its own (kubectl's `-- <command>`); stopping it when its tab closes;
+kubectl's baseline and sysadmin profiles; a target whose user only its image sets (Restricted then
+runs as 65534 and reads its processes only where they are readable to others).
 
 **Code:** [`engine/debugcontainer.go`](../../internal/engine/debugcontainer.go),
 [`cluster/debugcontainer.go`](../../internal/cluster/debugcontainer.go) · 
 `TestDebugNeedsEveryOriginsConfirmation`, `TestAddEphemeralContainerSendsTheGuardedPatch`,
-`TestImageFromField`, `TestEphemeralContainerMarks`, `TestKindDebugContainer`
+`TestImageFromField`, `TestDebugProfiles`, `TestDebugProfile`, `TestDebugDialogRestricted`, `TestEphemeralContainerMarks`, `TestKindDebugContainer`
 
 ## D-103: Fyne's thread check, a build parameter, off in releases
 

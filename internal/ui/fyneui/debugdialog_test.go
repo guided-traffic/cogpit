@@ -2,6 +2,7 @@ package fyneui
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -80,7 +81,8 @@ func openDebug(t *testing.T, sh *shell, w fyne.Window, q *mainQueue) {
 	t.Fatal("no Debug among the pod's actions")
 }
 
-// dialogEntry and dialogSelect are the dialog's image entry and target select.
+// dialogEntry, dialogSelect and dialogProfile are the dialog's image entry, target select and
+// profile select.
 func dialogEntry(t *testing.T, w fyne.Window) *widget.Entry {
 	t.Helper()
 	es := entriesIn(w.Canvas().Overlays().Top())
@@ -92,11 +94,38 @@ func dialogEntry(t *testing.T, w fyne.Window) *widget.Entry {
 
 func dialogSelect(t *testing.T, w fyne.Window) *selectField {
 	t.Helper()
+	return dialogSelectWith(t, w, debugNoTarget)
+}
+
+func dialogProfile(t *testing.T, w fyne.Window) *selectField {
+	t.Helper()
+	return dialogSelectWith(t, w, engine.DebugGeneral.Label())
+}
+
+// dialogSelectWith is the dialog's one select that offers option.
+func dialogSelectWith(t *testing.T, w fyne.Window, option string) *selectField {
+	t.Helper()
 	ss := findAll[*selectField](w.Canvas().Overlays().Top())
-	if len(ss) != 1 {
+	if len(ss) != 2 {
 		t.Fatalf("%d selects in the dialog", len(ss))
 	}
-	return ss[0]
+	for _, s := range ss {
+		if slices.Contains(s.Options, option) {
+			return s
+		}
+	}
+	t.Fatalf("no select offers %q", option)
+	return nil
+}
+
+// dialogRights is the text of the dialog's Rights row.
+func dialogRights(w fyne.Window) string {
+	for _, p := range findAll[*paragraph](w.Canvas().Overlays().Top()) {
+		if strings.HasPrefix(p.text, "user ") || strings.HasPrefix(p.text, "the image's user") {
+			return p.text
+		}
+	}
+	return ""
 }
 
 func debugShell(t *testing.T, mode ThemeMode) (*shell, fyne.Window, *mainQueue, *engine.Session, *debugWriter, *testkit.MemorySource) {
@@ -159,6 +188,10 @@ func TestDebugDialogIsTheConfirmation(t *testing.T) {
 	if b := findButton(w, "Debug"); b == nil || b.Disabled() {
 		t.Fatal("Debug is not armed")
 	}
+	if pr := dialogProfile(t, w); pr.Selected != "General" || !slices.Equal(pr.Options, []string{"General", "Restricted", "Netadmin"}) ||
+		dialogRights(w) != "the image's user, the runtime's default capabilities" {
+		t.Errorf("profile %q of %v, rights %q", pr.Selected, pr.Options, dialogRights(w))
+	}
 	image.SetText("registry.example/tools:2")
 	target.SetSelected("envoy")
 	q.drain()
@@ -166,7 +199,7 @@ func TestDebugDialogIsTheConfirmation(t *testing.T) {
 	q.until(t, "the container", func() bool { added, _ := writer.calls(); return len(added) == 1 })
 	added, uids := writer.calls()
 	if ec := added[0]; ec.Image != "registry.example/tools:2" || ec.TargetContainerName != "envoy" || !ec.Stdin || !ec.TTY ||
-		!slices.Equal(uids, []string{"uid-shop-web-1"}) {
+		ec.SecurityContext != nil || !slices.Equal(uids, []string{"uid-shop-web-1"}) {
 		t.Errorf("added %+v to %v", ec, uids)
 	}
 	if sh.confirmer.current != nil {
@@ -285,5 +318,28 @@ func TestDebugDialogShortNamePinBehind(t *testing.T) {
 	q.until(t, "the container", func() bool { added, _ := writer.calls(); return len(added) == 1 })
 	if added, _ := writer.calls(); added[0].Image != engine.DefaultDebugImage {
 		t.Errorf("added %q, want the pinned %q", added[0].Image, engine.DefaultDebugImage)
+	}
+}
+
+// TestDebugDialogRestricted: picking Restricted shows what it grants, the user the target's or
+// nobody; Debug adds the container with that security context, without a second dialog.
+func TestDebugDialogRestricted(t *testing.T) {
+	sh, w, q, _, writer, _ := debugShell(t, ThemeDark)
+	openDebug(t, sh, w, q)
+	user := engine.DebugUser(engine.DebugUsers(ephemeralPods()["web-1"]), "app")
+	dialogProfile(t, w).SetSelected("Restricted")
+	q.drain()
+	if got, want := dialogRights(w), fmt.Sprintf("user %d, no capabilities, no privilege escalation, seccomp RuntimeDefault", user); got != want {
+		t.Errorf("rights %q, want %q", got, want)
+	}
+	test.Tap(findButton(w, "Debug"))
+	q.until(t, "the container", func() bool { added, _ := writer.calls(); return len(added) == 1 })
+	added, _ := writer.calls()
+	if sc := added[0].SecurityContext; sc == nil || sc.RunAsUser == nil || *sc.RunAsUser != user || sc.Capabilities == nil ||
+		!slices.Equal(sc.Capabilities.Drop, []corev1.Capability{"ALL"}) {
+		t.Errorf("security context %+v", sc)
+	}
+	if sh.confirmer.current != nil {
+		t.Error("the engine's confirmation asked again")
 	}
 }

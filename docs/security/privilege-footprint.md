@@ -200,18 +200,28 @@ to it, as `kubectl debug -it <pod> --image=<image> --target=<container>` does
 [`engine/debugcontainer.go`](../../internal/engine/debugcontainer.go)):
 
 - **Confirmation.** Destructive for every origin; rows Context › Namespace › Pod, Target, what the
-  container sees of it, Image and Digest, and "This cannot be undone." (`DebugEffects`). The
-  window's Debug dialog is the confirmation, its answer bound to the pod's UID, the target and the
-  image; another pod under the name, another image or another context refuses it before anything is
-  sent (`TestDebugNeedsEveryOriginsConfirmation`).
+  container sees of it, Profile and the rights it grants, Image and Digest, and "This cannot be
+  undone." (`DebugEffects`). The window's Debug dialog is the confirmation, its answer bound to the
+  pod's UID, the target, the profile and the image; another pod under the name, another image,
+  other rights or another context refuses it before anything is sent
+  (`TestDebugNeedsEveryOriginsConfirmation`).
 - **Image.** Preferences › Kubernetes › Debug container image; the default `DefaultDebugImage`,
   `nicolaka/netshoot:v0.16` pinned by its index digest, which Renovate moves as the node shell's.
   Only the user sets it (`ErrDebugImageGUIOnly`); an agent's `pod.debug` may name any image, which
   its confirmation shows with its digest or as a floating tag.
 - **Container.** `debugger-<5 characters>`, stdin and a TTY, `terminationMessagePolicy: File`, the
-  image's command, `targetContainerName` the picked container. No security context of its own: the
-  image's user and the namespace's Pod Security level decide, and Pod Security admission, webhooks
-  and RBAC refuse with their own message (`TestRealDebugContainer`).
+  image's command, `targetContainerName` the picked container, the profile's security context
+  ([D-102](../developer/decisions.md#d-102-debug-containers-added-from-the-drawer-shown-in-blue-reached-by-logs-shell-and-attach),
+  `DebugSecurityContext`, `TestDebugProfiles`):
+
+  | Profile | Security context | Runs as |
+  |---|---|---|
+  | General | none of its own | the image's user (netshoot: root) with the runtime's default capabilities, as far as the pod's own settings allow |
+  | Restricted | `allowPrivilegeEscalation: false`, capabilities drop `ALL`, `runAsNonRoot: true`, `seccompProfile: RuntimeDefault` | the target's `runAsUser` from the spec, 65534 when that is root or unset |
+  | Netadmin | capabilities add `NET_ADMIN`, `NET_RAW` | the image's user |
+
+  Pod Security admission, policy engines and RBAC refuse with their own message
+  (`TestRealDebugContainer`); a namespace enforcing the restricted level preselects Restricted.
 - **Refused:** a pod that has ended or is being deleted, a target that is none of its containers or
   init containers, an image that is no reference.
 - **Cache first.** Debug waits for the new container in the pod's watch (30 s at most); the Attach

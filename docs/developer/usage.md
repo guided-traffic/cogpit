@@ -1762,10 +1762,24 @@ container to a running pod, as `kubectl debug -it <pod> --target=<container>` do
 ([D-102](decisions.md#d-102-debug-containers-added-from-the-drawer-shown-in-blue-reached-by-logs-shell-and-attach)):
 
 - **The dialog** is the confirmation: context, namespace, pod; **Target**, the container whose
-  processes it sees (the first preselected; None: no shared processes); **Image**, an editable field
-  prefilled from Preferences › Kubernetes › Debug container image; what it sees of the target
-  ("app's processes and files"); the image's digest, or that it is a floating tag. "This cannot be
-  undone." If the pod was replaced under its name meanwhile, nothing is added.
+  processes it sees (the first preselected; None: no shared processes); what it sees of the target
+  ("app's processes and files"); **Profile** and the **Rights** it grants; **Image**, an editable
+  field prefilled from Preferences › Kubernetes › Debug container image; the image's digest, or
+  that it is a floating tag. "This cannot be undone." If the pod was replaced under its name
+  meanwhile, nothing is added.
+- **Profiles**, as `kubectl debug --profile`:
+
+  | Profile | Rights | For |
+  |---|---|---|
+  | General | the image's user (netshoot: root), the runtime's default capabilities | everyday debugging |
+  | Restricted | the target's user (65534 when the pod names none or root), no capabilities, no privilege escalation, seccomp RuntimeDefault | namespaces enforcing Pod Security's restricted level, policies that refuse privileged ephemeral containers; preselected where the namespace carries `pod-security.kubernetes.io/enforce: restricted` |
+  | Netadmin | General's and `NET_ADMIN`, `NET_RAW` | `tcpdump`, `iptables`, `tc` |
+
+  Under Restricted netshoot runs without root: `tcpdump`, `ping` (unless the node allows it) and
+  reading a target that runs as another user fail. General in a pod whose spec sets
+  `runAsNonRoot: true` does not start with netshoot (it runs as root); pick Restricted there. Pod
+  Security admission checks the whole pod: a pod that does not meet the namespace's level itself
+  takes no debug container there, Restricted included.
 - **What is added:** `debugger-<5 characters>` with stdin and a terminal, sharing the target's
   processes; an **Attach** tab opens on it ("Waiting for debugger-… to start…" while the image is
   pulled). Closing the tab detaches; **Attach**, **Shell** and **Logs** in the pod's menus reach it
@@ -1782,10 +1796,10 @@ container to a running pod, as `kubectl debug -it <pod> --target=<container>` do
   only.
 - **Refusals:** greyed on a pod that has ended or is being deleted; "not permitted" without
   `patch pods/ephemeralcontainers` and `create pods/attach`. The cluster's own refusals show as
-  worded (a namespace enforcing the restricted Pod Security level refuses netshoot; an admission
-  policy may refuse it).
-- **Agents** run `pod_debug` with an image and target of their choice; it always waits for your
-  confirmation, with the same rows.
+  worded (a namespace enforcing the restricted Pod Security level, or an admission policy, refuses
+  General and Netadmin).
+- **Agents** run `pod_debug` with an image, target and profile (`general` when left out) of their
+  choice; it always waits for your confirmation, with the same rows.
 
 **Preferences › Kubernetes › Debug container image** (`debugImage`): `""` # default, meaning
 `docker.io/nicolaka/netshoot:v0.16@sha256:b09d9b21381f47a79b3cbcb30da25266dc17186ea00ae65e99fdc51396f48e70`,
@@ -1801,7 +1815,8 @@ set either image; agents and the CLI may only reset it.
 - The confirmations of a node shell and of an agent's Debug name the whole reference and its digest.
 
 Security note: with a target, the debug container reads that container's processes and through them
-its files, mounted Secrets included, as root with netshoot
+its files, mounted Secrets included, as root with netshoot under General, as the target's user
+under Restricted
 ([privilege footprint › Debug container](../security/privilege-footprint.md#debug-container)).
 
 ### A release's revisions

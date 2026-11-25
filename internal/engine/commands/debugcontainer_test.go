@@ -104,13 +104,15 @@ func TestDebugAddsTheConfirmedContainer(t *testing.T) {
 	want := []engine.Effect{
 		{Name: "Target", Value: "app", Tone: engine.EffectNames},
 		{Name: "Sees", Value: "app's processes and files", Tone: engine.EffectWarning},
+		{Name: "Profile", Value: "General"},
+		{Name: "Rights", Value: "the image's user, the runtime's default capabilities"},
 		{Name: "Image", Value: engine.DefaultDebugImage[:at], Tone: engine.EffectNames},
 		{Name: "Digest", Value: engine.DefaultDebugImage[at+1:]},
 	}
 	if !slices.Equal(req.Effects, want) {
 		t.Errorf("effects %+v,\nwant %+v", req.Effects, want)
 	}
-	if req.Detail != engine.DebugDetail("app", engine.DefaultDebugImage) {
+	if req.Detail != engine.DebugDetail("app", engine.DefaultDebugImage, engine.DebugGeneral, engine.DebugNobody) {
 		t.Errorf("detail %q", req.Detail)
 	}
 
@@ -121,10 +123,11 @@ func TestDebugAddsTheConfirmedContainer(t *testing.T) {
 	ec := srv.added[0]
 	if !strings.HasPrefix(ec.Name, engine.DebugContainerPrefix) || len(ec.Name) != len(engine.DebugContainerPrefix)+5 ||
 		ec.Name != strings.ToLower(ec.Name) || ec.Image != engine.DefaultDebugImage || !ec.Stdin || !ec.TTY || ec.StdinOnce ||
-		ec.TargetContainerName != "app" || ec.TerminationMessagePolicy != corev1.TerminationMessageReadFile || len(ec.Command) != 0 {
+		ec.TargetContainerName != "app" || ec.TerminationMessagePolicy != corev1.TerminationMessageReadFile || len(ec.Command) != 0 ||
+		ec.SecurityContext != nil {
 		t.Errorf("container %+v", ec)
 	}
-	if res.Container != ec.Name || res.Image != engine.DefaultDebugImage || res.Target != "app" || res.Tab == nil {
+	if res.Container != ec.Name || res.Image != engine.DefaultDebugImage || res.Target != "app" || res.Profile != "general" || res.Tab == nil {
 		t.Fatalf("result %+v", res)
 	}
 	if tab := *res.Tab; tab.Type != engine.DockAttach || tab.Container != ec.Name || tab.Ref == nil || !tab.Ref.Same(debugWeb0) ||
@@ -187,6 +190,7 @@ func TestDebugRefusals(t *testing.T) {
 		"image":      {map[string]any{"ref": debugWeb0, "image": "nicolaka/netshoot v0.16"}, "a reference without spaces"},
 		"url":        {map[string]any{"ref": debugWeb0, "image": "https://example.com/netshoot"}, "not a URL"},
 		"other uid":  {map[string]any{"ref": debugWeb0, "uid": "uid-of-another"}, "is not the one read"},
+		"profile":    {map[string]any{"ref": debugWeb0, "profile": "sysadmin"}, `no debug profile "sysadmin"`},
 		"other kind": {map[string]any{"ref": model.ObjectRef{Kind: "services", Namespace: "shop", Name: "checkout"}}, "applies to pods"},
 	} {
 		err := h.run(t, engine.OriginGUI, engine.DebugCommand, c.params, nil)
@@ -206,10 +210,18 @@ func TestDebugRefusals(t *testing.T) {
 }
 
 // TestDebugPrefill: the dialog starts from the Preferences' image (the user's own, else Cogpit's
-// default), the pod's first container as the target and the pod's UID, its reference with its
-// context named as the confirmation names it.
+// default), the pod's first container as the target, General, or Restricted where the namespace
+// enforces Pod Security's restricted level, and the pod's UID, its reference with its context
+// named as the confirmation names it.
 func TestDebugPrefill(t *testing.T) {
-	h, _ := debugHarness(t, nil)
+	src := seed()
+	strict := testkit.Namespace("infra")
+	strict.SetLabels(map[string]string{"pod-security.kubernetes.io/enforce": "restricted"})
+	src.Set(testkit.NamespacesGVR, strict)
+	h, _ := debugHarness(t, src)
+	if _, err := h.s.Objects(context.Background(), "namespaces", nil); err != nil { // the namespaces' cache, as the window holds it
+		t.Fatal(err)
+	}
 	cmd, _ := h.s.Registry().Get(engine.DebugCommand)
 	prefill := func() map[string]any {
 		raw, err := cmd.Prefill(h.s, cmd.ObjectParams(model.ObjectRef{Kind: "pods", Namespace: "shop", Name: "web-0"}, ""))
@@ -221,15 +233,19 @@ func TestDebugPrefill(t *testing.T) {
 		return p
 	}
 	p := prefill()
-	if p["image"] != engine.DefaultDebugImage || p["target"] != "app" || p["uid"] != "uid-shop-web-0" ||
+	if p["image"] != engine.DefaultDebugImage || p["target"] != "app" || p["uid"] != "uid-shop-web-0" || p["profile"] != "general" ||
 		p["ref"].(map[string]any)["context"] != "test" {
 		t.Errorf("prefill %v", p)
+	}
+	raw, err := cmd.Prefill(h.s, cmd.ObjectParams(model.ObjectRef{Kind: "pods", Namespace: "infra", Name: "web-0"}, ""))
+	if err != nil || !strings.Contains(string(raw), `"profile":"restricted"`) {
+		t.Errorf("prefill in a restricted namespace %s, %v", raw, err)
 	}
 	h.must(t, engine.OriginGUI, "preferences.set", map[string]any{"debugImage": "registry.example/tools:1"}, nil)
 	if p := prefill(); p["image"] != "registry.example/tools:1" {
 		t.Errorf("prefill with the user's image %v", p)
 	}
-	if fields := cmd.DialogFields(); !slices.Equal(fields, []string{"image", "target", "uid"}) {
+	if fields := cmd.DialogFields(); !slices.Equal(fields, []string{"image", "target", "profile", "uid"}) {
 		t.Errorf("dialog fields %v", fields)
 	}
 }
@@ -289,5 +305,40 @@ func TestDebugContainerReachedByLogsShellAndAttach(t *testing.T) {
 	m, err := h.s.Detail(debugWeb0)
 	if err != nil || !slices.Equal(m.EphemeralContainers, []string{name}) || !slices.Equal(m.Containers, []string{"app"}) {
 		t.Errorf("drawer model %v: %+v", err, m)
+	}
+}
+
+// TestDebugProfile: Restricted's container drops every capability, escalates no privilege, runs as
+// the target's user (nobody when only the image sets it) under seccomp RuntimeDefault, and its
+// confirmation says so; Netadmin's adds NET_ADMIN and NET_RAW.
+func TestDebugProfile(t *testing.T) {
+	src := seed()
+	pod := testkit.Pod("shop", "web-1")
+	pod.Object["spec"].(map[string]any)["securityContext"] = map[string]any{"runAsUser": int64(1000)}
+	src.Set(testkit.PodsGVR, pod)
+	h, conf := debugHarness(t, src)
+	web1 := model.ObjectRef{Kind: "pods", Namespace: "shop", Name: "web-1"}
+
+	var res commands.DebugResult
+	h.must(t, engine.OriginExternalAgent, engine.DebugCommand, map[string]any{"ref": web1, "target": "app", "profile": "restricted"}, &res)
+	if req := conf.last(t); !slices.Contains(req.Effects, engine.Effect{Name: "Profile", Value: "Restricted"}) ||
+		!slices.Contains(req.Effects, engine.Effect{Name: "Rights", Value: "user 1000, no capabilities, no privilege escalation, seccomp RuntimeDefault"}) {
+		t.Errorf("effects %+v", req.Effects)
+	}
+	srv := h.writer.debugServer()
+	sc := srv.added[0].SecurityContext
+	if res.Profile != "restricted" || sc == nil || sc.RunAsUser == nil || *sc.RunAsUser != 1000 || sc.AllowPrivilegeEscalation == nil ||
+		*sc.AllowPrivilegeEscalation || sc.Capabilities == nil || !slices.Equal(sc.Capabilities.Drop, []corev1.Capability{"ALL"}) {
+		t.Errorf("result %+v, security context %+v", res, sc)
+	}
+
+	h.must(t, engine.OriginGUI, engine.DebugCommand, map[string]any{"ref": debugWeb0, "profile": "restricted"}, nil)
+	if sc := srv.added[1].SecurityContext; sc == nil || sc.RunAsUser == nil || *sc.RunAsUser != engine.DebugNobody {
+		t.Errorf("without a user in the spec %+v", sc)
+	}
+	h.must(t, engine.OriginGUI, engine.DebugCommand, map[string]any{"ref": debugWeb0, "profile": "netadmin"}, nil)
+	if sc := srv.added[2].SecurityContext; sc == nil || sc.Capabilities == nil ||
+		!slices.Equal(sc.Capabilities.Add, []corev1.Capability{"NET_ADMIN", "NET_RAW"}) {
+		t.Errorf("netadmin %+v", sc)
 	}
 }

@@ -132,8 +132,10 @@ func TestDebugContainerNamesAndEffects(t *testing.T) {
 	if DefaultDebugImageName != "nicolaka/netshoot:v0.16" || !ImagePinned(DefaultDebugImage) {
 		t.Errorf("default %q, pinned %v", DefaultDebugImageName, ImagePinned(DefaultDebugImage))
 	}
-	got := DebugEffects("", "busybox:1.37")
-	want := []Effect{{Name: "Target", Value: "none"}, {Name: "Image", Value: "busybox:1.37", Tone: EffectNames},
+	got := DebugEffects("", "busybox:1.37", DebugGeneral, DebugNobody)
+	want := []Effect{{Name: "Target", Value: "none"}, {Name: "Profile", Value: "General"},
+		{Name: "Rights", Value: "the image's user, the runtime's default capabilities"},
+		{Name: "Image", Value: "busybox:1.37", Tone: EffectNames},
 		{Name: "Digest", Value: "none: a floating tag, what it runs can change without Cogpit knowing", Tone: EffectWarning}}
 	if len(got) != len(want) {
 		t.Fatalf("effects %+v", got)
