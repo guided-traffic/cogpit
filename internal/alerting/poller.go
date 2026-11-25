@@ -139,6 +139,7 @@ type Poller struct {
 	next     time.Time // when the next poll is due; zero: at once
 	failures int       // polls that failed in a row
 	gen      uint64    // counts address changes: a poll under an older address is not applied
+	asked    uint64    // counts SetSilences(true) and Refresh: one during a poll leaves the next due at once
 	started  bool      // the goroutine runs
 	closed   bool      // Close ran
 	wake     chan struct{}
@@ -268,6 +269,7 @@ func (p *Poller) SetSilences(on bool) {
 	p.silences = on
 	if on {
 		p.next = time.Time{}
+		p.asked++
 	}
 	p.mu.Unlock()
 	p.signal()
@@ -277,6 +279,7 @@ func (p *Poller) SetSilences(on bool) {
 func (p *Poller) Refresh() {
 	p.mu.Lock()
 	p.next = time.Time{}
+	p.asked++
 	p.mu.Unlock()
 	p.signal()
 }
@@ -376,7 +379,7 @@ func (p *Poller) run() {
 // next poll. A panic is recovered here, at the goroutine's boundary, and counts as a failure.
 func (p *Poller) poll() {
 	p.mu.Lock()
-	gen, addr, target, silences := p.gen, p.addr, p.target, p.silences
+	gen, asked, addr, target, silences := p.gen, p.asked, p.addr, p.target, p.silences
 	ctx, cancel := context.WithCancel(p.runCtx)
 	p.cancel = cancel
 	p.mu.Unlock()
@@ -399,7 +402,7 @@ func (p *Poller) poll() {
 	if ctx.Err() != nil && p.runCtx.Err() != nil {
 		return // closed
 	}
-	p.apply(gen, res)
+	p.apply(gen, asked, res)
 }
 
 // result is one poll's outcome.
@@ -529,8 +532,10 @@ func (p *Poller) fetchSilences(ctx context.Context, t Target) ([]Silence, string
 }
 
 // apply makes a poll's result the snapshot and schedules the next poll: the interval after an
-// answer, a backoff doubling from it after failures up to RetryMax, RetryMax while none is found.
-func (p *Poller) apply(gen uint64, res result) {
+// answer, a backoff doubling from it after failures up to RetryMax, RetryMax while none is found;
+// at once when the silences were asked for or a refresh came while it ran (asked, the count when
+// it started), which the poll did not answer.
+func (p *Poller) apply(gen, asked uint64, res result) {
 	now := p.opts.Now()
 	p.mu.Lock()
 	if p.closed || gen != p.gen {
@@ -576,6 +581,9 @@ func (p *Poller) apply(gen uint64, res result) {
 			}
 		}
 		p.next = now.Add(p.backoffLocked(res.notFound))
+	}
+	if p.asked != asked {
+		p.next = time.Time{}
 	}
 	p.snap = s
 	changed := p.noteLocked()

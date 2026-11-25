@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -241,4 +242,46 @@ func TestRequestErrorQuotesAlertmanager(t *testing.T) {
 	if len(e.Answer) > maxAnswer+len("…") {
 		t.Errorf("%d bytes quoted", len(e.Answer))
 	}
+}
+
+// Turned on while a poll runs (the alerts asked, the silences not), the silences are asked for
+// at once after it, not an interval later; a refresh during a poll likewise runs one at once.
+func TestPollerSilencesAskedDuringAPoll(t *testing.T) {
+	px := &fakeProxy{}
+	at := time.Now()
+	entered, release := make(chan struct{}), make(chan struct{})
+	var held atomic.Bool
+	alerts := wire(t, wireAlertOf("A", "critical", at, nil))
+	px.set("monitoring/alertmanager-operated:9093", func() ([]byte, error) {
+		if held.CompareAndSwap(false, true) { // the first poll waits for the test
+			close(entered)
+			<-release
+		}
+		return alerts, nil
+	})
+	px.silences = answer([]byte(`[]`))
+	p := newPoller(px, services(Service{Namespace: "monitoring", Name: "alertmanager-operated", Ports: []ServicePort{{Name: "web", Port: 9093}}}),
+		Options{Interval: time.Hour})
+	defer p.Close()
+	p.SetActive(true)
+	<-entered
+	p.SetSilences(true) // during the first poll, which does not ask for them
+	close(release)
+	waitFor(t, "the silences", func() bool { return !p.Snapshot().SilencesAsOf.IsZero() })
+
+	n := px.count()
+	entered2, release2 := make(chan struct{}), make(chan struct{})
+	var held2 atomic.Bool
+	px.set("monitoring/alertmanager-operated:9093", func() ([]byte, error) {
+		if held2.CompareAndSwap(false, true) {
+			close(entered2)
+			<-release2
+		}
+		return alerts, nil
+	})
+	p.Refresh()
+	<-entered2
+	p.Refresh() // during that poll
+	close(release2)
+	waitFor(t, "the poll after the refresh", func() bool { return px.count() >= n+4 }) // two polls, alerts and silences each
 }
