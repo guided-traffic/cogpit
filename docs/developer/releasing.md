@@ -461,13 +461,13 @@ Two jobs make it, so that no code from PyPI runs beside the signing identity:
    ([`dmg-template.sh`](../../hack/macos/dmg-template.sh)) installs dmgbuild, pinned by version and
    hash ([`dmgbuild-requirements.txt`](../../hack/macos/dmgbuild-requirements.txt)), into a throwaway
    virtual environment (Python 3.15 on CI, locally 3.10 or newer, `PYTHON` picks one) and writes
-   `Cogpit-<v>-template.dmg`: a writable HFS+ image of the volume "Cogpit <v>" with `.DS_Store`
+   `Cogpit-<v>-template.dmg`: a compressed (UDZO) HFS+ image of the volume "Cogpit <v>" with `.DS_Store`
    (written by dmgbuild without Finder, [`dmg_settings.py`](../../hack/macos/dmg_settings.py)),
    `.background.tiff`, `.VolumeIcon.icns` and the link to `/Applications`, no app; it travels in the
    artifact `macos-app`.
 2. **"Sign and submit (macOS)"** ([`release.sh`](../../hack/macos/release.sh) `build_dmg`, Apple's
-   tools only): checks the template (UDRW, the volume's name, exactly those four entries, the link's
-   target), resizes it, copies the signed app in with `ditto`, removes `.fseventsd`, converts it to
+   tools only): checks the template (UDZO), converts it to a writable UDRW image, checks the
+   volume's name, exactly those four entries and the link's target, resizes it, copies the signed app in with `ditto`, removes `.fseventsd`, converts it to
    UDZO (zlib level 9) and signs it. No Finder flag on the app: an extended attribute on the bundle
    fails `codesign`'s strict check.
 
