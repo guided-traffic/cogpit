@@ -39,7 +39,7 @@ const (
 	// tag and the digest (.github/renovate.json reads the comment below), and CI's kind job runs
 	// every such change in a pod (TestKindDebugContainer).
 	// renovate: datasource=docker depName=docker.io/nicolaka/netshoot
-	DefaultDebugImage = "docker.io/nicolaka/netshoot:v0.16@sha256:b09d9b21381f47a79b3cbcb30da25266dc17186ea00ae65e99fdc51396f48e70"
+	DefaultDebugImage = "docker.io/nicolaka/netshoot:v0.17@sha256:7c6d613e96cbd29bc74f2d1d35035eeb2ec5e7b1cfbbc3277bd697bc3db7b40a"
 
 	// DebugContainerPrefix starts a debug container's name, as kubectl debug names one.
 	DebugContainerPrefix = "debugger-"
